@@ -1486,6 +1486,7 @@ body:not([data-view=home]) .photo.has-img{filter:blur(14px)}
 .welcome .meta{margin:0 0 16px}
 .welcome .form{text-align:left}
 .welcome .wc-staff{display:block;margin:14px auto 2px;font-size:13px;opacity:.75}
+@media (max-width:1180px){.dcol>.gp{flex:none}}
 </style>
 </head>
 <body>
@@ -2101,7 +2102,6 @@ function renderHome(){
       <div class="dtitle"><h2>${esc(cfg.shopName||'DI-CUT')}</h2><p>${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?' · โทร '+esc(cfg.phone):''}</p><p>คิววันนี้ ${tdy} คิว · ว่างตอนนี้ ${free} คน</p></div>
       <div class="dspace"></div>
       <div class="pager" id="pager">${pagerHTML()}</div>
-      ${panelQuick()}
     </div>
     <div class="dcol dr">${panelDonut()}${panelWait()}</div>
   </div>`;

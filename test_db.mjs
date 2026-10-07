@@ -40,3 +40,13 @@ res = await line.fetch(new Request('https://h/api/line', { method: 'POST', body,
 res = await line.fetch(new Request('https://h/api/line', { method: 'POST', body, headers: { 'x-line-signature': crypto.createHmac('sha256', 'cs').update(body).digest('base64') } })); assert.equal(res.status, 200, 'LINE verify (empty events) passes');
 res = await tick.fetch(new Request('https://h/api/tick')); assert.equal(res.status, 401);
 console.log('endpoints: OK');
+{ // members count reads the total from Content-Range
+  const mc = []; const mf = async (url, o) => { mc.push({ url, o }); return { ok: true, status: 206, headers: { get: k => k === 'content-range' ? '0-0/42' : null }, text: async () => '[]' }; };
+  const mdb = supabaseDb({ url: 'https://x.supabase.co', key: 'sb_secret_abc', fetchImpl: mf });
+  assert.equal(await mdb.countMembers(), 42); assert.equal(mc[0].o.headers.Prefer, 'count=exact'); assert.equal(mc[0].o.headers.apikey, 'sb_secret_abc');
+  await mdb.countMembers(1000); assert(mc[1].url.endsWith('&created_at=gte.1000'));
+  await mdb.addMember({ phoneKey: '0861112222', name: 'โจ้', createdAt: 5 }, false);
+  assert(mc[2].url.endsWith('members?on_conflict=phone_key') && /ignore-duplicates/.test(mc[2].o.headers.Prefer));
+  const nf = await (await app.fetch(new Request('https://h/api/app?a=members'))).json(); assert(nf.ok && nf.count === null, 'members without DB: count null, no crash');
+  console.log('members adapter: OK');
+}

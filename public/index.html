@@ -1491,6 +1491,18 @@ body:not([data-view=home]) .photo.has-img{filter:blur(14px)}
 html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button,a,[role=button]{touch-action:manipulation}
 @media (max-width:760px){input,select,textarea{font-size:16px!important}}
+/* members counter (home, everyone sees it) */
+.gp-m{flex-direction:row;align-items:center;gap:16px;padding:16px 22px;margin-top:14px;width:100%;max-width:440px;align-self:center}
+.pm-ic{flex:none;width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:var(--ink);color:#F2D676}
+.pm-main{flex:1;min-width:0;display:grid;gap:2px}
+.pm-main small{font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-num{display:flex;align-items:baseline;gap:6px}
+.pm-num strong{font-family:var(--fd);font-weight:400;font-size:2.1rem;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pm-num span{font-size:.9rem;color:var(--muted)}
+.pm-side{display:grid;justify-items:end;gap:6px;text-align:right}
+.pm-new{font-size:.78rem;font-weight:600;padding:4px 10px;border-radius:99px;background:#F2D676;color:#2B2622}
+.pm-me{display:inline-flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);white-space:nowrap}
+@media (max-width:1180px){.gp-m{margin-top:6px}}
 </style>
 </head>
 <body>
@@ -1856,6 +1868,7 @@ function quickHTML(){
 
 /* ---------- icons (lucide, ISC) ---------- */
 const ICONS={
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   image:'<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   'chevron-left':'<path d="m15 18-6-6 6-6"/>','chevron-right':'<path d="m9 18 6-6-6-6"/>',
   scissors:'<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
@@ -2063,6 +2076,21 @@ function panelWait(){
     <div class="trio"><div><small>ว่างตอนนี้</small><b>${free}/${bs.length} คน</b></div><div class="big"><strong>${next!=null?fmt(next):'—'}</strong><small>คิวว่างถัดไป</small></div><div><small>รับคิวถึง</small><b>${last!=null?fmt(last):'—'}</b></div></div>
   </article>`;
 }
+let memberStat=null; // {count,today} from the backend when connected
+function localMembers(){
+  const ks=new Set(Object.keys(customers).filter(k=>k.length>=9)); bookings.forEach(b=>{const k=phoneKey(b.phone||'');if(k.length>=9)ks.add(k)});
+  const t0=fromKey(today()).getTime(); let td=0; ks.forEach(k=>{const c=customers[k];if(c&&c.createdAt>=t0)td++});
+  return {count:ks.size,today:td};
+}
+const memberNums=()=>memberStat&&memberStat.count!=null?memberStat:{count:localMembers().count,today:0}; // 'new today' only when the shop server counts it
+function panelMembers(){
+  const m=memberNums();
+  return `<article class="gp gp-m"><div class="pm-ic">${ic('users',22)}</div>
+    <div class="pm-main"><small>สมาชิกทั้งหมด</small><div class="pm-num"><strong>${m.count.toLocaleString('th-TH')}</strong><span>ท่าน</span></div></div>
+    <div class="pm-side">${m.today>0?`<span class="pm-new">+${m.today} วันนี้</span>`:''}${custMe?`<span class="pm-me">${ic('check',14)}คุณเป็นสมาชิกแล้ว</span>`:''}</div>
+  </article>`;
+}
+async function pullMembers(){if(!BACKEND())return;try{const r=await api({a:'members'},true);if(r&&r.ok&&r.count!=null){memberStat={count:r.count,today:r.today||0};if(view==='home')renderHome()}}catch(_){}}
 function panelQuick(){
   const d=selDur()||30, date=sel.date, bid=sel.barber;
   const bs=cfg.barbers.filter(b=>(bid==='any'||b.id===bid)&&works(b,date));
@@ -2106,6 +2134,7 @@ function renderHome(){
       <div class="dtitle"><h2>${esc(cfg.shopName||'DI-CUT')}</h2><p>${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?' · โทร '+esc(cfg.phone):''}</p><p>คิววันนี้ ${tdy} คิว · ว่างตอนนี้ ${free} คน</p></div>
       <div class="dspace"></div>
       <div class="pager" id="pager">${pagerHTML()}</div>
+      ${panelMembers()}
     </div>
     <div class="dcol dr">${panelDonut()}${panelWait()}</div>
   </div>`;
@@ -3587,7 +3616,7 @@ async function lineMine(phone){ // customer profile lookup when shop data lives 
   try{const r=await api({a:'mine',phone});if(r.ok){r.bookings.forEach(sb=>{const lb=bookings.find(x=>x.id===sb.id);if(lb)Object.assign(lb,sb);else bookings.push(sb);sync.snap[sb.id]=stab(bookings.find(x=>x.id===sb.id))});saveJSON(KEY,bookings)}}catch(e){}
 }
 setInterval(()=>{if(sync.on&&!document.hidden){if(Object.keys(sync.queue).length)flushSync();else pullNow()}},10000);
-setInterval(()=>{if(sync.on&&!document.hidden)pullAppCfg()},60000);
+setInterval(()=>{if(sync.on&&!document.hidden){pullAppCfg();pullMembers()}},60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sync.on)pullNow()});
 
 /* ---------- in-app LINE preview (same messages & buttons as the real one) ---------- */
@@ -3838,15 +3867,20 @@ async function saveWelcome(){
   const bad=!n?'ใส่ชื่อเล่นก่อนนะครับ':phoneKey(p).length<9||phoneKey(p).length>10?'ใส่เบอร์โทรให้ครบ':'';
   if(bad){e.textContent=bad;e.hidden=false;return}
   if(go.disabled)return; go.disabled=true;
+  const mine=custMe&&phoneKey(custMe.phone)===phoneKey(p), taken='เบอร์นี้มีคนลงทะเบียนไว้แล้ว<br>ถ้าเป็นเบอร์ของคุณ ใส่ชื่อเล่นเดียวกับที่เคยจองไว้ หรือติดต่อร้าน';
+  let srv=null;
+  if(BACKEND()){try{srv=await api({a:'join',name:n,phone:p,oldPhone:mine?custMe.phone:''})}catch(_){srv=null}}
   try{if(sync&&sync.on&&!lineStaffKey())await lineMine(p)}catch(_){}
   go.disabled=false;
-  const mine=custMe&&phoneKey(custMe.phone)===phoneKey(p), owner=phoneOwner(p);
-  if(!mine&&owner&&nickKey(owner)!==nickKey(n)){e.innerHTML='เบอร์นี้มีคนลงทะเบียนไว้แล้ว<br>ถ้าเป็นเบอร์ของคุณ ใส่ชื่อเล่นเดียวกับที่เคยจองไว้ หรือติดต่อร้าน';e.hidden=false;return}
-  const back=!mine&&!!owner;
+  if(srv&&!srv.ok&&srv.error==='phone_taken'){e.innerHTML=taken;e.hidden=false;return}
+  const owner=phoneOwner(p);
+  if(!mine&&owner&&nickKey(owner)!==nickKey(n)){e.innerHTML=taken;e.hidden=false;return}
+  if(srv&&srv.ok&&srv.count!=null)memberStat={count:srv.count,today:srv.today||0};
+  const back=srv&&srv.ok?!!srv.back:!mine&&!!owner;
   const old=custMe;custMe={name:n,phone:p};saveJSON('barber-me',custMe);upsertCustomer(n,p);if(mine){const c=customers[phoneKey(p)];if(c&&c.name!==n){c.name=n;saveCu()}}
   if(!sel.name||(old&&sel.name===old.name))sel.name=n; if(!sel.phone||(old&&sel.phone===old.phone))sel.phone=p;
   if(old&&phoneKey(old.phone)!==phoneKey(p))myLookup=null;
-  delete dlg.dataset.welcome;dlg.close();renderCustomer();if(view==='mine')renderMine();toast(back?'ยินดีต้อนรับกลับ คุณ'+n:'สวัสดีคุณ'+n+' จองคิวได้เลย');
+  delete dlg.dataset.welcome;dlg.close();renderCustomer();if(view==='mine')renderMine();toast(back?'ยินดีต้อนรับกลับ คุณ'+n:'สวัสดีคุณ'+n+' จองคิวได้เลย');if(view==='home')renderHome();
 }
 const needWelcome=()=>!custMe&&!user;
 dlg.addEventListener('cancel',e=>{if(dlg.dataset.welcome)e.preventDefault()});
@@ -3859,7 +3893,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='wcNa
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
 document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false});
 document.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
-updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false);
+updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false); pullMembers();
 if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
 gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx()});
 syncIndicators(); indObs.observe(document.body,{childList:true,subtree:true});

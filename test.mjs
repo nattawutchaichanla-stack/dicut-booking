@@ -128,3 +128,24 @@ ok((await post({ a: 'appcfg', key: 'bad', cfg: {} })).ok === false, 'only staff 
 const ac = (await get({ a: 'appcfg' })).app;
 ok(ac.cfg.services[0].price === 160 && !JSON.stringify(ac).includes('9999') && !JSON.stringify(ac).includes('1111') && !ac.cfg.line, 'phones get settings without PINs/keys');
 console.log('\nALL ' + pass + ' CHECKS PASSED');
+
+// members
+{
+  const m0 = await get({ a: 'members' });
+  ok(m0.ok && typeof m0.count === 'number', 'members count available');
+  let j = await post({ a: 'join', name: 'โจ้', phone: '0861112222' });
+  ok(j.ok && j.count === m0.count + 1 && !j.back, 'new member joins and count goes up');
+  j = await post({ a: 'join', name: 'คนอื่น', phone: '086-111-2222' });
+  ok(!j.ok && j.error === 'phone_taken', 'same phone with a different nickname is refused');
+  j = await post({ a: 'join', name: 'พี่โจ้', phone: '0861112222' });
+  ok(j.ok && j.back && j.count === m0.count + 1, 'same phone + same nickname (ignoring พี่) is a returning member');
+  j = await post({ a: 'join', name: 'โจ้ใหม่', phone: '0861112222', oldPhone: '0861112222' });
+  ok(j.ok && (await db.getMember('0861112222')).name === 'โจ้ใหม่', 'member can rename their own number');
+  ok((await post({ a: 'join', name: '', phone: '0861112222' })).ok === false, 'join needs a nickname');
+  const before = (await get({ a: 'members' })).count;
+  await post({ a: 'create', booking: { id: 'MEM1', date: '2026-10-08', start: 700, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'บอย', phone: '0870009999' } });
+  ok((await get({ a: 'members' })).count === before + 1, 'booking with a new phone adds a member');
+  const t = await get({ a: 'members' });
+  ok(t.today >= 2, 'members joined today are counted');
+}
+console.log('\n' + pass + ' checks passed');

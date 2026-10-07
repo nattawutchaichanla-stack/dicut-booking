@@ -31,10 +31,19 @@ create table if not exists staff (
 
 create table if not exists kv (key text primary key, value jsonb);
 
+-- customers who registered in the app or booked (one row per phone)
+create table if not exists members (
+  phone_key  text primary key,             -- digits only
+  name       text not null,
+  created_at bigint not null
+);
+create index if not exists members_created on members (created_at);
+
 -- only the server (secret key) may read/write; the public anon key gets nothing
 alter table bookings enable row level security;
 alter table staff    enable row level security;
 alter table kv       enable row level security;
+alter table members  enable row level security;
 
 -- public bucket for payment slips (file names are random)
 insert into storage.buckets (id, name, public) values ('slips', 'slips', true) on conflict (id) do nothing;

@@ -1479,6 +1479,13 @@ body:not([data-view=home]) .photo.has-img{filter:blur(14px)}
 .wbar{background:color-mix(in srgb,var(--surface) 90%,transparent)!important}
 .ad:not(.has-img){background:radial-gradient(circle at 88% 18%,rgba(255,255,255,.12) 0 1.3px,transparent 1.7px) 0 0/10px 10px,linear-gradient(135deg,#7A6650 0%,#4A4038 55%,#2E2925 100%)!important}
 .wbar.idle{display:none!important}
+/* first-visit welcome */
+.welcome{text-align:center}
+.welcome .wc-ic{width:58px;height:58px;border-radius:18px;margin:4px auto 12px;display:grid;place-items:center;background:var(--ink);color:#F2D676}
+.welcome h3{margin:0 0 6px}
+.welcome .meta{margin:0 0 16px}
+.welcome .form{text-align:left}
+.welcome .wc-staff{display:block;margin:14px auto 2px;font-size:13px;opacity:.75}
 </style>
 </head>
 <body>
@@ -1746,6 +1753,7 @@ function loadJSON(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):
 function saveJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 let bookings=loadJSON(KEY); if(!Array.isArray(bookings))bookings=window.BACKEND_URL?[]:seed();
 let user=loadJSON('barber-session');
+let custMe=loadJSON('barber-me'); // {name,phone} entered on first visit
 const isOwner=()=>user&&user.role==='owner';
 const canManage=bk=>!!user&&(user.role==='owner'||user.id===bk.barberId);
 const pinOf=b=>b.pin||'1234', ownerPin=()=>cfg.ownerPin||'0000';
@@ -1921,7 +1929,7 @@ function openViewsMenu(anchor){
 }
 function openMeSheet(){
   const th=curTheme(), me=user?(isOwner()?{name:'เจ้าของร้าน'}:barber(user.id)):null;
-  showSheet(`<div class="mesheet">${me?`<div class="phead sm">${avatar(me.name,me.photo,'xl')}<div><h3>${esc(me.name)}</h3><p class="meta">${esc(cfg.shopName||'')} · ${esc(cfg.branch||'')}</p></div></div>`:`<h3>เมนู</h3>`}
+  showSheet(`<div class="mesheet">${me?`<div class="phead sm">${avatar(me.name,me.photo,'xl')}<div><h3>${esc(me.name)}</h3><p class="meta">${esc(cfg.shopName||'')} · ${esc(cfg.branch||'')}</p></div></div>`:custMe?`<h3>สวัสดี คุณ${esc(custMe.name)}</h3><p class="meta" style="margin:-4px 0 4px">${esc(custMe.phone)} · <button class="linkbtn" data-me="who">แก้ชื่อ/เบอร์</button></p>`:`<h3>เมนู</h3>`}
     <div class="melist">${user?`<button data-me="line">${ic('bell',20)}<span>แชต LINE ของร้าน</span>${ic('arrow-ur',18)}</button>
       ${!isOwner()?`<button data-me="prof">${ic('user',20)}<span>โปรไฟล์ช่างของฉัน</span>${ic('arrow-ur',18)}</button>`:`<button data-me="shop">${ic('settings',20)}<span>ตั้งค่าร้าน</span>${ic('arrow-ur',18)}</button>`}`
       :`<button data-me="mine">${ic('user',20)}<span>โปรไฟล์ของฉัน (แต้มสะสม)</span>${ic('arrow-ur',18)}</button><button data-me="login">${ic('log-in',20)}<span>เข้าสู่ระบบช่าง / เจ้าของร้าน</span>${ic('arrow-ur',18)}</button>`}
@@ -1939,6 +1947,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
     else if(a==='shop'){dlg.close();setView('shop')}
     else if(a==='mine'){dlg.close();setView('mine')}
     else if(a==='login'){openLogin()}
+    else if(a==='who'){openWelcome(true)}
     else if(a==='logout'){dlg.close();document.getElementById('logout')?.click()}}
   else if(t.dataset.dk==='back'){setView(prevView&&prevView!==view?prevView:'home')}
   else if(t.dataset.dk==='views'){const p=document.getElementById('pop');if(!p.hidden&&p.dataset.for==='views'){closePop();return}openViewsMenu(t);p.dataset.for='views'}
@@ -2246,7 +2255,7 @@ function ccard(o){
 }
 const durTxt=m=>m>=1440?Math.floor(m/1440)+' วัน '+(Math.floor(m%1440/60)?Math.floor(m%1440/60)+' ชม.':''):dur(Math.max(0,m));
 /* ---------- customer: booking wizard ---------- */
-const newSel=(k={})=>({wk:0,step:1,services:[],barber:'any',date:today(),time:null,quick:false,name:k.name||'',phone:k.phone||'',note:'',code:'',useLoy:true,slip:'',slipAmt:0,cashPaid:false,payNow:true});
+const newSel=(k={})=>({wk:0,step:1,services:[],barber:'any',date:today(),time:null,quick:false,name:k.name||(custMe&&custMe.name)||'',phone:k.phone||(custMe&&custMe.phone)||'',note:'',code:'',useLoy:true,slip:'',slipAmt:0,cashPaid:false,payNow:true});
 let sel=newSel(), lastBooking=null;
 const STEPS=['บริการ','ช่าง','วันเวลา','ยืนยัน'], MAXDUR=180;
 const selDur=()=>sel.services.reduce((a,id)=>a+svc(id).min,0);
@@ -3145,6 +3154,7 @@ function renderMine(){
     <p class="hint" style="margin-bottom:12px">ใส่เบอร์โทรที่ใช้ตอนจอง</p>
     <div class="form"><label>เบอร์โทร<input id="myPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="08x-xxx-xxxx"></label>
     <p class="err" id="myErr" hidden></p><button class="primary" id="myFind">${ic('search',18)}ดูประวัติของฉัน</button></div></section><div id="myOut"></div>`;
+  if(custMe){const i=document.getElementById('myPhone');if(i&&!i.value)i.value=custMe.phone;if(!myLookup){const k=findMe(custMe.phone);if(k)myLookup={k}}}
   renderMyOut();
 }
 function renderMyOut(){expireHolds();
@@ -3328,6 +3338,7 @@ function setStatus(b,v){
   renderAdmin();toast(msg);return true;
 }
 dlg.addEventListener('click',e=>{
+  if(dlg.dataset.welcome&&e.target===dlg)return;
   {const r=e.target.closest('[data-release]');if(r){releaseQueue(r.dataset.release);return}
    const u=e.target.closest('[data-usecredit]');if(u){const k=phoneKey(u.dataset.usecredit);bookings.forEach(x=>{if(x.credit>0&&!x.creditUsed&&phoneKey(x.phone||'')===k)x.creditUsed=true});save();dlg.close();renderAdmin();toast('หักเครดิตลูกค้าแล้ว');return}}
   if(e.target===dlg||e.target.closest('[data-close]'))return dlg.close();
@@ -3798,7 +3809,38 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
 secLine=document.createElement('div');secLine.id='secLine';secLine.dataset.v='shop';app.insertBefore(secLine,secGfx||secPromos);
 app.addEventListener('toggle',e=>{if(e.target.id==='lineDet')lineOpen=e.target.open},true);
 
+
+/* ---------- first visit: ask nickname + phone ---------- */
+function openWelcome(edit){
+  dlg.innerHTML=`<div class="welcome"><div class="wc-ic">${ic('scissors',26)}</div>
+    <h3>${edit?'แก้ชื่อ/เบอร์ของฉัน':'ยินดีต้อนรับสู่ '+esc(cfg.shopName||'ร้านของเรา')}</h3>
+    <p class="meta">${edit?'ใช้สำหรับจองคิวและดูแต้มสะสม':'ใส่ชื่อเล่นกับเบอร์โทรครั้งเดียว ใช้จองคิวและสะสมแต้มได้เลย'}</p>
+    <div class="form"><label>ชื่อเล่น<input id="wcName" autocomplete="nickname" maxlength="30" placeholder="เช่น ต้น" value="${esc(custMe?.name||'')}"></label>
+    <label>เบอร์โทร<input id="wcPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="12" placeholder="08x-xxx-xxxx" value="${esc(custMe?.phone||'')}"></label>
+    <p class="err" id="wcErr" hidden></p>
+    <button class="primary" id="wcGo">${edit?'บันทึก':'เริ่มใช้งาน'}</button></div>
+    ${edit?'<button data-close class="ghost" style="width:100%;margin-top:8px">ยกเลิก</button>':'<button class="linkbtn wc-staff" id="wcStaff">ช่าง / เจ้าของร้าน เข้าสู่ระบบ</button>'}</div>`;
+  dlg.classList.add('wide');dlg.dataset.id='';if(edit)delete dlg.dataset.welcome;else dlg.dataset.welcome='1';
+  if(!dlg.open)dlg.showModal();setTimeout(()=>document.getElementById('wcName')?.focus(),60);
+}
+function saveWelcome(){
+  const n=document.getElementById('wcName').value.trim(), p=document.getElementById('wcPhone').value.trim(), e=document.getElementById('wcErr');
+  const bad=!n?'ใส่ชื่อเล่นก่อนนะครับ':phoneKey(p).length<9||phoneKey(p).length>10?'ใส่เบอร์โทรให้ครบ':'';
+  if(bad){e.textContent=bad;e.hidden=false;return}
+  const old=custMe;custMe={name:n,phone:p};saveJSON('barber-me',custMe);upsertCustomer(n,p);
+  if(!sel.name||(old&&sel.name===old.name))sel.name=n; if(!sel.phone||(old&&sel.phone===old.phone))sel.phone=p;
+  if(old&&phoneKey(old.phone)!==phoneKey(p))myLookup=null;
+  delete dlg.dataset.welcome;dlg.close();renderCustomer();if(view==='mine')renderMine();toast('สวัสดีคุณ'+n+' จองคิวได้เลย');
+}
+const needWelcome=()=>!custMe&&!user;
+dlg.addEventListener('cancel',e=>{if(dlg.dataset.welcome)e.preventDefault()});
+dlg.addEventListener('close',()=>{delete dlg.dataset.welcome;if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},250)});
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.id==='wcGo')saveWelcome();
+  else if(t.id==='wcStaff'){delete dlg.dataset.welcome;openLogin()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='wcName'||e.target.id==='wcPhone')){e.preventDefault();if(e.target.id==='wcName')document.getElementById('wcPhone').focus();else saveWelcome()}});
 updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false);
+if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
 gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx()});
 syncIndicators(); indObs.observe(document.body,{childList:true,subtree:true});
 

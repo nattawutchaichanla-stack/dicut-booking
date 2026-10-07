@@ -3827,14 +3827,26 @@ function openWelcome(edit){
   dlg.classList.add('wide');dlg.dataset.id='';if(edit)delete dlg.dataset.welcome;else dlg.dataset.welcome='1';
   if(!dlg.open)dlg.showModal();setTimeout(()=>document.getElementById('wcName')?.focus(),60);
 }
-function saveWelcome(){
-  const n=document.getElementById('wcName').value.trim(), p=document.getElementById('wcPhone').value.trim(), e=document.getElementById('wcErr');
+const nickKey=n=>String(n||'').trim().toLowerCase().replace(/^(คุณ|พี่|น้อง|k\.|khun)\s*/,'').replace(/[\s.]+/g,'');
+function phoneOwner(p){ // nickname already registered to this phone (customer record or past bookings), '' if none
+  const k=phoneKey(p), c=customers[k]; if(c&&c.name)return c.name;
+  const b=bookings.filter(x=>phoneKey(x.phone||'')===k&&x.name).sort((a,c)=>(c.date||'').localeCompare(a.date||''))[0];
+  return b?b.name:'';
+}
+async function saveWelcome(){
+  const n=document.getElementById('wcName').value.trim(), p=document.getElementById('wcPhone').value.trim(), e=document.getElementById('wcErr'), go=document.getElementById('wcGo');
   const bad=!n?'ใส่ชื่อเล่นก่อนนะครับ':phoneKey(p).length<9||phoneKey(p).length>10?'ใส่เบอร์โทรให้ครบ':'';
   if(bad){e.textContent=bad;e.hidden=false;return}
-  const old=custMe;custMe={name:n,phone:p};saveJSON('barber-me',custMe);upsertCustomer(n,p);
+  if(go.disabled)return; go.disabled=true;
+  try{if(sync&&sync.on&&!lineStaffKey())await lineMine(p)}catch(_){}
+  go.disabled=false;
+  const mine=custMe&&phoneKey(custMe.phone)===phoneKey(p), owner=phoneOwner(p);
+  if(!mine&&owner&&nickKey(owner)!==nickKey(n)){e.innerHTML='เบอร์นี้มีคนลงทะเบียนไว้แล้ว<br>ถ้าเป็นเบอร์ของคุณ ใส่ชื่อเล่นเดียวกับที่เคยจองไว้ หรือติดต่อร้าน';e.hidden=false;return}
+  const back=!mine&&!!owner;
+  const old=custMe;custMe={name:n,phone:p};saveJSON('barber-me',custMe);upsertCustomer(n,p);if(mine){const c=customers[phoneKey(p)];if(c&&c.name!==n){c.name=n;saveCu()}}
   if(!sel.name||(old&&sel.name===old.name))sel.name=n; if(!sel.phone||(old&&sel.phone===old.phone))sel.phone=p;
   if(old&&phoneKey(old.phone)!==phoneKey(p))myLookup=null;
-  delete dlg.dataset.welcome;dlg.close();renderCustomer();if(view==='mine')renderMine();toast('สวัสดีคุณ'+n+' จองคิวได้เลย');
+  delete dlg.dataset.welcome;dlg.close();renderCustomer();if(view==='mine')renderMine();toast(back?'ยินดีต้อนรับกลับ คุณ'+n:'สวัสดีคุณ'+n+' จองคิวได้เลย');
 }
 const needWelcome=()=>!custMe&&!user;
 dlg.addEventListener('cancel',e=>{if(dlg.dataset.welcome)e.preventDefault()});

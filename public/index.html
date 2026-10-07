@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>DI-CUT จองคิว</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1487,6 +1487,10 @@ body:not([data-view=home]) .photo.has-img{filter:blur(14px)}
 .welcome .form{text-align:left}
 .welcome .wc-staff{display:block;margin:14px auto 2px;font-size:13px;opacity:.75}
 @media (max-width:1180px){.dcol>.gp{flex:none}}
+/* no pinch / double-tap zoom; iOS zooms into inputs under 16px, so keep them at 16px */
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,a,[role=button]{touch-action:manipulation}
+@media (max-width:760px){input,select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>
@@ -3839,6 +3843,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
   if(t.id==='wcGo')saveWelcome();
   else if(t.id==='wcStaff'){delete dlg.dataset.welcome;openLogin()}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='wcName'||e.target.id==='wcPhone')){e.preventDefault();if(e.target.id==='wcName')document.getElementById('wcPhone').focus();else saveWelcome()}});
+/* ---------- lock zoom: behave like a phone app ---------- */
+['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false});
+document.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
 updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false);
 if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
 gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx()});

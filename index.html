@@ -1549,6 +1549,13 @@ dialog.chatdlg{width:min(96vw,480px);padding:18px!important}
 .cl-row.unread{background:#FFF6D6}
 .cl-tx{flex:1;min-width:0;display:grid;gap:2px}.cl-tx small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cl-meta{display:grid;justify-items:end;gap:4px}.cl-meta small{font-size:.72rem;color:var(--muted)}
+/* discreet staff sign-in (lock on the right edge) */
+.stk{position:fixed;right:0;top:46%;z-index:40;width:26px;height:44px;border:0;border-radius:14px 0 0 14px;background:rgba(43,38,34,.28);color:rgba(255,255,255,.75);display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.stk:hover,.stk:focus-visible{background:rgba(43,38,34,.7);color:#F2D676}
+.stk[hidden]{display:none}
+.welcome{position:relative}
+.stk-in{position:absolute;top:-10px;right:-10px;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:var(--muted);opacity:.45;display:grid;place-items:center;cursor:pointer}
+.stk-in:hover{opacity:1}
 </style>
 </head>
 <body>
@@ -1975,7 +1982,12 @@ function shopLoad(date){ // minutes of capacity and booked minutes, per hour and
 const pctOf=d=>shopLoad(d).pct;
 
 /* ---------- dock + page dots ---------- */
-function renderTabs(){
+function renderStaffKey(){ // small lock on the screen edge: staff/owner sign-in, out of customers' way
+  let b=document.getElementById('stk');
+  if(!b){b=document.createElement('button');b.id='stk';b.className='stk';b.setAttribute('aria-label','สำหรับพนักงาน');b.title='สำหรับพนักงาน';b.innerHTML=ic('lock',14);b.onclick=()=>openLogin();document.body.appendChild(b)}
+  b.hidden=!!user;
+}
+function renderTabs(){renderStaffKey();
   const tabs=tabsFor(), [vt]=VIEW_TITLE[view]||[''];
   const cnt=user?bookings.filter(b=>b.date===today()&&blocking(b)).length:daySlots('any',today(),30).length;
   const logo=G('logo')?`<i class="dk-logo img" style="${gbg('logo')}"></i>`:`<i class="dk-logo">${ic('scissors',18)}</i>`;
@@ -2027,7 +2039,7 @@ function openMeSheet(){
   showSheet(`<div class="mesheet">${me?`<div class="phead sm">${avatar(me.name,me.photo,'xl')}<div><h3>${esc(me.name)}</h3><p class="meta">${esc(cfg.shopName||'')} · ${esc(cfg.branch||'')}</p></div></div>`:custMe?`<h3>สวัสดี คุณ${esc(custMe.name)}</h3><p class="meta" style="margin:-4px 0 4px">${esc(custMe.phone)} · <button class="linkbtn" data-me="who">แก้ชื่อ/เบอร์</button></p>`:`<h3>เมนู</h3>`}
     <div class="melist">${user&&BACKEND()?`<button data-chatlist>${ic('chat',20)}<span>แชทลูกค้า${chatState.staffUnread?` <em class="ct-badge">${chatState.staffUnread}</em>`:''}</span>${ic('arrow-ur',18)}</button>`:''}${user?`<button data-me="line">${ic('bell',20)}<span>แชต LINE ของร้าน</span>${ic('arrow-ur',18)}</button>
       ${!isOwner()?`<button data-me="prof">${ic('user',20)}<span>โปรไฟล์ช่างของฉัน</span>${ic('arrow-ur',18)}</button>`:`<button data-me="shop">${ic('settings',20)}<span>ตั้งค่าร้าน</span>${ic('arrow-ur',18)}</button>`}`
-      :`<button data-me="mine">${ic('user',20)}<span>โปรไฟล์ของฉัน (แต้มสะสม)</span>${ic('arrow-ur',18)}</button><button data-me="login">${ic('log-in',20)}<span>เข้าสู่ระบบช่าง / เจ้าของร้าน</span>${ic('arrow-ur',18)}</button>`}
+      :`<button data-me="mine">${ic('user',20)}<span>โปรไฟล์ของฉัน (แต้มสะสม)</span>${ic('arrow-ur',18)}</button>`}
       <button data-contact>${ic('help',20)}<span>ติดต่อเจ้าหน้าที่</span>${ic('arrow-ur',18)}</button>
       <div class="meseg" role="group" aria-label="ธีม"><button data-theme-set="light" aria-pressed="${th==='light'&&!!document.documentElement.dataset.theme}">${ic('sun',18)}สว่าง</button><button data-theme-set="dark" aria-pressed="${th==='dark'&&!!document.documentElement.dataset.theme}">${ic('moon',18)}มืด</button><button data-theme-set="" aria-pressed="${!document.documentElement.dataset.theme}">ตามเครื่อง</button></div>
       ${user?`<button data-me="logout" class="danger">${ic('log-out',20)}<span>ออกจากระบบ</span></button>`:''}</div>
@@ -3929,14 +3941,14 @@ app.addEventListener('toggle',e=>{if(e.target.id==='lineDet')lineOpen=e.target.o
 
 /* ---------- first visit: ask nickname + phone ---------- */
 function openWelcome(edit){
-  dlg.innerHTML=`<div class="welcome"><div class="wc-ic">${ic('scissors',26)}</div>
+  dlg.innerHTML=`<div class="welcome">${edit?'':`<button class="stk-in" id="wcStaff" aria-label="สำหรับพนักงาน" title="สำหรับพนักงาน">${ic('lock',14)}</button>`}<div class="wc-ic">${ic('scissors',26)}</div>
     <h3>${edit?'แก้ชื่อ/เบอร์ของฉัน':'ยินดีต้อนรับสู่ '+esc(cfg.shopName||'ร้านของเรา')}</h3>
     <p class="meta">${edit?'ใช้สำหรับจองคิวและดูแต้มสะสม':'ใส่ชื่อเล่นกับเบอร์โทรครั้งเดียว ใช้จองคิวและสะสมแต้มได้เลย'}</p>
     <div class="form"><label>ชื่อเล่น<input id="wcName" autocomplete="nickname" maxlength="30" placeholder="เช่น ต้น" value="${esc(custMe?.name||'')}"></label>
     <label>เบอร์โทร<input id="wcPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="12" placeholder="08x-xxx-xxxx" value="${esc(custMe?.phone||'')}"></label>
     <p class="err" id="wcErr" hidden></p>
     <button class="primary" id="wcGo">${edit?'บันทึก':'เริ่มใช้งาน'}</button></div>
-    ${edit?'<button data-close class="ghost" style="width:100%;margin-top:8px">ยกเลิก</button>':'<button class="linkbtn wc-help" data-contact>ไม่เข้าใจ? ติดต่อเจ้าหน้าที่</button><button class="linkbtn wc-staff" id="wcStaff">ช่าง / เจ้าของร้าน เข้าสู่ระบบ</button>'}</div>`;
+    ${edit?'<button data-close class="ghost" style="width:100%;margin-top:8px">ยกเลิก</button>':'<button class="linkbtn wc-help" data-contact>ไม่เข้าใจ? ติดต่อเจ้าหน้าที่</button>'}</div>`;
   dlg.classList.add('wide');dlg.dataset.id='';if(edit)delete dlg.dataset.welcome;else dlg.dataset.welcome='1';
   if(!dlg.open)dlg.showModal();setTimeout(()=>document.getElementById('wcName')?.focus(),60);
 }

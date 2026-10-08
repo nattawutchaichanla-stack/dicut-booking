@@ -1503,6 +1503,25 @@ button,a,[role=button]{touch-action:manipulation}
 .pm-new{font-size:.78rem;font-weight:600;padding:4px 10px;border-radius:99px;background:#F2D676;color:#2B2622}
 .pm-me{display:inline-flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);white-space:nowrap}
 @media (max-width:1180px){.gp-m{margin-top:6px}}
+/* contact: social icons + contact sheet */
+.soc{display:flex;justify-content:center;gap:10px;margin-top:12px}
+.soc-b{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:0;cursor:pointer;text-decoration:none;box-shadow:0 6px 18px rgba(40,25,10,.18);transition:transform .15s}
+.soc-b:active{transform:scale(.94)}
+.soc-line{background:#06C755}.soc-fb{background:#1877F2}
+.soc-tel,.soc-help{background:rgba(251,247,240,.92);color:#2B2622}
+.sg{font-family:Arial,Helvetica,sans-serif;font-weight:800;color:#fff;line-height:1}
+.sg-line{font-size:10px;letter-spacing:.02em}
+.sg-fb{font-size:22px;transform:translateY(1px)}
+.contact{text-align:center}
+.contact .wc-ic{width:58px;height:58px;border-radius:18px;margin:4px auto 12px;display:grid;place-items:center;background:var(--ink);color:#F2D676}
+.contact h3{margin:0 0 6px}.contact .meta{margin:0 0 16px}
+.ct-list{display:grid;gap:10px;text-align:left}
+.ct-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:20px;background:var(--off);color:var(--ink);text-decoration:none}
+.ct-ic{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#fff}
+.ct-line .ct-ic{background:#06C755}.ct-fb .ct-ic{background:#1877F2}
+.ct-tx{flex:1;min-width:0;display:grid;gap:2px}.ct-tx b{font-weight:600}.ct-tx small{color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.welcome .wc-help{display:block;margin:14px auto 0;font-size:14px;font-weight:600}
+.welcome .wc-help+.wc-staff{margin-top:8px}
 </style>
 </head>
 <body>
@@ -1686,7 +1705,7 @@ if(!cfg.menuV){cfg.services=[
     {id:'perm',name:'ดาวเพิร์มเกาหลี',min:120,price:1499,from:true,note:'แต่ละจุดราคาแตกต่างกัน กรุณาสอบถามช่างก่อนรับบริการ'},
     {id:'washdry',name:'สระไดร์',min:30,price:100},
     {id:'beard',name:'โกนหนวด/กันหน้า',min:15,price:50}];
-  Object.assign(cfg,{shopName:cfg.shopName||'DI-CUT ตัดผมชาย',branch:cfg.branch||'สาขาเตาปูน',phone:cfg.phone||'094-0380836',fb:cfg.fb||'DI-CUT ตัดผมชาย สาขา เตาปูน',menuV:1});
+  Object.assign(cfg,{shopName:cfg.shopName||'DI-CUT ตัดผมชาย',branch:cfg.branch||'สาขาเตาปูน',phone:cfg.phone||'094-0380836',lineOA:cfg.lineOA||'@512dwqkm',fb:cfg.fb||'DI-CUT ตัดผมชาย สาขา เตาปูน',menuV:1});
   const p2=(cfg.promos||[]).find(p=>p.title==='พุธนี้ต้องเฟด');if(p2)Object.assign(p2,{title:'พุธเพิร์มคุ้ม',desc:'ดาวเพิร์มเกาหลีลดพิเศษทุกวันพุธ',value:200,services:['perm']});
   try{localStorage.setItem(CKEY,JSON.stringify(cfg))}catch(e){}}
 if(!cfg.payment)cfg.payment=JSON.parse(JSON.stringify(DEFAULT_PAY));
@@ -1697,6 +1716,7 @@ if(!cfg.payment.v3){Object.assign(cfg.payment,{payLater:true,prepayOff:0,prepayS
 if(!cfg.payment.v6){if(cfg.payment.prepayOff===20||cfg.payment.prepayOff===5)cfg.payment.prepayOff=0;cfg.payment.v4=cfg.payment.v6=true}
 if(!cfg.payment.v5){if(!cfg.payment.qrAccount)cfg.payment.qrAccount=SHOP_QR.qrAccount;cfg.payment.v5=true}
 if(cfg.lateMin==null)cfg.lateMin=15;
+if(cfg.lineOA===undefined)cfg.lineOA='@512dwqkm';
 if(!cfg.loyalty)cfg.loyalty=JSON.parse(JSON.stringify(DEFAULT_LOY));
 if(!Array.isArray(cfg.promos))cfg.promos=JSON.parse(JSON.stringify(DEFAULT_CFG.promos));
 cfg.barbers.forEach(b=>{const d=DEFAULT_CFG.barbers.find(x=>x.id===b.id);if(d)['years','skills','bio'].forEach(f=>{if(b[f]===undefined)b[f]=d[f]})});
@@ -1868,6 +1888,8 @@ function quickHTML(){
 
 /* ---------- icons (lucide, ISC) ---------- */
 const ICONS={
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   image:'<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   'chevron-left':'<path d="m15 18-6-6 6-6"/>','chevron-right':'<path d="m9 18 6-6-6-6"/>',
@@ -1945,12 +1967,38 @@ function pagerHTML(){return tabsFor().map(([k,n,i],x)=>`<button class="pg" data-
 function openViewsMenu(anchor){
   openPop(anchor,`<p class="poph">ไปที่หน้า</p><div class="poplist">`+tabsFor().map(([k,n,i])=>`<button data-view="${k}" aria-pressed="${view===k}">${ic(i,18)}<span>${n}</span></button>`).join('')+`</div>`);
 }
+/* ---------- contact the shop (phone / LINE / Facebook) ---------- */
+const telHref=()=>cfg.phone?'tel:'+cfg.phone.replace(/[^0-9+]/g,''):'';
+function lineHref(){const v=String(cfg.lineOA||'').trim();if(!v)return '';if(/^https?:\/\//i.test(v))return v;return 'https://line.me/R/ti/p/'+encodeURIComponent(v[0]==='@'?v:'@'+v)}
+function fbHref(){const v=String(cfg.fb||'').trim();if(!v)return '';if(/^https?:\/\//i.test(v))return v;if(/^(www\.)?(facebook|fb)\.(com|me)\//i.test(v))return 'https://'+v;return 'https://www.facebook.com/search/top?q='+encodeURIComponent(v)}
+const LINE_GLYPH='<span class="sg sg-line">LINE</span>', FB_GLYPH='<span class="sg sg-fb">f</span>';
+function socIcons(){
+  const a=[];
+  if(lineHref())a.push(`<a class="soc-b soc-line" href="${esc(lineHref())}" target="_blank" rel="noopener" aria-label="แอดไลน์ ${esc(cfg.lineOA)}" title="LINE ${esc(cfg.lineOA)}">${LINE_GLYPH}</a>`);
+  if(fbHref())a.push(`<a class="soc-b soc-fb" href="${esc(fbHref())}" target="_blank" rel="noopener" aria-label="เพจ Facebook" title="Facebook">${FB_GLYPH}</a>`);
+  if(telHref())a.push(`<a class="soc-b soc-tel" href="${esc(telHref())}" aria-label="โทร ${esc(cfg.phone)}" title="โทร ${esc(cfg.phone)}">${ic('phone',18)}</a>`);
+  a.push(`<button class="soc-b soc-help" data-contact aria-label="ติดต่อเจ้าหน้าที่" title="ติดต่อเจ้าหน้าที่">${ic('help',18)}</button>`);
+  return `<div class="soc">${a.join('')}</div>`;
+}
+function openContact(){
+  const row=(href,cls,glyph,t,sub,ext)=>href?`<a class="ct-row ${cls}" href="${esc(href)}"${ext?' target="_blank" rel="noopener"':''}><span class="ct-ic">${glyph}</span><span class="ct-tx"><b>${t}</b><small>${sub}</small></span>${ic('arrow-ur',18)}</a>`:'';
+  showSheet(`<div class="contact"><div class="wc-ic">${ic('help',26)}</div><h3>ติดต่อเจ้าหน้าที่</h3>
+    <p class="meta">ไม่เข้าใจการจองคิว หรือมีปัญหาตรงไหน ทักหรือโทรหาเราได้เลย</p>
+    <div class="ct-list">
+      ${row(telHref(),'ct-tel',ic('phone',20),'โทร '+esc(cfg.phone||''),'กดเพื่อโทรหาร้าน',false)}
+      ${row(lineHref(),'ct-line',LINE_GLYPH,'แอดไลน์ '+esc(cfg.lineOA||''),'แชตกับร้านทาง LINE',true)}
+      ${row(fbHref(),'ct-fb',FB_GLYPH,'เพจ Facebook',esc(/^https?:/i.test(cfg.fb||'')?'เปิดเพจของร้าน':(cfg.fb||'')),true)}
+    </div>
+    <button data-close class="ghost" style="width:100%;margin-top:12px">ปิด</button></div>`);
+}
+document.addEventListener('click',e=>{if(e.target.closest('[data-contact]')){e.preventDefault();openContact()}});
 function openMeSheet(){
   const th=curTheme(), me=user?(isOwner()?{name:'เจ้าของร้าน'}:barber(user.id)):null;
   showSheet(`<div class="mesheet">${me?`<div class="phead sm">${avatar(me.name,me.photo,'xl')}<div><h3>${esc(me.name)}</h3><p class="meta">${esc(cfg.shopName||'')} · ${esc(cfg.branch||'')}</p></div></div>`:custMe?`<h3>สวัสดี คุณ${esc(custMe.name)}</h3><p class="meta" style="margin:-4px 0 4px">${esc(custMe.phone)} · <button class="linkbtn" data-me="who">แก้ชื่อ/เบอร์</button></p>`:`<h3>เมนู</h3>`}
     <div class="melist">${user?`<button data-me="line">${ic('bell',20)}<span>แชต LINE ของร้าน</span>${ic('arrow-ur',18)}</button>
       ${!isOwner()?`<button data-me="prof">${ic('user',20)}<span>โปรไฟล์ช่างของฉัน</span>${ic('arrow-ur',18)}</button>`:`<button data-me="shop">${ic('settings',20)}<span>ตั้งค่าร้าน</span>${ic('arrow-ur',18)}</button>`}`
       :`<button data-me="mine">${ic('user',20)}<span>โปรไฟล์ของฉัน (แต้มสะสม)</span>${ic('arrow-ur',18)}</button><button data-me="login">${ic('log-in',20)}<span>เข้าสู่ระบบช่าง / เจ้าของร้าน</span>${ic('arrow-ur',18)}</button>`}
+      <button data-contact>${ic('help',20)}<span>ติดต่อเจ้าหน้าที่</span>${ic('arrow-ur',18)}</button>
       <div class="meseg" role="group" aria-label="ธีม"><button data-theme-set="light" aria-pressed="${th==='light'&&!!document.documentElement.dataset.theme}">${ic('sun',18)}สว่าง</button><button data-theme-set="dark" aria-pressed="${th==='dark'&&!!document.documentElement.dataset.theme}">${ic('moon',18)}มืด</button><button data-theme-set="" aria-pressed="${!document.documentElement.dataset.theme}">ตามเครื่อง</button></div>
       ${user?`<button data-me="logout" class="danger">${ic('log-out',20)}<span>ออกจากระบบ</span></button>`:''}</div>
     <button data-close class="ghost" style="width:100%">ปิด</button></div>`);
@@ -2131,7 +2179,7 @@ function renderHome(){
   el.innerHTML=`${G('hero')?'':hotspotsSVG()}<div class="dash">
     <div class="dcol dl">${panelBarber()}${panelHours()}</div>
     <div class="dcol dm">
-      <div class="dtitle"><h2>${esc(cfg.shopName||'DI-CUT')}</h2><p>${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?' · โทร '+esc(cfg.phone):''}</p><p>คิววันนี้ ${tdy} คิว · ว่างตอนนี้ ${free} คน</p></div>
+      <div class="dtitle"><h2>${esc(cfg.shopName||'DI-CUT')}</h2><p>${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?' · โทร '+esc(cfg.phone):''}</p><p>คิววันนี้ ${tdy} คิว · ว่างตอนนี้ ${free} คน</p>${socIcons()}</div>
       <div class="dspace"></div>
       <div class="pager" id="pager">${pagerHTML()}</div>
       ${panelMembers()}
@@ -2931,7 +2979,7 @@ function renderSum(){
 }
 function tick(){const n=new Date(),v=pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());document.querySelectorAll('[data-clock]').forEach(e=>e.textContent=v)}
 function settingsHTML(){
-  let h=`<div class="sset"><h3>ข้อมูลร้าน</h3><div class="form"><label>ชื่อร้าน<input data-cfgtext="shopName" maxlength="40" value="${esc(cfg.shopName||'')}"></label><div class="two"><label>สาขา<input data-cfgtext="branch" maxlength="40" value="${esc(cfg.branch||'')}"></label><label>เบอร์โทรร้าน<input data-cfgtext="phone" type="tel" maxlength="20" value="${esc(cfg.phone||'')}"></label></div><label>เพจ Facebook<input data-cfgtext="fb" maxlength="60" value="${esc(cfg.fb||'')}"></label></div></div><div class="sset"><h3>เวลาเปิดปิดร้าน</h3><div class="hrs">เปิด <input type="time" step="1800" data-cfg="open" value="${fmt(cfg.open)}"> ปิด <input type="time" step="1800" data-cfg="close" value="${fmt(cfg.close)}"></div>
+  let h=`<div class="sset"><h3>ข้อมูลร้าน</h3><div class="form"><label>ชื่อร้าน<input data-cfgtext="shopName" maxlength="40" value="${esc(cfg.shopName||'')}"></label><div class="two"><label>สาขา<input data-cfgtext="branch" maxlength="40" value="${esc(cfg.branch||'')}"></label><label>เบอร์โทรร้าน<input data-cfgtext="phone" type="tel" maxlength="20" value="${esc(cfg.phone||'')}"></label></div><div class="two"><label>LINE Official (@ไอดี)<input data-cfgtext="lineOA" maxlength="80" placeholder="@512dwqkm" value="${esc(cfg.lineOA||'')}"></label><label>เพจ Facebook (ลิงก์หรือชื่อเพจ)<input data-cfgtext="fb" maxlength="200" placeholder="https://facebook.com/..." value="${esc(cfg.fb||'')}"></label></div><p class="hint">ลูกค้ากดไอคอน LINE / Facebook / โทร ในหน้าแรกและเมนู "ติดต่อเจ้าหน้าที่" แล้วจะไปที่ช่องทางเหล่านี้</p></div></div><div class="sset"><h3>เวลาเปิดปิดร้าน</h3><div class="hrs">เปิด <input type="time" step="1800" data-cfg="open" value="${fmt(cfg.open)}"> ปิด <input type="time" step="1800" data-cfg="close" value="${fmt(cfg.close)}"></div>
     <p class="hint" style="margin-top:8px">ลูกค้าจองได้เฉพาะช่วงที่ทั้งร้านเปิดและช่างเข้างาน</p><div class="hrs" style="margin-top:10px">ลูกค้ายกเลิกเองได้ก่อนถึงคิว <input type="number" min="0" max="1440" data-cfg="cancelBefore" value="${cancelMin()}" style="width:84px"> นาที</div><div class="hrs" style="margin-top:10px">มาช้าเกิน <input type="number" min="0" max="120" data-cfg="lateMin" value="${lateMin()}" style="width:84px"> นาที ปล่อยคิวให้คนอื่นได้</div><div class="hrs" style="margin-top:10px">รหัสเจ้าของร้าน <input type="text" inputmode="numeric" maxlength="6" data-cfg="ownerPin" value="${esc(ownerPin())}" style="width:96px"></div></div>`;
   h+=`<div class="sset"><h3>เวลาทำงานของช่าง</h3><div class="set-grid">`;
   cfg.barbers.forEach(b=>{
@@ -3858,7 +3906,7 @@ function openWelcome(edit){
     <label>เบอร์โทร<input id="wcPhone" type="tel" inputmode="tel" autocomplete="tel" maxlength="12" placeholder="08x-xxx-xxxx" value="${esc(custMe?.phone||'')}"></label>
     <p class="err" id="wcErr" hidden></p>
     <button class="primary" id="wcGo">${edit?'บันทึก':'เริ่มใช้งาน'}</button></div>
-    ${edit?'<button data-close class="ghost" style="width:100%;margin-top:8px">ยกเลิก</button>':'<button class="linkbtn wc-staff" id="wcStaff">ช่าง / เจ้าของร้าน เข้าสู่ระบบ</button>'}</div>`;
+    ${edit?'<button data-close class="ghost" style="width:100%;margin-top:8px">ยกเลิก</button>':'<button class="linkbtn wc-help" data-contact>ไม่เข้าใจ? ติดต่อเจ้าหน้าที่</button><button class="linkbtn wc-staff" id="wcStaff">ช่าง / เจ้าของร้าน เข้าสู่ระบบ</button>'}</div>`;
   dlg.classList.add('wide');dlg.dataset.id='';if(edit)delete dlg.dataset.welcome;else dlg.dataset.welcome='1';
   if(!dlg.open)dlg.showModal();setTimeout(()=>document.getElementById('wcName')?.focus(),60);
 }

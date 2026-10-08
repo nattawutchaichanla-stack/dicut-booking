@@ -161,4 +161,23 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   ok((await post({ a: 'login', who: 'b2', pin: '1234' })).error === 'locked', 'too many wrong PINs locks for 15 minutes');
   clock += 16 * 60e3; ok((await post({ a: 'login', who: 'b2', pin: '1234' })).ok, 'lock expires');
 }
+// in-app chat
+{
+  const id = 'CHATtest_abcdefgh123';
+  const before = sent.length;
+  let r = await post({ a: 'chat_send', id, name: 'โจ้', phone: '086-111-2222', text: 'จองยังไงครับ' });
+  ok(r.ok && r.thread.msgs.length === 1 && r.thread.msgs[0].f === 'c', 'customer sends a chat message');
+  ok((await post({ a: 'chat_list', key: 'bad' })).ok === false, 'chat list needs the shop key');
+  r = await post({ a: 'chat_list', key: KEY }); ok(r.ok && r.unread === 1 && r.threads[0].id === id && r.threads[0].phone === '0861112222', 'staff sees the thread with unread count and phone');
+  r = await post({ a: 'chat_read', key: KEY, id }); ok(r.ok && r.thread.msgs.length === 1, 'staff opens thread');
+  ok((await post({ a: 'chat_list', key: KEY })).unread === 0, 'opening clears unread');
+  r = await post({ a: 'chat_reply', key: KEY, id, text: 'กดปุ่ม + ด้านล่างได้เลยครับ', by: 'เจ้าของร้าน' }); ok(r.ok, 'staff replies');
+  r = await post({ a: 'chat_get', id }); ok(r.thread.msgs.length === 2 && r.thread.msgs[1].f === 's' && r.thread.unread === 1, 'customer sees reply as unread');
+  ok(!r.thread.msgs[1].by || r.thread.msgs[1].by === 'ร้าน', 'staff name not exposed to customer');
+  r = await post({ a: 'chat_get', id, seen: 1 }); ok((await post({ a: 'chat_get', id })).thread.unread === 0, 'customer marks seen');
+  ok((await post({ a: 'chat_get', id: 'short' })).ok === false, 'chat id must be long and random');
+  ok((await post({ a: 'chat_send', id, text: '   ' })).ok === false, 'empty message refused');
+  for (let k = 0; k < 29; k++) await post({ a: 'chat_send', id, name: 'โจ้', text: 'm' + k });
+  ok((await post({ a: 'chat_send', id, name: 'โจ้', text: 'spam' })).error === 'too_many', 'spam limit 30 messages per hour');
+}
 console.log('\n' + pass + ' checks passed');

@@ -1522,6 +1522,33 @@ button,a,[role=button]{touch-action:manipulation}
 .ct-tx{flex:1;min-width:0;display:grid;gap:2px}.ct-tx b{font-weight:600}.ct-tx small{color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .welcome .wc-help{display:block;margin:14px auto 0;font-size:14px;font-weight:600}
 .welcome .wc-help+.wc-staff{margin-top:8px}
+/* in-app chat */
+dialog.chatdlg{width:min(96vw,480px);padding:18px!important}
+.chatv{display:flex;flex-direction:column;height:min(78vh,640px)}
+.chat-h{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.chat-h h3{margin:0}.chat-h .meta{margin:2px 0 0;font-size:.8rem}.chat-h .meta a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+.chat-back{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:var(--off);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.chat-box{flex:1;overflow-y:auto;padding:14px 2px;display:flex;flex-direction:column;gap:8px;overscroll-behavior:contain}
+.chat-empty{margin:auto;text-align:center;color:var(--muted);font-size:.9rem;line-height:1.6}
+.cb{max-width:80%;display:grid;gap:3px}
+.cb p{margin:0;padding:10px 14px;border-radius:20px;font-size:.95rem;line-height:1.45;word-break:break-word}
+.cb small{font-size:.7rem;color:var(--muted);padding:0 6px}
+.cb.me{align-self:flex-end;justify-items:end}.cb.me p{background:var(--ink);color:#FBF7F0;border-bottom-right-radius:6px}
+.cb.them{align-self:flex-start}.cb.them p{background:var(--off);border-bottom-left-radius:6px}
+.chat-q{display:flex;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:none}
+.chat-q button{flex:none;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.chat-in{display:flex;gap:8px;align-items:flex-end;padding-top:8px;border-top:1px solid var(--line)}
+.chat-in textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border-radius:22px;padding:11px 16px;font:inherit;font-size:16px;background:var(--surface);color:var(--ink)}
+.chat-send{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--ink);color:#F2D676;display:grid;place-items:center;cursor:pointer}
+.ct-row{width:100%;border:0;font:inherit;cursor:pointer;text-align:left}
+.ct-chat{background:var(--ink)!important;color:#FBF7F0!important}.ct-chat .ct-ic{background:#F2D676;color:#2B2622}.ct-chat .ct-tx small{color:rgba(251,247,240,.7)}
+.ct-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#DC2F2F;color:#fff;font-style:normal;font-size:.72rem;font-weight:700}
+.soc-help.has-dot{position:relative}.soc-help.has-dot::after{content:'';position:absolute;top:2px;right:2px;width:11px;height:11px;border-radius:50%;background:#DC2F2F;border:2px solid #fff}
+.chat-list{flex:1;overflow-y:auto;display:grid;align-content:start;gap:6px;padding-top:10px}
+.cl-row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:var(--off);border-radius:18px;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer;text-align:left}
+.cl-row.unread{background:#FFF6D6}
+.cl-tx{flex:1;min-width:0;display:grid;gap:2px}.cl-tx small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl-meta{display:grid;justify-items:end;gap:4px}.cl-meta small{font-size:.72rem;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -1790,6 +1817,7 @@ function saveJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 let bookings=loadJSON(KEY); if(!Array.isArray(bookings))bookings=window.BACKEND_URL?[]:seed();
 let user=loadJSON('barber-session');
 let custMe=loadJSON('barber-me'); // {name,phone} entered on first visit
+var chatState={custUnread:0,staffUnread:0,open:null,timer:null}; // in-app chat (see chat module)
 const isOwner=()=>user&&user.role==='owner';
 const canManage=bk=>!!user&&(user.role==='owner'||user.id===bk.barberId);
 const pinOf=b=>b.pin||'1234', ownerPin=()=>cfg.ownerPin||'0000';
@@ -1888,6 +1916,8 @@ function quickHTML(){
 /* ---------- icons (lucide, ISC) ---------- */
 const ICONS={
   phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  chat:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   image:'<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
@@ -1956,7 +1986,7 @@ function renderTabs(){
       <button class="dk-ic" data-dk="back" aria-label="ย้อนกลับ" ${view==='home'&&prevView==='home'?'disabled':''}>${ic('arrow-left',18)}</button>
       <button class="dk-pill" data-dk="views" aria-haspopup="menu"><span>${esc(vt)}</span>${ic('chevron-down',16)}</button>
       <button class="dk-count" data-dk="count" aria-label="${user?'คิววันนี้ '+cnt+' คิว':'ช่วงว่างวันนี้ '+cnt+' ช่วง'}" title="${user?'คิววันนี้':'ช่วงว่างวันนี้'}">${cnt}</button>
-      <button class="dk-ic" data-rail="me" aria-label="เมนู">${ic('menu',18)}${user&&typeof lineChat!=='undefined'&&lineChat&&(isOwner()?Object.values(lineChat.unread||{}).reduce((a,b)=>a+b,0):lineChat.unread[user.id])?'<em></em>':''}</button>
+      <button class="dk-ic" data-rail="me" aria-label="เมนู">${ic('menu',18)}${(user&&typeof lineChat!=='undefined'&&lineChat&&(isOwner()?Object.values(lineChat.unread||{}).reduce((a,b)=>a+b,0):lineChat.unread[user.id]))||(user?chatState.staffUnread:chatState.custUnread)?'<em></em>':''}</button>
     </div>
     <button class="dk-cta" data-view="${cta[1]}"><span>${cta[0]}</span><i>${ic('plus',16)}</i></button>`;
   const pg=document.getElementById('pager');
@@ -1976,7 +2006,7 @@ function socIcons(){
   if(lineHref())a.push(`<a class="soc-b soc-line" href="${esc(lineHref())}" target="_blank" rel="noopener" aria-label="แอดไลน์ ${esc(cfg.lineOA)}" title="LINE ${esc(cfg.lineOA)}">${LINE_GLYPH}</a>`);
   if(fbHref())a.push(`<a class="soc-b soc-fb" href="${esc(fbHref())}" target="_blank" rel="noopener" aria-label="เพจ Facebook" title="Facebook">${FB_GLYPH}</a>`);
   if(telHref())a.push(`<a class="soc-b soc-tel" href="${esc(telHref())}" aria-label="โทร ${esc(cfg.phone)}" title="โทร ${esc(cfg.phone)}">${ic('phone',18)}</a>`);
-  a.push(`<button class="soc-b soc-help" data-contact aria-label="ติดต่อเจ้าหน้าที่" title="ติดต่อเจ้าหน้าที่">${ic('help',18)}</button>`);
+  a.push(`<button class="soc-b soc-help${chatState.custUnread?' has-dot':''}" data-contact aria-label="ติดต่อเจ้าหน้าที่" title="ติดต่อเจ้าหน้าที่">${ic('help',18)}</button>`);
   return `<div class="soc">${a.join('')}</div>`;
 }
 function openContact(){
@@ -1984,6 +2014,7 @@ function openContact(){
   showSheet(`<div class="contact"><div class="wc-ic">${ic('help',26)}</div><h3>ติดต่อเจ้าหน้าที่</h3>
     <p class="meta">ไม่เข้าใจการจองคิว หรือมีปัญหาตรงไหน ทักหรือโทรหาเราได้เลย</p>
     <div class="ct-list">
+      <button class="ct-row ct-chat" data-chatopen><span class="ct-ic">${ic('chat',20)}</span><span class="ct-tx"><b>แชทกับเจ้าหน้าที่</b><small>พิมพ์ถามในแอพ แอดมินจะตอบกลับ</small></span>${chatState.custUnread?`<em class="ct-badge">${chatState.custUnread}</em>`:ic('arrow-ur',18)}</button>
       ${row(telHref(),'ct-tel',ic('phone',20),'โทร '+esc(cfg.phone||''),'กดเพื่อโทรหาร้าน',false)}
       ${row(lineHref(),'ct-line',LINE_GLYPH,'แอดไลน์ '+esc(cfg.lineOA||''),'แชตกับร้านทาง LINE',true)}
       ${row(fbHref(),'ct-fb',FB_GLYPH,'เพจ Facebook',esc(/^https?:/i.test(cfg.fb||'')?'เปิดเพจของร้าน':(cfg.fb||'')),true)}
@@ -1994,7 +2025,7 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-contact]')){e.p
 function openMeSheet(){
   const th=curTheme(), me=user?(isOwner()?{name:'เจ้าของร้าน'}:barber(user.id)):null;
   showSheet(`<div class="mesheet">${me?`<div class="phead sm">${avatar(me.name,me.photo,'xl')}<div><h3>${esc(me.name)}</h3><p class="meta">${esc(cfg.shopName||'')} · ${esc(cfg.branch||'')}</p></div></div>`:custMe?`<h3>สวัสดี คุณ${esc(custMe.name)}</h3><p class="meta" style="margin:-4px 0 4px">${esc(custMe.phone)} · <button class="linkbtn" data-me="who">แก้ชื่อ/เบอร์</button></p>`:`<h3>เมนู</h3>`}
-    <div class="melist">${user?`<button data-me="line">${ic('bell',20)}<span>แชต LINE ของร้าน</span>${ic('arrow-ur',18)}</button>
+    <div class="melist">${user&&BACKEND()?`<button data-chatlist>${ic('chat',20)}<span>แชทลูกค้า${chatState.staffUnread?` <em class="ct-badge">${chatState.staffUnread}</em>`:''}</span>${ic('arrow-ur',18)}</button>`:''}${user?`<button data-me="line">${ic('bell',20)}<span>แชต LINE ของร้าน</span>${ic('arrow-ur',18)}</button>
       ${!isOwner()?`<button data-me="prof">${ic('user',20)}<span>โปรไฟล์ช่างของฉัน</span>${ic('arrow-ur',18)}</button>`:`<button data-me="shop">${ic('settings',20)}<span>ตั้งค่าร้าน</span>${ic('arrow-ur',18)}</button>`}`
       :`<button data-me="mine">${ic('user',20)}<span>โปรไฟล์ของฉัน (แต้มสะสม)</span>${ic('arrow-ur',18)}</button><button data-me="login">${ic('log-in',20)}<span>เข้าสู่ระบบช่าง / เจ้าของร้าน</span>${ic('arrow-ur',18)}</button>`}
       <button data-contact>${ic('help',20)}<span>ติดต่อเจ้าหน้าที่</span>${ic('arrow-ur',18)}</button>
@@ -3946,7 +3977,100 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='wcNa
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
 document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false});
 document.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
-updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false); pullMembers();
+
+/* ---------- in-app chat: customer asks, shop staff answer ---------- */
+const chatTime=at=>{const d=new Date(at),t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');return dkey(d)===today()?t:thaiDate(dkey(d))+' '+t};
+function myChatId(){if(!custMe)return '';if(!custMe.chatId){const a=new Uint8Array(18);crypto.getRandomValues(a);custMe.chatId='c'+Array.from(a,x=>'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[x%62]).join('');saveJSON('barber-me',custMe)}return custMe.chatId}
+function bubbles(msgs,mineSide){
+  if(!msgs.length)return '';
+  return msgs.map(m=>{const mine=m.f===mineSide;return `<div class="cb ${mine?'me':'them'}"><p>${esc(m.t).replace(/\n/g,'<br>')}</p><small>${!mine&&m.by?esc(m.by)+' · ':''}${chatTime(m.at)}</small></div>`}).join('');
+}
+function chatShell(title,sub,body,quick){
+  return `<div class="chatv"><div class="chat-h"><button class="chat-back" data-chatback aria-label="ย้อนกลับ">${ic('arrow-left',18)}</button><div><h3>${title}</h3><p class="meta">${sub}</p></div></div>
+    <div class="chat-box" id="chatBox">${body}</div>
+    ${quick?`<div class="chat-q">${quick.map(q=>`<button data-chatq="${esc(q)}">${esc(q)}</button>`).join('')}</div>`:''}
+    <form class="chat-in" id="chatForm"><textarea id="chatText" rows="1" maxlength="1000" placeholder="พิมพ์ข้อความ…" enterkeyhint="send"></textarea><button class="chat-send" aria-label="ส่ง">${ic('send',18)}</button></form>
+    <p class="err" id="chatErr" hidden></p></div>`;
+}
+function scrollChat(){const b=document.getElementById('chatBox');if(b)b.scrollTop=b.scrollHeight}
+function stopChatPoll(){clearInterval(chatState.timer);chatState.timer=null;chatState.open=null}
+dlg.addEventListener('close',stopChatPoll);
+/* customer side */
+async function openChat(){
+  if(!BACKEND()){showSheet(`<div class="contact"><div class="wc-ic">${ic('chat',26)}</div><h3>แชทกับเจ้าหน้าที่</h3><p class="meta">แชทในแอพใช้ได้ในลิงก์ของร้าน ตอนนี้ทักทาง LINE หรือโทรหาร้านได้เลย</p><button class="primary" data-contact style="width:100%">ดูช่องทางติดต่อ</button></div>`);return}
+  if(!custMe){openWelcome(false);return}
+  const id=myChatId();
+  showSheet(chatShell('แชทกับเจ้าหน้าที่',`แอดมินจะตอบกลับโดยเร็ว · ร้านเปิด ${fmt(cfg.open)}–${fmt(cfg.close)}`,`<p class="chat-empty">กำลังโหลด…</p>`,['จองคิวยังไง','ขอเลื่อนคิว','สอบถามราคา','ร้านอยู่ตรงไหน']));
+  dlg.classList.add('chatdlg');chatState.open={side:'c',id};
+  await refreshCustChat(true);
+  chatState.timer=setInterval(()=>{if(!document.hidden)refreshCustChat(false)},4000);
+}
+async function refreshCustChat(first){
+  const st=chatState.open;if(!st||st.side!=='c')return;
+  try{const r=await api({a:'chat_get',id:st.id,seen:1});if(!r.ok||chatState.open!==st)return;
+    const box=document.getElementById('chatBox');if(!box)return;
+    const n=r.thread.msgs.length; if(!first&&n===st.n)return; st.n=n;
+    box.innerHTML=n?bubbles(r.thread.msgs,'c'):`<p class="chat-empty">สวัสดีครับ 👋 มีอะไรให้ช่วยไหม<br>พิมพ์ถามได้เลย แอดมินจะตอบกลับในแชทนี้</p>`;
+    scrollChat(); if(chatState.custUnread){chatState.custUnread=0;renderTabs();if(view==='home')renderHome()}}catch(_){}
+}
+async function sendChat(){
+  const ta=document.getElementById('chatText'), e=document.getElementById('chatErr'), st=chatState.open; if(!ta||!st)return;
+  const text=ta.value.trim(); if(!text)return; ta.disabled=true;
+  try{const r=st.side==='c'?await api({a:'chat_send',id:st.id,name:custMe?.name,phone:custMe?.phone,text}):await api({a:'chat_reply',key:L().key,id:st.id,text,by:isOwner()?'เจ้าของร้าน':barber(user.id).name});
+    if(r.ok){ta.value='';e.hidden=true;const box=document.getElementById('chatBox');st.n=r.thread.msgs.length;if(box){box.innerHTML=bubbles(r.thread.msgs,st.side==='c'?'c':'s');scrollChat()}}
+    else{e.textContent=r.error==='too_many'?'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่':'ส่งไม่สำเร็จ ลองใหม่อีกครั้ง';e.hidden=false}}
+  catch(_){e.textContent='ส่งไม่สำเร็จ เช็กอินเทอร์เน็ตแล้วลองใหม่';e.hidden=false}
+  ta.disabled=false;ta.focus();
+}
+async function pollCustChat(){
+  if(!BACKEND()||user||!custMe||!custMe.chatId||chatState.open||document.hidden)return;
+  try{const r=await api({a:'chat_get',id:custMe.chatId});if(r.ok){const u=r.thread.unread||0;if(u>chatState.custUnread)toast('ร้านตอบแชทแล้ว แตะไอคอน ? เพื่ออ่าน');if(u!==chatState.custUnread){chatState.custUnread=u;renderTabs();if(view==='home')renderHome()}}}catch(_){}
+}
+/* staff side */
+async function openChatList(){
+  if(!user||!BACKEND())return; if(!L().key){toast('เชื่อมต่อรหัสร้านก่อน (ตั้งค่าร้าน > LINE)');return}
+  showSheet(`<div class="chatv"><div class="chat-h"><div><h3>แชทลูกค้า</h3><p class="meta">ข้อความที่ลูกค้าทักมาในแอพ</p></div></div><div class="chat-list" id="chatList"><p class="chat-empty">กำลังโหลด…</p></div><button data-close class="ghost" style="width:100%;margin-top:10px">ปิด</button></div>`);
+  dlg.classList.add('chatdlg');chatState.open={side:'list'};await refreshChatList();
+  chatState.timer=setInterval(()=>{if(!document.hidden)refreshChatList()},8000);
+}
+async function refreshChatList(){
+  if(!chatState.open||chatState.open.side!=='list')return;
+  try{const r=await api({a:'chat_list',key:L().key});const el=document.getElementById('chatList');if(!r.ok||!el)return;
+    chatState.staffUnread=r.unread||0;renderTabs();
+    el.innerHTML=r.threads.length?r.threads.map(x=>`<button class="cl-row${x.unread?' unread':''}" data-chatthread="${esc(x.id)}">${avatar(x.name||'?','','md')}<span class="cl-tx"><b>${esc(x.name||'ลูกค้า')}</b><small>${x.from==='s'?'คุณ: ':''}${esc(x.last||'')}</small></span><span class="cl-meta"><small>${chatTime(x.at)}</small>${x.unread?`<em class="ct-badge">${x.unread}</em>`:''}</span></button>`).join('')
+      :`<p class="chat-empty">ยังไม่มีลูกค้าทักแชท</p>`}catch(_){}
+}
+async function openStaffChat(id){
+  clearInterval(chatState.timer);
+  showSheet(chatShell('กำลังโหลด…','',`<p class="chat-empty">กำลังโหลด…</p>`,['ได้ครับ เดี๋ยวจองให้นะครับ','ขอเบอร์โทรด้วยครับ','ช่วงนี้คิวเต็ม ขอเป็นเวลาอื่นได้ไหมครับ']));
+  dlg.classList.add('chatdlg');const st={side:'s',id,list:true};chatState.open=st;
+  await refreshStaffChat(true);chatState.timer=setInterval(()=>{if(!document.hidden)refreshStaffChat(false)},4000);
+}
+async function refreshStaffChat(first){
+  const st=chatState.open;if(!st||st.side!=='s')return;
+  try{const r=await api({a:'chat_read',key:L().key,id:st.id});if(!r.ok||chatState.open!==st)return;
+    if(first){const h=dlg.querySelector('.chat-h h3'),m=dlg.querySelector('.chat-h .meta');if(h)h.textContent=r.thread.name||'ลูกค้า';
+      if(m)m.innerHTML=r.thread.phone?`<a href="tel:${esc(r.thread.phone)}">${ic('phone',13)} ${esc(r.thread.phone)}</a>`:'ไม่มีเบอร์'}
+    const n=r.thread.msgs.length;if(!first&&n===st.n)return;st.n=n;
+    const box=document.getElementById('chatBox');if(box){box.innerHTML=bubbles(r.thread.msgs,'s');scrollChat()}}catch(_){}
+}
+async function pollStaffChat(){
+  if(!BACKEND()||!user||!L().key||document.hidden||(chatState.open&&chatState.open.side!=='c'))return;
+  try{const r=await api({a:'chat_list',key:L().key});if(r.ok){const u=r.unread||0;if(u>chatState.staffUnread)toast('💬 ลูกค้าทักแชท '+u+' ข้อความ · เมนู ≡ > แชทลูกค้า');if(u!==chatState.staffUnread){chatState.staffUnread=u;renderTabs()}}}catch(_){}
+}
+setInterval(()=>{pollCustChat();pollStaffChat()},20000);
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-chatopen],[data-chatlist],[data-chatthread],[data-chatback],[data-chatq]');if(!t)return;e.preventDefault();
+  if(t.dataset.chatopen!==undefined)openChat();
+  else if(t.dataset.chatlist!==undefined)openChatList();
+  else if(t.dataset.chatthread)openStaffChat(t.dataset.chatthread);
+  else if(t.dataset.chatback!==undefined){const st=chatState.open;stopChatPoll();if(st&&st.side==='s')openChatList();else openContact()}
+  else if(t.dataset.chatq){const ta=document.getElementById('chatText');if(ta){ta.value=t.dataset.chatq;ta.focus()}}
+});
+document.addEventListener('submit',e=>{if(e.target.id==='chatForm'){e.preventDefault();sendChat()}});
+document.addEventListener('keydown',e=>{if(e.target.id==='chatText'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}});
+dlg.addEventListener('close',()=>dlg.classList.remove('chatdlg'));
+updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false); pullMembers(); setTimeout(()=>{pollCustChat();pollStaffChat()},2500);
 if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
 gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx()});
 syncIndicators(); indObs.observe(document.body,{childList:true,subtree:true});

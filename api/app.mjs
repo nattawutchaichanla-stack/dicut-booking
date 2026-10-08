@@ -1,4 +1,4 @@
-// App API: GET ?a=list|ping|health|tick|members , POST {a:create|put|cancel|slip|mine|join|login|config|staff|test|unlink}
+// App API: GET ?a=list|ping|health|tick|members , POST {a:create|put|cancel|slip|mine|join|login|chat_send|chat_get|chat_list|chat_read|chat_reply|config|staff|test|unlink}
 import { coreFromEnv } from '../lib/setup.mjs';
 import { guard, preflight, json } from '../lib/core.mjs';
 export default {

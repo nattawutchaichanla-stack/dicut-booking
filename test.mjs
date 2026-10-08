@@ -180,4 +180,15 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   for (let k = 0; k < 29; k++) await post({ a: 'chat_send', id, name: 'โจ้', text: 'm' + k });
   ok((await post({ a: 'chat_send', id, name: 'โจ้', text: 'spam' })).error === 'too_many', 'spam limit 30 messages per hour');
 }
+// shop graphics mirrored to all phones
+{
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  ok((await post({ a: 'gfx_put', key: 'bad', k: 'icLine', v: png })).ok === false, 'graphics upload needs the shop key');
+  ok((await post({ a: 'gfx_put', key: KEY, k: 'icLine', v: 'data:text/html;base64,PHNjcmlwdD4=' })).ok === false, 'only png/jpeg/webp images accepted');
+  let r = await post({ a: 'gfx_put', key: KEY, k: 'icLine', v: png }); ok(r.ok && r.at, 'owner uploads an icon');
+  r = await get({ a: 'gfx_idx' }); ok(r.idx.icLine === clock, 'index lists the icon for every phone');
+  ok((await get({ a: 'gfx_get', k: 'icLine' })).v === png, 'any phone downloads the icon');
+  await post({ a: 'gfx_put', key: KEY, k: 'icLine', v: null });
+  ok(!(await get({ a: 'gfx_idx' })).idx.icLine && (await get({ a: 'gfx_get', k: 'icLine' })).v === null, 'removing the icon removes it everywhere');
+}
 console.log('\n' + pass + ' checks passed');

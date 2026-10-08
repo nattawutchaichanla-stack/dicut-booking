@@ -1556,6 +1556,9 @@ dialog.chatdlg{width:min(96vw,480px);padding:18px!important}
 .welcome{position:relative}
 .stk-in{position:absolute;top:-10px;right:-10px;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:var(--muted);opacity:.45;display:grid;place-items:center;cursor:pointer}
 .stk-in:hover{opacity:1}
+/* owner-uploaded contact icons */
+.soc-b,.ct-ic{position:relative;overflow:hidden}
+.cimg{position:absolute;inset:0;border-radius:50%;background:#fff center/cover no-repeat}
 </style>
 </head>
 <body>
@@ -2012,13 +2015,14 @@ function openViewsMenu(anchor){
 const telHref=()=>cfg.phone?'tel:'+cfg.phone.replace(/[^0-9+]/g,''):'';
 function lineHref(){const v=String(cfg.lineOA||'').trim();if(!v)return '';if(/^https?:\/\//i.test(v))return v;return 'https://line.me/R/ti/p/'+encodeURIComponent(v[0]==='@'?v:'@'+v)}
 function fbHref(){const v=String(cfg.fb||'').trim();if(!v)return '';if(/^https?:\/\//i.test(v))return v;if(/^(www\.)?(facebook|fb)\.(com|me)\//i.test(v))return 'https://'+v;return 'https://www.facebook.com/search/top?q='+encodeURIComponent(v)}
+const cIcon=(k,fb)=>G(k)?`<span class="cimg" style="${gbg(k)}"></span>`:fb;
 const LINE_GLYPH='<span class="sg sg-line">LINE</span>', FB_GLYPH='<span class="sg sg-fb">f</span>';
 function socIcons(){
   const a=[];
-  if(lineHref())a.push(`<a class="soc-b soc-line" href="${esc(lineHref())}" target="_blank" rel="noopener" aria-label="แอดไลน์ ${esc(cfg.lineOA)}" title="LINE ${esc(cfg.lineOA)}">${LINE_GLYPH}</a>`);
-  if(fbHref())a.push(`<a class="soc-b soc-fb" href="${esc(fbHref())}" target="_blank" rel="noopener" aria-label="เพจ Facebook" title="Facebook">${FB_GLYPH}</a>`);
-  if(telHref())a.push(`<a class="soc-b soc-tel" href="${esc(telHref())}" aria-label="โทร ${esc(cfg.phone)}" title="โทร ${esc(cfg.phone)}">${ic('phone',18)}</a>`);
-  a.push(`<button class="soc-b soc-help${chatState.custUnread?' has-dot':''}" data-contact aria-label="ติดต่อเจ้าหน้าที่" title="ติดต่อเจ้าหน้าที่">${ic('help',18)}</button>`);
+  if(lineHref())a.push(`<a class="soc-b soc-line" href="${esc(lineHref())}" target="_blank" rel="noopener" aria-label="แอดไลน์ ${esc(cfg.lineOA)}" title="LINE ${esc(cfg.lineOA)}">${cIcon('icLine',LINE_GLYPH)}</a>`);
+  if(fbHref())a.push(`<a class="soc-b soc-fb" href="${esc(fbHref())}" target="_blank" rel="noopener" aria-label="เพจ Facebook" title="Facebook">${cIcon('icFb',FB_GLYPH)}</a>`);
+  if(telHref())a.push(`<a class="soc-b soc-tel" href="${esc(telHref())}" aria-label="โทร ${esc(cfg.phone)}" title="โทร ${esc(cfg.phone)}">${cIcon('icPhone',ic('phone',18))}</a>`);
+  a.push(`<button class="soc-b soc-help${chatState.custUnread?' has-dot':''}" data-contact aria-label="ติดต่อเจ้าหน้าที่" title="ติดต่อเจ้าหน้าที่">${cIcon('icHelp',ic('help',18))}</button>`);
   return `<div class="soc">${a.join('')}</div>`;
 }
 function openContact(){
@@ -2026,10 +2030,10 @@ function openContact(){
   showSheet(`<div class="contact"><div class="wc-ic">${ic('help',26)}</div><h3>ติดต่อเจ้าหน้าที่</h3>
     <p class="meta">ไม่เข้าใจการจองคิว หรือมีปัญหาตรงไหน ทักหรือโทรหาเราได้เลย</p>
     <div class="ct-list">
-      <button class="ct-row ct-chat" data-chatopen><span class="ct-ic">${ic('chat',20)}</span><span class="ct-tx"><b>แชทกับเจ้าหน้าที่</b><small>พิมพ์ถามในแอพ แอดมินจะตอบกลับ</small></span>${chatState.custUnread?`<em class="ct-badge">${chatState.custUnread}</em>`:ic('arrow-ur',18)}</button>
-      ${row(telHref(),'ct-tel',ic('phone',20),'โทร '+esc(cfg.phone||''),'กดเพื่อโทรหาร้าน',false)}
-      ${row(lineHref(),'ct-line',LINE_GLYPH,'แอดไลน์ '+esc(cfg.lineOA||''),'แชตกับร้านทาง LINE',true)}
-      ${row(fbHref(),'ct-fb',FB_GLYPH,'เพจ Facebook',esc(/^https?:/i.test(cfg.fb||'')?'เปิดเพจของร้าน':(cfg.fb||'')),true)}
+      <button class="ct-row ct-chat" data-chatopen><span class="ct-ic">${cIcon('icChat',ic('chat',20))}</span><span class="ct-tx"><b>แชทกับเจ้าหน้าที่</b><small>พิมพ์ถามในแอพ แอดมินจะตอบกลับ</small></span>${chatState.custUnread?`<em class="ct-badge">${chatState.custUnread}</em>`:ic('arrow-ur',18)}</button>
+      ${row(telHref(),'ct-tel',cIcon('icPhone',ic('phone',20)),'โทร '+esc(cfg.phone||''),'กดเพื่อโทรหาร้าน',false)}
+      ${row(lineHref(),'ct-line',cIcon('icLine',LINE_GLYPH),'แอดไลน์ '+esc(cfg.lineOA||''),'แชตกับร้านทาง LINE',true)}
+      ${row(fbHref(),'ct-fb',cIcon('icFb',FB_GLYPH),'เพจ Facebook',esc(/^https?:/i.test(cfg.fb||'')?'เปิดเพจของร้าน':(cfg.fb||'')),true)}
     </div>
     <button data-close class="ghost" style="width:100%;margin-top:12px">ปิด</button></div>`);
 }
@@ -2179,6 +2183,10 @@ function panelMembers(){
     <div class="pm-main"><small>สมาชิกทั้งหมด</small><div class="pm-num"><strong>${m.count.toLocaleString('th-TH')}</strong><span>ท่าน</span></div></div>
     <div class="pm-side">${m.today>0?`<span class="pm-new">+${m.today} วันนี้</span>`:''}${custMe?`<span class="pm-me">${ic('check',14)}คุณเป็นสมาชิกแล้ว</span>`:''}</div>
   </article>`;
+}
+async function ensureJoined(){ // phones that registered before the shop server existed
+  if(!BACKEND()||!custMe||custMe.joined||user)return;
+  try{const r=await api({a:'join',name:custMe.name,phone:custMe.phone,oldPhone:custMe.phone});if(r&&(r.ok||r.error==='phone_taken')){custMe.joined=1;saveJSON('barber-me',custMe);if(r.ok&&r.count!=null){memberStat={count:r.count,today:r.today||0};if(view==='home')renderHome()}}}catch(_){}
 }
 async function pullMembers(){if(!BACKEND())return;try{const r=await api({a:'members'},true);if(r&&r.ok&&r.count!=null){memberStat={count:r.count,today:r.today||0};if(view==='home')renderHome()}}catch(_){}}
 function panelQuick(){
@@ -3081,6 +3089,12 @@ function gfxSlots(){
     {id:'promo',name:'โปรโมชั่น',items:[
       {k:'loy',label:'แบนเนอร์ ตัด '+loy().need+' ฟรี 1',where:'สไลด์โฆษณาหน้าจองคิว',size:[960,480],src:loy().img||'',go:'book'},
       ...cfg.promos.map(p=>({k:'promo:'+p.id,label:'แบนเนอร์ '+p.title,where:'สไลด์โฆษณาหน้าจองคิว'+(p.active?'':' (ปิดอยู่)'),size:[960,480],src:p.img||'',go:'book'}))]},
+    {id:'contact',name:'ไอคอนติดต่อ',items:[
+      {k:'icChat',label:'ไอคอนแชท',where:'ปุ่ม "แชทกับเจ้าหน้าที่" ในหน้าติดต่อ',size:[192,192],shape:'round'},
+      {k:'icPhone',label:'ไอคอนโทร',where:'ปุ่มโทรในหน้าแรกและหน้าติดต่อ',size:[192,192],shape:'round'},
+      {k:'icLine',label:'ไอคอน LINE',where:'ปุ่ม LINE ในหน้าแรกและหน้าติดต่อ',size:[192,192],shape:'round'},
+      {k:'icFb',label:'ไอคอน Facebook',where:'ปุ่ม Facebook ในหน้าแรกและหน้าติดต่อ',size:[192,192],shape:'round'},
+      {k:'icHelp',label:'ไอคอนติดต่อเจ้าหน้าที่',where:'ปุ่ม ? ในหน้าแรก',size:[192,192],shape:'round'}]},
     {id:'staff',name:'หลังบ้าน',items:[
       {k:'loginArt',label:'ภาพหน้าเข้าสู่ระบบ',where:'หน้าต่างเข้าสู่ระบบของช่างและเจ้าของร้าน',size:W}]}];
 }
@@ -3121,14 +3135,24 @@ async function gfxPut(k,file){
   if(k.startsWith('bar:')){const b=cfg.barbers.find(x=>x.id===k.slice(4));if(!b)return;b.photo=v;saveCfg()}
   else if(k==='loy'){loy().img=v;saveCfg()}
   else if(k.startsWith('promo:')){const p=cfg.promos.find(x=>x.id===k.slice(6));if(!p)return;p.img=v;saveCfg()}
-  else{gfx[k]=v;const ok=await gfxWrite(k,v);if(!ok&&gfxPersist){gfxPersist=false}}
+  else{gfx[k]=v;const ok=await gfxWrite(k,v);if(!ok&&gfxPersist){gfxPersist=false}gfxPushServer(k,v)}
   gfxRefresh();toast('ใส่ภาพแล้ว: '+it.label)}
 async function gfxRemove(k){if(!isOwner())return;
   if(k.startsWith('bar:')){const b=cfg.barbers.find(x=>x.id===k.slice(4));if(b){b.photo='';saveCfg()}}
   else if(k==='loy'){loy().img='';saveCfg()}
   else if(k.startsWith('promo:')){const p=cfg.promos.find(x=>x.id===k.slice(6));if(p){p.img='';saveCfg()}}
-  else{delete gfx[k];await gfxWrite(k,null)}
+  else{delete gfx[k];await gfxWrite(k,null);gfxPushServer(k,null)}
   gfxRefresh();toast('ลบภาพแล้ว กลับไปใช้แบบเดิม')}
+/* owner's graphics go to the shop server so every phone shows them */
+async function gfxPushServer(k,v){if(!BACKEND()||!isOwner()||!L().key)return;
+  try{const r=await api({a:'gfx_put',key:L().key,k,v:v||null});const seen=loadJSON('barber-gfx-at')||{};
+    if(r.ok){if(v&&r.at)seen[k]=r.at;else delete seen[k];saveJSON('barber-gfx-at',seen)}else toast('อัปโหลดรูปขึ้นระบบไม่ได้: '+(r.error||''))}catch(_){}}
+async function gfxPushAll(){for(const [k,v] of Object.entries(gfx))if(v)await gfxPushServer(k,v)}
+async function gfxPullServer(){if(!BACKEND())return;
+  try{const r=await api({a:'gfx_idx'},true);if(!r||!r.ok)return;const idx=r.idx||{},seen=loadJSON('barber-gfx-at')||{};let changed=false;
+    for(const [k,at] of Object.entries(idx)){if(seen[k]===at&&gfx[k])continue;const g=await api({a:'gfx_get',k},true);if(g&&g.ok&&g.v){gfx[k]=g.v;await gfxWrite(k,g.v);seen[k]=at;changed=true}}
+    if(!isOwner())for(const k of Object.keys(seen))if(!idx[k]){delete gfx[k];await gfxWrite(k,null);delete seen[k];changed=true}
+    saveJSON('barber-gfx-at',seen);if(changed){applyGfx();renderAdmin();renderMine()}}catch(_){}}
 document.addEventListener('change',e=>{const inp=e.target.closest&&e.target.closest('input[data-gfx]');if(!inp||!inp.files[0])return;gfxPut(inp.dataset.gfx,inp.files[0]);inp.value=''});
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.gtab){gfxGroup=t.dataset.gtab;renderGfx()}
@@ -3624,7 +3648,7 @@ async function lineConnect(manual){
     if(!p||!p.ok)throw new Error(p&&p.error||'ติดต่อไม่ได้');
     sync.staffOk=!!p.staff; if(l.key&&!p.staff)throw new Error('STAFF_KEY ไม่ถูกต้อง');
     sync.on=true;sync.line=!!p.line;
-    if(isOwner()&&sync.staffOk){await pushLineCfg();if(manual){await uploadLocal();appCfgChanged()}}
+    if(isOwner()&&sync.staffOk){await pushLineCfg();if(manual){await uploadLocal();appCfgChanged();gfxPushAll()}}
     await pullAppCfg();
     await pullNow(true);
     bookings.forEach(b=>{if(!sync.snap[b.id])sync.snap[b.id]=stab(b)}); // local-only demo data stays on this device
@@ -3712,7 +3736,7 @@ async function lineMine(phone){ // customer profile lookup when shop data lives 
   try{const r=await api({a:'mine',phone});if(r.ok){r.bookings.forEach(sb=>{const lb=bookings.find(x=>x.id===sb.id);if(lb)Object.assign(lb,sb);else bookings.push(sb);sync.snap[sb.id]=stab(bookings.find(x=>x.id===sb.id))});saveJSON(KEY,bookings)}}catch(e){}
 }
 setInterval(()=>{if(sync.on&&!document.hidden){if(Object.keys(sync.queue).length)flushSync();else pullNow()}},10000);
-setInterval(()=>{if(sync.on&&!document.hidden){pullAppCfg();pullMembers()}},60000);
+setInterval(()=>{if(sync.on&&!document.hidden){pullAppCfg();pullMembers();gfxPullServer()}},60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sync.on)pullNow()});
 
 /* ---------- in-app LINE preview (same messages & buttons as the real one) ---------- */
@@ -3973,7 +3997,7 @@ async function saveWelcome(){
   if(!mine&&owner&&nickKey(owner)!==nickKey(n)){e.innerHTML=taken;e.hidden=false;return}
   if(srv&&srv.ok&&srv.count!=null)memberStat={count:srv.count,today:srv.today||0};
   const back=srv&&srv.ok?!!srv.back:!mine&&!!owner;
-  const old=custMe;custMe={name:n,phone:p};saveJSON('barber-me',custMe);upsertCustomer(n,p);if(mine){const c=customers[phoneKey(p)];if(c&&c.name!==n){c.name=n;saveCu()}}
+  const old=custMe;custMe=Object.assign({},old||{},{name:n,phone:p,joined:srv&&srv.ok?1:(old&&phoneKey(old.phone)===phoneKey(p)?old.joined:0)});saveJSON('barber-me',custMe);upsertCustomer(n,p);if(mine){const c=customers[phoneKey(p)];if(c&&c.name!==n){c.name=n;saveCu()}}
   if(!sel.name||(old&&sel.name===old.name))sel.name=n; if(!sel.phone||(old&&sel.phone===old.phone))sel.phone=p;
   if(old&&phoneKey(old.phone)!==phoneKey(p))myLookup=null;
   delete dlg.dataset.welcome;dlg.close();renderCustomer();if(view==='mine')renderMine();toast(back?'ยินดีต้อนรับกลับ คุณ'+n:'สวัสดีคุณ'+n+' จองคิวได้เลย');if(view==='home')renderHome();
@@ -4082,9 +4106,9 @@ document.addEventListener('click',e=>{
 document.addEventListener('submit',e=>{if(e.target.id==='chatForm'){e.preventDefault();sendChat()}});
 document.addEventListener('keydown',e=>{if(e.target.id==='chatText'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}});
 dlg.addEventListener('close',()=>dlg.classList.remove('chatdlg'));
-updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false); pullMembers(); setTimeout(()=>{pollCustChat();pollStaffChat()},2500);
+updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); if(BACKEND())lineConnect(false); pullMembers(); setTimeout(()=>{ensureJoined();pollCustChat();pollStaffChat()},2500);
 if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
-gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx()});
+gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx();gfxPullServer()});
 syncIndicators(); indObs.observe(document.body,{childList:true,subtree:true});
 
 </script>

@@ -148,4 +148,17 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const t = await get({ a: 'members' });
   ok(t.today >= 2, 'members joined today are counted');
 }
+// staff login by PIN
+{
+  await post({ a: 'appcfg', key: KEY, cfg: { shopName: 'DI-CUT', ownerPin: '9999', barbers: [{ id: 'b1', name: 'ช่างเอ', pin: '4321' }, { id: 'b2', name: 'ช่างบอส' }] } });
+  const st = await db.getKv('appcfg'); ok(!st.cfg.ownerPin && !st.cfg.barbers[0].pin, 'PINs are not stored in public app settings');
+  ok(!JSON.stringify(await db.getKv('pins')).includes('4321'), 'PINs stored only as hashes');
+  let r = await post({ a: 'login', who: 'b1', pin: '4321' }); ok(r.ok && r.key === KEY && r.role === 'barber', 'barber logs in with PIN and gets the shop key');
+  ok((await post({ a: 'login', who: 'b2', pin: '1234' })).ok, 'barber without custom PIN uses default');
+  ok((await post({ a: 'login', who: 'owner', pin: '9999' })).role === 'owner', 'owner logs in with PIN');
+  ok((await post({ a: 'login', who: 'b1', pin: '0000' })).error === 'bad_pin', 'wrong PIN refused');
+  for (let i = 0; i < 8; i++) await post({ a: 'login', who: 'b2', pin: '000' + i });
+  ok((await post({ a: 'login', who: 'b2', pin: '1234' })).error === 'locked', 'too many wrong PINs locks for 15 minutes');
+  clock += 16 * 60e3; ok((await post({ a: 'login', who: 'b2', pin: '1234' })).ok, 'lock expires');
+}
 console.log('\n' + pass + ' checks passed');

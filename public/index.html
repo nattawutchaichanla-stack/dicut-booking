@@ -3320,10 +3320,16 @@ function openLogin(){
     <p class="hint">ตัวอย่าง: เจ้าของร้าน 0000 · ช่างทุกคน 1234</p></div>`;
   dlg.dataset.id='';dlg.showModal();document.getElementById('lgPin').focus();
 }
-function doLogin(){
-  const who=document.getElementById('lgWho').value, pin=document.getElementById('lgPin').value.trim();
-  const ok=who==='owner'?pin===ownerPin():pin===pinOf(barber(who));
-  if(!ok){const e=document.getElementById('lgErr');e.textContent='รหัสไม่ถูกต้อง';e.hidden=false;return}
+async function doLogin(){
+  const who=document.getElementById('lgWho').value, pin=document.getElementById('lgPin').value.trim(), e=document.getElementById('lgErr'), go=document.getElementById('lgGo');
+  let ok=null, msg='รหัสไม่ถูกต้อง';
+  if(BACKEND()&&go&&!go.disabled){go.disabled=true; // shop server checks the PIN the owner set, and hands this device the shop key
+    try{const r=await api({a:'login',who,pin});
+      if(r&&r.ok){ok=true;if(r.key){L().key=r.key;saveJSON(CKEY,cfg)}}
+      else if(r&&(r.error==='bad_pin'||r.error==='locked')){ok=false;if(r.error==='locked')msg='ใส่รหัสผิดหลายครั้ง รอ 15 นาทีแล้วลองใหม่'}}catch(_){}
+    go.disabled=false}
+  if(ok===null)ok=who==='owner'?pin===ownerPin():pin===pinOf(barber(who));
+  if(!ok){e.textContent=msg;e.hidden=false;return}
   user=who==='owner'?{role:'owner'}:{role:'barber',id:who};saveJSON('barber-session',user);
   dlg.close();walkOpen=false;renderAuth();renderAdmin();setView('today');toast('เข้าสู่ระบบแล้ว');if(BACKEND())lineConnect(false);
 }

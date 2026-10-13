@@ -3659,7 +3659,7 @@ async function lineConnect(manual){
 async function pushLineCfg(){
   const l=L(); if(!sync.on||!sync.staffOk||!isOwner())return;
   const r=await api({a:'config',key:l.key,cfg:{shopName:cfg.shopName,branch:cfg.branch,phone:cfg.phone,appUrl:location.href.split('#')[0],lateMin:lateMin(),remindMin:l.remindMin,cancelBefore:cancelMin(),
-    notify:l.notify,ownerCopy:l.ownerCopy,barbers:cfg.barbers.map(b=>({id:b.id,name:b.name})),services:cfg.services.map(s=>({id:s.id,name:s.name,min:s.min,price:s.price}))}});
+    notify:l.notify,ownerCopy:l.ownerCopy,loyalty:{active:loy().active!==false,need:loy().need,services:loy().services},barbers:cfg.barbers.map(b=>({id:b.id,name:b.name})),services:cfg.services.map(s=>({id:s.id,name:s.name,min:s.min,price:s.price}))}});
   if(r.ok){l.staff=r.staff;saveJSON(CKEY,cfg)}
 }
 var cfgPushT=null, appCfgT=null;

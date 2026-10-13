@@ -1570,6 +1570,19 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .lgroup p{margin:0 0 8px;display:grid;gap:2px}.lgroup small{color:var(--muted)}
 .lgsteps{margin:0 0 8px;padding-left:18px;display:grid;gap:6px;font-size:.88rem}
 .lgsteps code{background:var(--surface);padding:2px 6px;border-radius:6px;font-weight:600}
+/* home: barbers right now */
+.gp-now .gp-t{margin-bottom:6px}
+.pn-sum{margin:0 0 12px;text-align:center;font-size:.85rem;color:var(--muted)}
+.pn-sum b{font-family:var(--fd);font-size:1.6rem;font-weight:500;color:var(--ink);margin-right:2px}.pn-sum b.ok{color:#14975A}
+.pn-list{display:grid;gap:8px}
+.pn-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:20px;background:color-mix(in srgb,var(--off) 70%,transparent)}
+.pn-row.off{opacity:.6}
+.pn-who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.pn-who span{display:grid;min-width:0}.pn-who b{font-weight:600}.pn-who small{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pn-pill{flex:none;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:.75rem;font-weight:600;background:var(--off);color:var(--muted)}
+.pn-pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pn-pill.free{background:#E3F5EA;color:#14975A}.pn-pill.busy{background:#FDEBD3;color:#C2610C}.pn-pill.wait{background:#FFF3C4;color:#8A6A00}
+.pn-book{flex:none;border:0;border-radius:99px;padding:7px 14px;background:var(--ink);color:var(--surface);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -2133,6 +2146,22 @@ window.addEventListener('resize',closePop);
 
 /* ---------- home dashboard ---------- */
 const xbtn=(attr,label)=>`<button class="xbtn" ${attr} aria-label="${label}" title="${label}">${ic('arrow-ur',14)}</button>`;
+function panelNow(){ // every barber at a glance: free / cutting / off, with a book button
+  const t=today(), nm=nowMin();
+  const rows=cfg.barbers.map(b=>{const lv=liveOf(b), w=works(b,t);
+    const st=!w?'off':lv.cls==='busy'?'busy':lv.cls==='free'?'free':lv.cls==='wait'?'wait':'off';
+    const pill={free:'ว่าง',busy:'กำลังตัด',wait:'ถึงคิวลูกค้า',off:!w?'หยุด':lv.head}[st];
+    const next=w?daySlots(b.id,t,30).find(x=>x>=nm-5):null;
+    const sub=!w?'วันนี้ไม่เข้าร้าน':st==='busy'?`ว่างประมาณ ${lv.tag?lv.tag.replace('ว่างประมาณ ',''):'—'}`:st==='free'?(next!=null&&next<=nm+5?'จองแล้วตัดได้เลย':next!=null?'คิวว่างถัดไป '+fmt(next):'วันนี้คิวเต็ม'):st==='wait'?'รอลูกค้าที่นัดไว้':lv.sub||'';
+    return {b,st,pill,sub,w,next}});
+  const free=rows.filter(r=>r.st==='free').length, on=rows.filter(r=>r.w).length;
+  return `<article class="gp gp-a gp-now">${xbtn('data-view="live"','ดูสถานะช่างทั้งหมด')}
+    <h3 class="gp-t">ช่างว่างตอนนี้</h3>
+    <p class="pn-sum"><b class="${free?'ok':''}">${free}</b> จาก ${on} คนที่เข้างานวันนี้</p>
+    <div class="pn-list">${rows.map(r=>`<div class="pn-row ${r.st}"><button class="pn-who" data-hm="prof:${r.b.id}" aria-label="ดูโปรไฟล์ ${esc(r.b.name)}">${avatar(r.b.name,r.b.photo,'md')}<span><b>${esc(r.b.name)}</b><small>${esc(r.sub)}</small></span></button>
+      <span class="pn-pill ${r.st}"><i></i>${esc(r.pill)}</span>${r.w&&r.next!=null?`<button class="pn-book" data-bookb="${r.b.id}">จอง</button>`:''}</div>`).join('')}</div>
+  </article>`;
+}
 function panelBarber(){
   const bs=cfg.barbers, b=bs[featIdx%bs.length], t=today(), lv=liveOf(b), w=works(b,t);
   const cap=w?Math.floor((winEnd(b)-winStart(b))/30):0, n=bookings.filter(x=>x.barberId===b.id&&x.date===t&&isLive(x)).length;
@@ -2239,7 +2268,7 @@ function renderHome(){
   const el=document.getElementById('secHome');if(!el)return;
   const t=today(), tdy=bookings.filter(b=>b.date===t&&b.status!=='cancelled'&&b.status!=='noshow').length, free=cfg.barbers.filter(b=>liveOf(b).cls==='free').length;
   el.innerHTML=`${G('hero')?'':hotspotsSVG()}<div class="dash">
-    <div class="dcol dl">${panelBarber()}${panelHours()}</div>
+    <div class="dcol dl">${panelNow()}${panelHours()}</div>
     <div class="dcol dm">
       <div class="dtitle"><h2>${esc(cfg.shopName||'DI-CUT')}</h2><p>${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?' · โทร '+esc(cfg.phone):''}</p><p>คิววันนี้ ${tdy} คิว · ว่างตอนนี้ ${free} คน</p>${socIcons()}</div>
       <div class="dspace"></div>
@@ -2249,6 +2278,8 @@ function renderHome(){
     <div class="dcol dr">${panelDonut()}${panelWait()}</div>
   </div>`;
 }
+document.addEventListener('click',e=>{const t=e.target.closest('[data-bookb]');if(!t)return;e.preventDefault();
+  sel.barber=t.dataset.bookb;sel.pickedBarber=true;sel.time=null;sel.date=today();goBook()});
 document.addEventListener('click',e=>{const t=e.target.closest('[data-hm],[data-qslot]');if(!t)return;
   if(t.dataset.qslot){sel.time=+t.dataset.qslot;sel.quick=false;if(!sel.services.length){toast('เลือกบริการก่อน');openPop(document.querySelector('[data-nf=svc]'),popSvc());return}goBook();return}
   const [a,id]=t.dataset.hm.split(':');

@@ -220,4 +220,28 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const pub = (await get({ a: 'list' })).bookings.find(x => x.id === 'ACC1');
   ok(pub.accepted && !pub.name, "customer's phone sees accepted (but not other people's names)");
 }
+// notifications into a LINE group
+{
+  const gEv = (text, uid = 'U_A') => core.handleLine([{ type: 'message', replyToken: 'RT', source: { type: 'group', groupId: 'G_SHOP', userId: uid }, message: { type: 'text', text } }]);
+  let r = await post({ a: 'staff', key: KEY }); ok(r.group && /^\d{6}$/.test(r.group.code) && !r.group.linked, 'app gets a 6-digit group code');
+  await core.handleLine([{ type: 'join', replyToken: 'RT', source: { type: 'group', groupId: 'G_SHOP' } }]);
+  ok(/ผูกกลุ่ม/.test(last().messages[0].text), 'bot explains how to link when added to a group');
+  const n0 = sent.length; await gEv('ใครว่างบ้าง 555 นัด 141500'); ok(sent.length === n0, 'normal group chatter is ignored');
+  await gEv('ผูกกลุ่ม 000000'); ok(/ไม่ถูกต้อง/.test(last().messages[0].text), 'wrong group code refused');
+  await gEv('ผูกกลุ่ม ' + r.group.code); ok(/ผูกกลุ่มนี้กับร้านแล้ว/.test(last().messages[0].text) && (await db.getKv('lineGroup')).id === 'G_SHOP', 'group linked with the code');
+  ok((await post({ a: 'staff', key: KEY })).group.code !== r.group.code, 'group code changes after use');
+  await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { notifyTo: 'group' }) });
+  const before = sent.length, nm = core.nowMin();
+  await post({ a: 'create', booking: { id: 'GRP1', date: core.todayKey(), start: nm + 240, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'กลุ่ม', phone: '0870000001' } });
+  const tos = sent.slice(before).filter(m => m.kind === 'push').map(m => m.to);
+  ok(tos.length === 1 && tos[0] === 'G_SHOP', "mode 'group': one message to the group, none to personal chats");
+  await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { notifyTo: 'both' }) });
+  const b2 = sent.length; await post({ a: 'create', booking: { id: 'GRP2', date: core.todayKey(), start: nm + 300, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'กลุ่ม2', phone: '0870000002' } });
+  const t2 = sent.slice(b2).filter(m => m.kind === 'push').map(m => m.to); ok(t2.includes('G_SHOP') && t2.length >= 2, "mode 'both': group and barber");
+  await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { notifyTo: 'personal' }) });
+  const b3 = sent.length; await post({ a: 'create', booking: { id: 'GRP3', date: core.todayKey(), start: nm + 360, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'กลุ่ม3', phone: '0870000003' } });
+  ok(!sent.slice(b3).some(m => m.to === 'G_SHOP'), "mode 'personal': nothing to the group");
+  await gEv('ยกเลิกกลุ่ม', 'U_A'); ok(/เฉพาะเจ้าของร้าน/.test(last().messages[0].text), 'only the owner can unlink from the group');
+  await post({ a: 'group', key: KEY, action: 'unlink' }); ok(!(await db.getKv('lineGroup')).id, 'owner unlinks the group from the app');
+}
 console.log('\n' + pass + ' checks passed');

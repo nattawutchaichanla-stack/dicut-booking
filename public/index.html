@@ -1564,6 +1564,12 @@ dialog.chatdlg{width:min(96vw,480px);padding:18px!important}
 .accl.ok{background:#E3F5EA;color:#14975A}.accl.wait{background:var(--off);color:var(--muted)}
 .acctag{display:inline-flex;align-items:center;gap:3px;margin-top:4px;padding:2px 9px;border-radius:99px;font-style:normal;font-size:.72rem;font-weight:600;background:#E3F5EA;color:#14975A;border:0;width:max-content}
 button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inherit;font-size:.72rem;font-weight:600}
+/* LINE group */
+.lgroup{padding:12px 14px;border-radius:18px;background:var(--off);margin-bottom:10px}
+.lgroup.on{background:#E3F5EA}.lgroup.on b{display:flex;align-items:center;gap:6px;color:#14975A}
+.lgroup p{margin:0 0 8px;display:grid;gap:2px}.lgroup small{color:var(--muted)}
+.lgsteps{margin:0 0 8px;padding-left:18px;display:grid;gap:6px;font-size:.88rem}
+.lgsteps code{background:var(--surface);padding:2px 6px;border-radius:6px;font-weight:600}
 </style>
 </head>
 <body>
@@ -3666,8 +3672,8 @@ async function lineConnect(manual){
 async function pushLineCfg(){
   const l=L(); if(!sync.on||!sync.staffOk||!isOwner())return;
   const r=await api({a:'config',key:l.key,cfg:{shopName:cfg.shopName,branch:cfg.branch,phone:cfg.phone,appUrl:location.href.split('#')[0],lateMin:lateMin(),remindMin:l.remindMin,cancelBefore:cancelMin(),
-    notify:l.notify,ownerCopy:l.ownerCopy,loyalty:{active:loy().active!==false,need:loy().need,services:loy().services},barbers:cfg.barbers.map(b=>({id:b.id,name:b.name})),services:cfg.services.map(s=>({id:s.id,name:s.name,min:s.min,price:s.price}))}});
-  if(r.ok){l.staff=r.staff;saveJSON(CKEY,cfg)}
+    notify:l.notify,ownerCopy:l.ownerCopy,notifyTo:l.notifyTo||'group',loyalty:{active:loy().active!==false,need:loy().need,services:loy().services},barbers:cfg.barbers.map(b=>({id:b.id,name:b.name})),services:cfg.services.map(s=>({id:s.id,name:s.name,min:s.min,price:s.price}))}});
+  if(r.ok){l.staff=r.staff;if(r.group)l.group=r.group;saveJSON(CKEY,cfg)}
 }
 var cfgPushT=null, appCfgT=null;
 function appCfgChanged(){if(!sync.on||!sync.staffOk||!isOwner())return;clearTimeout(appCfgT);appCfgT=setTimeout(async()=>{
@@ -3905,6 +3911,15 @@ function lineStatHTML(){const l=L();
   if(sync.checking)return `<span class="lstat">กำลังเชื่อมต่อ…</span>`;
   if(!sync.on)return `<span class="lstat bad">เชื่อมต่อไม่ได้${sync.err?' · '+esc(sync.err):''}</span>`;
   return `<span class="lstat ok">เชื่อมระบบจริงแล้ว${sync.line?'':' · ยังไม่ได้ใส่ LINE_TOKEN'}</span><small class="lsync">ซิงก์ล่าสุด ${sync.last?new Date(sync.last).toLocaleTimeString('th-TH'):'-'}${Object.keys(sync.queue).length?' · รอส่ง '+Object.keys(sync.queue).length:''}${sync.err?' · '+esc(sync.err):''}</small>`}
+function lineGroupHTML(){
+  const l=L(), g=l.group||{}, m=l.notifyTo||'group';
+  const opt=(v,t,sub)=>`<label class="ltog"><input type="radio" name="lnto" data-lnto="${v}" ${m===v?'checked':''}><span><b>${t}</b><small>${sub}</small></span></label>`;
+  return `<h4 class="lh">ส่งเข้ากลุ่ม LINE</h4>
+    <div class="lgroup ${g.linked?'on':''}">${g.linked?`<p><b>${ic('check',16)} ผูกกลุ่ม LINE แล้ว</b><small>คิวใหม่ ถึงคิว และลูกค้ามาช้า จะแจ้งเข้ากลุ่มนี้</small></p><div class="uplrow"><button class="ghost" data-lgroup="test">ทดสอบส่งเข้ากลุ่ม</button><button class="ghost gdel" data-lgroup="unlink">ยกเลิกกลุ่ม</button></div>`
+      :`<ol class="lgsteps"><li>เปิด LINE OA ของร้านใน manager.line.biz &gt; ตั้งค่า &gt; ตั้งค่าบัญชี &gt; <b>อนุญาตให้เข้าร่วมกลุ่ม</b></li><li>เชิญบัญชี LINE OA เข้ากลุ่มช่างที่ต้องการ</li><li>พิมพ์ในกลุ่ม: <code>ผูกกลุ่ม ${esc(g.code||'······')}</code> <button class="linkbtn" data-lcopy="ผูกกลุ่ม ${esc(g.code||'')}">คัดลอก</button></li></ol><button class="linkbtn" data-lgroup="refresh">เช็กสถานะอีกครั้ง</button>`}</div>
+    <div class="ltogs">${opt('group','ส่งเข้ากลุ่มอย่างเดียว','ประหยัดโควตา: 1 ข้อความต่อครั้ง ทุกคนในกลุ่มเห็น')}${opt('both','ส่งทั้งกลุ่มและแชตส่วนตัวช่าง','ช่างได้ 2 ที่ ใช้โควตาเพิ่ม')}${opt('personal','ส่งแชตส่วนตัวอย่างเดียว','ไม่ส่งเข้ากลุ่ม')}</div>
+    <p class="hint">กดปุ่มในกลุ่ม (รับคิว เริ่มตัด ตัดเสร็จ) ได้เฉพาะคนที่เชื่อม LINE ของตัวเองแล้ว ส่งรหัส 6 หลักของตัวเองในกลุ่มหรือแชตส่วนตัวก็ได้</p>`;
+}
 function lineAdminHTML(){
   const l=L(), q=lineQuota(), pct=Math.min(100,q.month/300*100), staffInfo=id=>(l.staff||[]).find(s=>s.staffId===id);
   const tg=(k,label,sub)=>`<label class="ltog"><input type="checkbox" data-lnot="${k}" ${l.notify[k]!==false?'checked':''}><span><b>${label}</b><small>${sub}</small></span></label>`;
@@ -3929,6 +3944,7 @@ function lineAdminHTML(){
   ${sync.on&&sync.staffOk?`<h4 class="lh">เชื่อม LINE ของช่าง</h4><p class="hint">ให้แต่ละคนเพิ่มเพื่อน LINE OA ของร้าน แล้วพิมพ์รหัส 6 หลักของตัวเองส่งในแชต</p><div class="lstaff">${LINE_STAFF().map(s=>{const i=staffInfo(s.id);
       return `<div class="lsrow">${s.id==='owner'?`<span class="av md anyav" aria-hidden="true">${ic('user',18)}</span>`:avatar(s.name,s.photo,'md')}<span class="lsn"><b>${esc(s.name)}</b>${i&&i.linked?'<small class="ok">เชื่อม LINE แล้ว</small>':i&&i.linkCode?`<small>รหัสเชื่อมต่อ <code>${i.linkCode}</code></small>`:'<small>กดเชื่อมต่อใหม่เพื่อสร้างรหัส</small>'}</span>
         ${i&&i.linked?`<button class="linkbtn" data-ltest="${s.id}">ทดสอบส่ง</button><button class="linkbtn gdel" data-lunlink="${s.id}">ยกเลิก</button>`:i&&i.linkCode?`<button class="linkbtn" data-lcopy="${i.linkCode}">คัดลอก</button>`:''}</div>`}).join('')}</div>`:''}
+  ${sync.on&&sync.staffOk?lineGroupHTML():''}
   <button class="linkbtn lguide-t" id="lGuideT" aria-expanded="${lineGuide}">${lineGuide?'ซ่อน':'ดู'}วิธีตั้งค่า LINE (ทำครั้งเดียว ประมาณ 15 นาที)</button>
   ${lineGuide?`<ol class="lguide">
     <li><b>เปิด Messaging API ของ LINE OA</b><br>ที่ <a href="https://manager.line.biz" target="_blank" rel="noopener">manager.line.biz</a> เลือกบัญชีร้าน (หรือสร้างใหม่) > ตั้งค่า > Messaging API > เปิดใช้งาน</li>
@@ -4113,6 +4129,11 @@ document.addEventListener('click',e=>{
 document.addEventListener('click',e=>{const t=e.target.closest('[data-acceptq]');if(!t)return;e.preventDefault();e.stopPropagation();
   const b=bookings.find(x=>x.id===t.dataset.acceptq);if(!b||!canManage(b)||b.accepted)return;
   b.accepted=Date.now();b.acceptedBy=isOwner()?'เจ้าของร้าน':barber(user.id).name;save();renderAdmin();toast('รับคิว '+b.name+' แล้ว ลูกค้าจะเห็นว่าช่างยืนยันแล้ว')},true);
+document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.lnto||!isOwner())return;L().notifyTo=t.dataset.lnto;saveCfg();lineCfgChanged();toast('บันทึกแล้ว')});
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-lgroup]');if(!t||!isOwner())return;const a=t.dataset.lgroup,l=L();
+  if(a==='unlink'&&!confirm('ยกเลิกการแจ้งเตือนเข้ากลุ่ม LINE?'))return;
+  try{const r=a==='refresh'?await api({a:'staff',key:l.key}):await api({a:'group',key:l.key,action:a});
+    if(r.ok){if(r.group)l.group=r.group;saveJSON(CKEY,cfg);renderLineAdmin();toast(a==='test'?'ส่งข้อความทดสอบเข้ากลุ่มแล้ว':a==='unlink'?'ยกเลิกกลุ่มแล้ว':r.group&&r.group.linked?'ผูกกลุ่มแล้ว ✅':'ยังไม่ได้ผูกกลุ่ม')}else toast(r.error||'ทำไม่สำเร็จ')}catch(_){toast('ติดต่อระบบไม่ได้')}});
 document.addEventListener('submit',e=>{if(e.target.id==='chatForm'){e.preventDefault();sendChat()}});
 document.addEventListener('keydown',e=>{if(e.target.id==='chatText'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}});
 dlg.addEventListener('close',()=>dlg.classList.remove('chatdlg'));

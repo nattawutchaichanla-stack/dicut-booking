@@ -197,10 +197,11 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const day = core.todayKey(), ph = '0893334444';
   for (let k = 0; k < 3; k++) await db.insertBooking({ id: 'LOYD' + k, date: '2026-09-0' + (k + 1), start: 600, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'แต้ม', phone: ph, status: 'done', updatedAt: 1 });
   const nm = core.nowMin(), before = sent.length;
-  const r = await post({ a: 'create', booking: { id: 'LOYQ1', date: day, start: nm + 120, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'แต้ม', phone: ph } });
+  const r = await post({ a: 'create', booking: { id: 'LOYQ1', date: day, start: nm + 120, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'แต้ม', phone: ph, note: 'รองทรงสูง ไม่เอาข้างสั้นมาก' } });
   const msg = sent.slice(before).map(m => JSON.stringify(m.messages)).join('');
   ok(r.ok && /คิวที่ \d+ จาก \d+ คิววันนี้/.test(msg), 'LINE card shows queue number of the day');
   ok(msg.includes(ph) && msg.includes('tel:' + ph), 'LINE card shows phone with a call button');
   ok(msg.includes('สะสม 3/10 แต้ม') && msg.includes('มาแล้ว 3 ครั้ง'), 'LINE card shows loyalty stamps and visits');
+  ok(msg.includes('หมายเหตุ') && msg.includes('รองทรงสูง ไม่เอาข้างสั้นมาก'), "LINE card shows the customer's note");
 }
 console.log('\n' + pass + ' checks passed');

@@ -1583,6 +1583,21 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .pn-pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
 .pn-pill.free{background:#E3F5EA;color:#14975A}.pn-pill.busy{background:#FDEBD3;color:#C2610C}.pn-pill.wait{background:#FFF3C4;color:#8A6A00}
 .pn-book{flex:none;border:0;border-radius:99px;padding:7px 14px;background:var(--ink);color:var(--surface);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+/* customers page */
+.cusum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.cusum div{background:var(--surface);border-radius:20px;padding:12px 10px;text-align:center;display:grid;gap:2px;box-shadow:0 6px 20px -12px rgba(40,25,10,.35)}
+.cusum b{font-family:var(--fd);font-size:1.5rem;font-weight:500}.cusum small{font-size:.72rem;color:var(--muted)}
+@media (max-width:520px){.cusum{grid-template-columns:repeat(2,1fr)}}
+.cusort{display:flex;gap:6px;overflow-x:auto;margin:10px 0;scrollbar-width:none}
+.cusort button{flex:none;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:.8rem;cursor:pointer}
+.cusort button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.curow .cu-main{flex:1;min-width:0;display:grid;gap:1px;text-align:left}
+.curow .cu-main small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cu-next{color:#14975A!important;display:flex!important;align-items:center;gap:4px;white-space:nowrap}
+.cu-stats{flex:none;display:grid;justify-items:end;gap:2px;text-align:right}
+.cu-stats b{font-family:var(--fd);font-size:1.2rem;font-weight:500;line-height:1}.cu-stats small{font-size:.68rem;color:var(--muted)}
+.cu-stats em{font-style:normal;font-size:.7rem;font-weight:600;padding:1px 7px;border-radius:99px;background:#FFF3C4;color:#8A6A00}
+.cu-stats em.ns{background:#FDE2E2;color:#C23B3B}
 </style>
 </head>
 <body>
@@ -3230,7 +3245,9 @@ function openBarberProfile(id,edit=false){
 }
 function custHistory(k){return bookings.filter(x=>phoneKey(x.phone)===k).sort((a,b)=>b.date.localeCompare(a.date)||b.start-a.start)}
 function openCustomer(k,edit=false){
-  const c=customers[k]; if(!c||!user)return;
+  if(!user)return;
+  if(!customers[k]){const b=bookings.find(x=>phoneKey(x.phone||'')===k&&x.name);if(!b)return;customers[k]={name:b.name,phone:b.phone,note:'',photo:'',createdAt:b.createdAt||Date.now()};saveCu()}
+  const c=customers[k];
   const hist=custHistory(k), done=hist.filter(x=>x.status==='done');
   const spent=done.reduce((a,x)=>a+bPrice(x),0), cnt={};
   done.forEach(x=>cnt[x.barberId]=(cnt[x.barberId]||0)+1);
@@ -3254,20 +3271,61 @@ function openCustomer(k,edit=false){
 }
 function showSheet(h){dlg.innerHTML=h;dlg.classList.add('wide');dlg.dataset.id='';if(!dlg.open)dlg.showModal()}
 let cuQuery='';
+let cuSort='last', cuLimit=60, cuSyncAt=0;
+function cuAll(){ // everyone we know: saved customers + server members + anyone in bookings
+  const map={};
+  const add=(k,name,phone,createdAt)=>{if(k.length<9)return;const m=map[k]||(map[k]={k,name:'',phone:'',createdAt:0});if(!m.name&&name)m.name=name;if(!m.phone&&phone)m.phone=phone;if(createdAt&&(!m.createdAt||createdAt<m.createdAt))m.createdAt=createdAt};
+  Object.entries(customers).forEach(([k,c])=>add(k,c.name,c.phone,c.createdAt));
+  bookings.forEach(b=>{const k=phoneKey(b.phone||'');if(b.name)add(k,b.name,b.phone,b.createdAt)});
+  const byK={};bookings.forEach(b=>{const k=phoneKey(b.phone||'');if(k.length>=9)(byK[k]=byK[k]||[]).push(b)});
+  return Object.values(map).map(m=>{const all=(byK[m.k]||[]).sort((a,b)=>b.date.localeCompare(a.date)||b.start-a.start),done=all.filter(x=>x.status==='done');
+    const c=customers[m.k]||{};
+    return Object.assign(m,{photo:c.photo||'',note:c.note||'',visits:done.length,noshow:all.filter(x=>x.status==='noshow').length,last:done[0]?done[0].date:'',
+      next:all.filter(x=>x.status==='confirmed'&&x.date>=today()).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start)[0]||null,
+      spend:done.reduce((a,x)=>a+bPrice(x),0),loy:loyState(m.phone||m.k)})});
+}
+async function cuPullServer(){ // members registered on any phone
+  if(!BACKEND()||!lineStaffKey()||Date.now()-cuSyncAt<60000)return;cuSyncAt=Date.now();
+  try{const r=await api({a:'members_list',key:L().key});if(!r||!r.ok)return;let ch=false;
+    r.members.forEach(m=>{if(!customers[m.phoneKey]){customers[m.phoneKey]={name:m.name,phone:m.phoneKey,note:'',photo:'',createdAt:m.createdAt};ch=true}});
+    if(ch){saveCu();renderCuList()}}catch(_){}
+}
 function renderCustomers(){
   if(!user){secCustomers.innerHTML='';return}
   if(secCustomers.contains(document.activeElement))return renderCuList();
-  secCustomers.innerHTML=`<h2 class="sech">ลูกค้า</h2><section class="step"><div class="searchwrap">${ic('search',18)}<input id="cuSearch" class="search" type="search" placeholder="ค้นหาชื่อหรือเบอร์โทร" value="${esc(cuQuery)}"></div><div id="cuList" class="culist"></div></section>`;
-  renderCuList();
+  const sb=(v,t)=>`<button data-cusort="${v}" aria-pressed="${cuSort===v}">${t}</button>`;
+  secCustomers.innerHTML=`<div id="cuSum" class="cusum"></div><section class="step"><div class="searchwrap">${ic('search',18)}<input id="cuSearch" class="search" type="search" placeholder="ค้นหาชื่อหรือเบอร์โทร" value="${esc(cuQuery)}"></div>
+    <div class="cusort" role="group" aria-label="เรียงลำดับ">${sb('last','มาล่าสุด')}${sb('visits','มาบ่อยสุด')}${sb('new','สมัครใหม่')}${sb('spend','ยอดสูงสุด')}</div>
+    <div id="cuList" class="culist"></div>${isOwner()?`<button class="ghost" id="cuCsv" style="width:100%;margin-top:12px">${ic('arrow-ur',16)} ดาวน์โหลดรายชื่อลูกค้า (Excel/CSV)</button>`:''}</section>`;
+  renderCuList();cuPullServer();
 }
 function renderCuList(){
   const el=document.getElementById('cuList'); if(!el)return;
-  const q=cuQuery.trim().toLowerCase(), qd=q.replace(/\D/g,'');
-  const rows=Object.entries(customers).map(([k,c])=>{const d=custHistory(k).filter(x=>x.status==='done');return{k,c,n:d.length,last:d[0]?d[0].date:''}})
-    .filter(r=>!q||r.c.name.toLowerCase().includes(q)||(qd&&r.k.includes(qd))).sort((a,b)=>b.last.localeCompare(a.last)).slice(0,40);
-  el.innerHTML=rows.length?rows.map(r=>`<button class="curow" data-cprof="${r.k}">${avatar(r.c.name,r.c.photo,'md')}<span><b>${esc(r.c.name)}</b><small>${esc(r.c.phone)}</small></span><span class="ci">${(()=>{const st=loyState(r.c.phone);return st&&st.rewards?'<em class="loyok sm">ตัดฟรีได้</em>':st?st.stamps+'/'+st.need+' แต้ม':r.n+' ครั้ง'})()}<small>${r.last?'ล่าสุด '+thaiDate(r.last):'ยังไม่เคยมา'}</small></span></button>`).join('')
+  const all=cuAll(), q=cuQuery.trim().toLowerCase(), qd=q.replace(/\D/g,''), t0=fromKey(today()), m0=dkey(new Date(t0.getFullYear(),t0.getMonth(),1));
+  const sum=document.getElementById('cuSum');
+  if(sum){const newM=all.filter(m=>m.createdAt&&dkey(new Date(m.createdAt))>=m0).length, vis=all.reduce((a,m)=>a+m.visits,0), back=all.filter(m=>m.visits>=2).length;
+    sum.innerHTML=`<div><b>${all.length.toLocaleString('th-TH')}</b><small>ลูกค้าทั้งหมด</small></div><div><b>${newM}</b><small>ใหม่เดือนนี้</small></div><div><b>${back}</b><small>มาซ้ำ 2 ครั้งขึ้นไป</small></div><div><b>${vis.toLocaleString('th-TH')}</b><small>ครั้งที่ตัดแล้ว</small></div>`}
+  const srt={last:(a,b)=>(b.last||'').localeCompare(a.last||'')||b.createdAt-a.createdAt,visits:(a,b)=>b.visits-a.visits||(b.last||'').localeCompare(a.last||''),new:(a,b)=>b.createdAt-a.createdAt,spend:(a,b)=>b.spend-a.spend}[cuSort];
+  const rows=all.filter(r=>!q||(r.name||'').toLowerCase().includes(q)||(qd&&r.k.includes(qd))).sort(srt);
+  const shown=rows.slice(0,cuLimit);
+  el.innerHTML=shown.length?shown.map(r=>`<button class="curow" data-cprof="${r.k}">${avatar(r.name||'?',r.photo,'md')}<span class="cu-main"><b>${esc(r.name||'ไม่ระบุชื่อ')}</b><small>${esc(r.phone||r.k)}${r.last?' · ล่าสุด '+thaiDate(r.last):r.createdAt?' · สมัคร '+thaiDate(dkey(new Date(r.createdAt))):''}</small>${r.next?`<small class="cu-next">${ic('calendar',12)} นัด ${thaiDate(r.next.date)} ${fmt(r.next.start)}</small>`:''}</span>
+      <span class="cu-stats"><b>${r.visits}</b><small>ครั้ง</small>${r.loy?`<em>${r.loy.rewards?'🎁 ฟรี '+r.loy.rewards:r.loy.stamps+'/'+r.loy.need}</em>`:''}${r.noshow?`<em class="ns">ไม่มา ${r.noshow}</em>`:''}</span></button>`).join('')
+      +(rows.length>shown.length?`<button class="ghost" id="cuMore" style="width:100%">ดูเพิ่ม (${rows.length-shown.length} คน)</button>`:'')
     :`<p class="hint">ไม่พบลูกค้า${q?' ที่ตรงกับ “'+esc(cuQuery)+'”':''}</p>`;
 }
+function cuCsv(){
+  const rows=cuAll().sort((a,b)=>(b.last||'').localeCompare(a.last||''));
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const head=['ชื่อ','เบอร์โทร','จำนวนครั้งที่ตัด','มาล่าสุด','ยอดรวม (บาท)','แต้มสะสม','สิทธิ์ตัดฟรี','ไม่มาตามนัด','สมัครเมื่อ','หมายเหตุ'];
+  const lines=[head.map(q).join(',')].concat(rows.map(r=>[r.name,r.phone||r.k,r.visits,r.last,r.spend,r.loy?r.loy.stamps:'',r.loy?r.loy.rewards:'',r.noshow,r.createdAt?dkey(new Date(r.createdAt)):'',r.note].map(q).join(',')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='ลูกค้า-'+(cfg.shopName||'ร้าน')+'-'+today()+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  toast('ดาวน์โหลดรายชื่อลูกค้า '+rows.length+' คนแล้ว');
+}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-cusort],#cuMore,#cuCsv');if(!t)return;
+  if(t.id==='cuMore'){cuLimit+=60;renderCuList();return}
+  if(t.id==='cuCsv'){cuCsv();return}
+  cuSort=t.dataset.cusort;cuLimit=60;document.querySelectorAll('[data-cusort]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.cusort===cuSort));renderCuList()});
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.bprof)openBarberProfile(t.dataset.bprof);
   else if(t.dataset.bedit)openBarberProfile(t.dataset.bedit,true);
@@ -3327,7 +3385,7 @@ const TABS={
   owner:[['home','ภาพรวม','home'],['today','วันนี้','clock'],['queue','ตารางคิว','calendar'],['book','จองให้ลูกค้า','plus'],['cust','ลูกค้า','user'],['shop','ร้าน','tag']]};
 const tabsFor=()=>!user?TABS.guest:isOwner()?TABS.owner:TABS.staff;
 let view='book';
-function setView(v,scroll=true){
+function setView(v,scroll=true){if((arguments[0]==='cust')&&typeof renderCustomers==='function')setTimeout(()=>{renderCustomers()},0);
   if(!tabsFor().some(t=>t[0]===v))v=tabsFor()[0][0];
   if(v!=='mine'&&myLookup){myLookup=null;renderMyOut()}
   if(view!==v)prevView=view;view=v;document.body.dataset.view=v;renderTabs();closePop();renderNotch();if(v==='home')renderHome();

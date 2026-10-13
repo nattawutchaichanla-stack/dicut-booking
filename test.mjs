@@ -256,4 +256,10 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const p = await core.photo({ id: 'b1' }); ok(p && p.type === 'image/jpeg' && p.bytes.length > 50, 'photo endpoint serves the image bytes');
   ok(!(await core.photo({ id: 'b2' })), 'barber without photo: no image (card shows text only)');
 }
+// owner sees every member
+{
+  ok((await post({ a: 'members_list', key: 'bad' })).ok === false, 'member list needs the shop key');
+  const r = await post({ a: 'members_list', key: KEY });
+  ok(r.ok && r.members.length >= 3 && r.members.some(m => m.phoneKey === '0861112222' && m.name), 'owner gets all members with name and phone');
+}
 console.log('\n' + pass + ' checks passed');

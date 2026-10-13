@@ -1559,6 +1559,11 @@ dialog.chatdlg{width:min(96vw,480px);padding:18px!important}
 /* owner-uploaded contact icons */
 .soc-b,.ct-ic{position:relative;overflow:hidden}
 .cimg{position:absolute;inset:0;border-radius:50%;background:#fff center/cover no-repeat}
+/* barber accepted the booking */
+.accl{display:flex;align-items:center;gap:6px;margin:10px 0 0;padding:8px 12px;border-radius:14px;font-size:.85rem;font-weight:600}
+.accl.ok{background:#E3F5EA;color:#14975A}.accl.wait{background:var(--off);color:var(--muted)}
+.acctag{display:inline-flex;align-items:center;gap:3px;margin-top:4px;padding:2px 9px;border-radius:99px;font-style:normal;font-size:.72rem;font-weight:600;background:#E3F5EA;color:#14975A;border:0;width:max-content}
+button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inherit;font-size:.72rem;font-weight:600}
 </style>
 </head>
 <body>
@@ -2729,6 +2734,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
     showMyBooking(b)}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='mbCode'||e.target.id==='mbPhone'))document.getElementById('mbFind')?.click()});
+const accHTML=b=>b.status!=='confirmed'||!BACKEND()?'':b.accepted?`<p class="accl ok">${ic('check',16)} ช่างยืนยันรับคิวแล้ว</p>`:`<p class="accl wait">${ic('clock',16)} รอช่างยืนยันรับคิว</p>`;
 function ticketHTML(){
   const b=bookings.find(x=>x.id===lastBooking.id)||lastBooking, br=barber(b.barberId);
   return `<section class="step ticket ${b.status==='cancelled'?'cxd':''}" aria-live="polite"><div class="tk-top ${G('ticket')?'has-img':''}" ${G('ticket')?`style="${gbg('ticket')}"`:''}><p>${b.status==='cancelled'?'ยกเลิกการจองแล้ว':'จองสำเร็จ'}</p><div class="code">${b.id}</div><p>แจ้งรหัสนี้กับช่างเมื่อถึงร้าน</p></div><div class="tk-cut" aria-hidden="true"></div>
@@ -2738,7 +2744,7 @@ function ticketHTML(){
     ${(()=>{const st=loyState(b.phone);if(!st||b.status==='cancelled')return '';return b.loyaltyRedeem?`<p class="loyline">${ic('scissors',16)} ใช้สิทธิ์ตัดฟรีกับคิวนี้แล้ว</p>`:!loyEligible(b)?loyNoteHTML(bIds(b)):loyEligible(b)?`<p class="loyline">${ic('scissors',16)} ตัดเสร็จได้ 1 แต้ม · ตอนนี้ ${st.stamps}/${st.need}${st.rewards?` · มีสิทธิ์ตัดฟรี ${st.rewards} ครั้ง`:''}</p>`:''})()}
     ${payBlock(b)}
     ${cancelBlock(b)}
-    <div class="note">เฟส 2: ระบบจะส่งยืนยันเข้า LINE และเตือนก่อนถึงคิว 1 ชั่วโมง</div>
+    ${accHTML(b)}
     <button class="primary" id="again" style="width:100%;margin-top:14px">จองคิวใหม่</button></div></section>`;
 }
 /* ---------- admin ---------- */
@@ -2978,8 +2984,8 @@ function todayHTML(){
       ${canManage(b)?`<button class="jbtn done" data-askdone="${b.id}">${ic('check',20)}ตัดเสร็จ</button>`:''}</div>`},'ตอนนี้ไม่มีใครกำลังตัด');
   h+=box('j-wait','clock','รอตัด',wait,b=>{const od=isOverdue(b,nm), grace=!od&&nm>=b.start;
     const line=od?`นัด ${fmt(b.start)} · เลยมา ${nm-b.start} นาที <b class="odtag">ปล่อยคิวได้</b>`:grace?`นัด ${fmt(b.start)} · รอได้อีก ${b.start+lateMin()-nm} นาที`:`นัด ${fmt(b.start)}${b.start>nm?` · อีก ${dur(b.start-nm)}`:''}`;
-    return `<div class="jrow ${od?'overdue':''}">${who(b,`<small class="${od?'late':grace?'warnt':''}">${line}</small>`)}
-      ${canManage(b)?`<div class="jacts"><button class="jbtn start" data-startq="${b.id}">${ic('scissors',18)}${od?'ลูกค้ามาแล้ว เริ่มตัด':'เริ่มตัด'}</button>${od?`<button class="jbtn release" data-release="${b.id}">ปล่อยคิวให้คนอื่น</button>`:`<button class="jbtn ghosty" data-noshow="${b.id}">ไม่มา</button>`}</div>`:''}</div>`},'ไม่มีคิวรอ');
+    return `<div class="jrow ${od?'overdue':''}">${who(b,`<small class="${od?'late':grace?'warnt':''}">${line}</small>${b.accepted?`<em class="acctag">${ic('check',12)} รับคิวแล้ว</em>`:''}`)}
+      ${canManage(b)&&!b.accepted&&BACKEND()?`<button class="acctag ask" data-acceptq="${b.id}">${ic('check',12)} รับคิว</button>`:''}${canManage(b)?`<div class="jacts"><button class="jbtn start" data-startq="${b.id}">${ic('scissors',18)}${od?'ลูกค้ามาแล้ว เริ่มตัด':'เริ่มตัด'}</button>${od?`<button class="jbtn release" data-release="${b.id}">ปล่อยคิวให้คนอื่น</button>`:`<button class="jbtn ghosty" data-noshow="${b.id}">ไม่มา</button>`}</div>`:''}</div>`},'ไม่มีคิวรอ');
   h+=box('j-done','check','ตัดเสร็จแล้ว',done,b=>`<div class="jrow slim">${who(b,`<small>เสร็จ ${b.doneAt!=null?fmt(b.doneAt):fmt(b.start+b.dur)} · ${baht(bPrice(b))} ฿</small>`)}<span class="jok">${ic('check',16)}</span></div>`,'ยังไม่มีลูกค้าที่ตัดเสร็จ');
   h+=`<section class="step jwalk">`;
   if(!user){}
@@ -3344,7 +3350,7 @@ function renderMyOut(){expireHolds();
   h+=nextCutHTML(past);
   h+=spendChartHTML(past);
   h+=favServicesHTML(past);
-  h+=`<h2 class="sech">คิวที่จองไว้</h2><section class="step">${up.length?up.map(b=>`${bookingCardHTML(b)}${payBlock(b)}${cancelBlock(b)}`).join('<hr class="sep">'):'<p class="hint">ไม่มีคิวที่รออยู่</p><button class="ghost" data-view="book" style="margin-top:10px">จองคิวใหม่</button>'}</section>`;
+  h+=`<h2 class="sech">คิวที่จองไว้</h2><section class="step">${up.length?up.map(b=>`${bookingCardHTML(b)}${accHTML(b)}${payBlock(b)}${cancelBlock(b)}`).join('<hr class="sep">'):'<p class="hint">ไม่มีคิวที่รออยู่</p><button class="ghost" data-view="book" style="margin-top:10px">จองคิวใหม่</button>'}</section>`;
   {const yr=k=>String(fromKey(k).getFullYear()+543).slice(2), promoN=past.filter(b=>b.discount>0||b.prepayOff>0).length;
    h+=`<h2 class="sech">ประวัติการตัดผม</h2><section class="step histcard">${past.length?`
     <div class="hsum"><div><b>${past.length}</b><small>ครั้งที่ตัด</small></div><div><b>${baht(spent)} ฿</b><small>ยอดรวม</small></div><div><b class="ok">${baht(saved)} ฿</b><small>ประหยัดจากโปร ${promoN} ครั้ง</small></div></div>
@@ -3694,7 +3700,7 @@ async function pullNow(full){
     const lb=bookings.find(x=>x.id===sb.id);
     if(lb){const before=stab(lb);
       if(r.staff){Object.keys(lb).forEach(k=>{if(!(k in sb))delete lb[k]});Object.assign(lb,sb)}
-      else ['date','start','dur','barberId','status','serviceId','services','updatedAt'].forEach(k=>{if(k in sb)lb[k]=sb[k]});
+      else ['date','start','dur','barberId','status','serviceId','services','accepted','updatedAt'].forEach(k=>{if(k in sb)lb[k]=sb[k]});
       if(stab(lb)!==before)changed=true}
     else{bookings.push(r.staff?sb:Object.assign({name:'',phone:''},sb));changed=true}
     sync.snap[sb.id]=stab(bookings.find(x=>x.id===sb.id));
@@ -4103,6 +4109,9 @@ document.addEventListener('click',e=>{
   else if(t.dataset.chatback!==undefined){const st=chatState.open;stopChatPoll();if(st&&st.side==='s')openChatList();else openContact()}
   else if(t.dataset.chatq){const ta=document.getElementById('chatText');if(ta){ta.value=t.dataset.chatq;ta.focus()}}
 });
+document.addEventListener('click',e=>{const t=e.target.closest('[data-acceptq]');if(!t)return;e.preventDefault();e.stopPropagation();
+  const b=bookings.find(x=>x.id===t.dataset.acceptq);if(!b||!canManage(b)||b.accepted)return;
+  b.accepted=Date.now();b.acceptedBy=isOwner()?'เจ้าของร้าน':barber(user.id).name;save();renderAdmin();toast('รับคิว '+b.name+' แล้ว ลูกค้าจะเห็นว่าช่างยืนยันแล้ว')},true);
 document.addEventListener('submit',e=>{if(e.target.id==='chatForm'){e.preventDefault();sendChat()}});
 document.addEventListener('keydown',e=>{if(e.target.id==='chatText'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}});
 dlg.addEventListener('close',()=>dlg.classList.remove('chatdlg'));

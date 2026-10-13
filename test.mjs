@@ -204,4 +204,20 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   ok(msg.includes('สะสม 3/10 แต้ม') && msg.includes('มาแล้ว 3 ครั้ง'), 'LINE card shows loyalty stamps and visits');
   ok(msg.includes('หมายเหตุ') && msg.includes('รองทรงสูง ไม่เอาข้างสั้นมาก'), "LINE card shows the customer's note");
 }
+// barber accepts a new booking in LINE
+{
+  const before = sent.length, day = core.todayKey(), nm = core.nowMin();
+  await post({ a: 'create', booking: { id: 'ACC1', date: day, start: nm + 200, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'รับคิว', phone: '0871112233' } });
+  const push = sent.slice(before).find(m => JSON.stringify(m.messages).includes('รับคิว'));
+  const btns = push && push.messages[0].contents.footer.contents.filter(x => x.action && x.action.type === 'postback');
+  const acc = btns && btns.find(x => x.action.data.startsWith('a=accept'));
+  ok(!!acc, 'new-booking LINE card has a "รับคิว" button');
+  ok((await lineEv({ type: 'postback', uid: 'U_B', postback: { data: acc.action.data } }), /เฉพาะช่างเจ้าของคิว/.test(last().messages[0].text)), "another barber can't accept someone else's queue");
+  await lineEv({ type: 'postback', uid: 'U_A', postback: { data: acc.action.data } });
+  ok(/รับคิวแล้ว/.test(last().messages[0].text) && (await db.getBooking('ACC1')).accepted, 'owning barber accepts; booking marked accepted');
+  await lineEv({ type: 'postback', uid: 'U_A', postback: { data: acc.action.data } });
+  ok(/รับไปแล้ว/.test(last().messages[0].text), 'pressing again says it was already accepted');
+  const pub = (await get({ a: 'list' })).bookings.find(x => x.id === 'ACC1');
+  ok(pub.accepted && !pub.name, "customer's phone sees accepted (but not other people's names)");
+}
 console.log('\n' + pass + ' checks passed');

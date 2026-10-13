@@ -244,4 +244,16 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   await gEv('ยกเลิกกลุ่ม', 'U_A'); ok(/เฉพาะเจ้าของร้าน/.test(last().messages[0].text), 'only the owner can unlink from the group');
   await post({ a: 'group', key: KEY, action: 'unlink' }); ok(!(await db.getKv('lineGroup')).id, 'owner unlinks the group from the app');
 }
+// barber photo on LINE cards
+{
+  const jpg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=';
+  await post({ a: 'appcfg', key: KEY, cfg: { shopName: 'DI-CUT', barbers: [{ id: 'b1', name: 'ช่างเอ', photo: jpg }, { id: 'b2', name: 'ช่างบอส' }] } });
+  await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { appUrl: 'https://dicut-booking.vercel.app/', notifyTo: 'personal' }) });
+  const before = sent.length, nm = core.nowMin();
+  await post({ a: 'create', booking: { id: 'PH1', date: core.todayKey(), start: nm + 420, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'รูป', phone: '0870000099' } });
+  const m = sent.slice(before).find(x => x.kind === 'push'), hdr = JSON.stringify(m.messages[0].contents.header);
+  ok(/https:\/\/dicut-booking\.vercel\.app\/api\/app\?a=photo&id=b1&v=\d+/.test(hdr), "LINE card header shows the barber's photo");
+  const p = await core.photo({ id: 'b1' }); ok(p && p.type === 'image/jpeg' && p.bytes.length > 50, 'photo endpoint serves the image bytes');
+  ok(!(await core.photo({ id: 'b2' })), 'barber without photo: no image (card shows text only)');
+}
 console.log('\n' + pass + ' checks passed');

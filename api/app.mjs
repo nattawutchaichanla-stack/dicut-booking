@@ -5,7 +5,14 @@ export default {
   async fetch(request) {
     if (request.method === 'OPTIONS') return preflight();
     const core = coreFromEnv();
-    if (request.method === 'GET') return guard(() => core.appGet(Object.fromEntries(new URL(request.url).searchParams)));
+    if (request.method === 'GET') {
+      const q = Object.fromEntries(new URL(request.url).searchParams);
+      if (q.a === 'photo') { // barber photo for LINE cards
+        try { const p = await core.photo(q); if (p) return new Response(p.bytes, { headers: { 'Content-Type': p.type, 'Cache-Control': 'public, max-age=86400' } }); } catch (e) {}
+        return new Response('not found', { status: 404 });
+      }
+      return guard(() => core.appGet(q));
+    }
     if (request.method !== 'POST') return json({ ok: false, error: 'method' }, 405);
     let body; try { body = JSON.parse(await request.text() || '{}'); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
     return guard(() => core.appPost(body));

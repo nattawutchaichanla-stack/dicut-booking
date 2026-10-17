@@ -1820,6 +1820,7 @@ if(!cfg.payment.v7){cfg.payment.prepayOff=0;cfg.payment.v4=cfg.payment.v6=cfg.pa
 if(!cfg.payment.v5){if(!cfg.payment.qrAccount)cfg.payment.qrAccount=SHOP_QR.qrAccount;cfg.payment.v5=true}
 if(!cfg.payment.v8){(cfg.promos||[]).forEach(p=>{if(p.id==='p1'&&/Happy Hour/.test(p.title||''))p.active=false});cfg.payment.v8=true} // owner asked: no discount for booking early-morning slots (sample promo, can be switched back on)
 if(!cfg.payment.v9){(cfg.promos||[]).forEach(p=>{if(['p1','p2','p3'].includes(p.id)&&/Happy Hour|พุธเพิร์ม|นักเรียน/.test(p.title||''))p.active=false});cfg.payment.v9=true} // owner asked: switch off all sample promos
+if(!cfg.payment.v10){(cfg.promos||[]).forEach(p=>p.active=false);cfg.payment.v10=true} // owner asked: no time-slot discounts at all -> every promo off once (owner can switch one back on)
 }
 normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
@@ -3809,7 +3810,7 @@ async function pullAppCfg(){
     const keep={ownerPin:cfg.ownerPin,line:cfg.line,pins:Object.fromEntries((cfg.barbers||[]).map(b=>[b.id,b.pin]))};
     cfg=Object.assign({},a.cfg,{cfgAt:a.at,line:keep.line});if(keep.ownerPin)cfg.ownerPin=keep.ownerPin;
     (cfg.barbers||[]).forEach(b=>{if(keep.pins[b.id])b.pin=keep.pins[b.id]});
-    const pv7=cfg.payment&&cfg.payment.v9;normPay();if(!pv7&&isOwner()){cfg.cfgLocalAt=Date.now();appCfgChanged()} // push the fix back so every phone gets it
+    const pv7=cfg.payment&&cfg.payment.v10;normPay();if(!pv7&&isOwner()){cfg.cfgLocalAt=Date.now();appCfgChanged()} // push the fix back so every phone gets it
     saveJSON(CKEY,cfg);updateHours();if(!dlg.open)renderAdmin();renderMine();
   }catch(e){}
 }

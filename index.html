@@ -1632,6 +1632,8 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .slots button.taken .tk-lbl{font-size:.72rem;font-weight:700;color:#d92d20}
 .slots button.taken:hover{background:color-mix(in srgb,#e5484d 8%,transparent)!important}
 @media (prefers-color-scheme:dark){.slots button.taken,.slots button.taken .tk-lbl{color:#ff6b6b!important}}
+.refhint{display:block;margin:-4px 0 4px;color:var(--muted);font-size:.8rem}
+#refBox .okmsg,#refBox .err,#refBox .hint{margin:-2px 0 4px}
 </style>
 </head>
 <body>
@@ -1832,6 +1834,7 @@ if(!cfg.payment.v10){(cfg.promos||[]).forEach(p=>p.active=false);cfg.payment.v10
 }
 normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
+if(!cfg.referral)cfg.referral={active:true,amount:30}; // new customer types the phone of the friend who invited them -> discount for the new customer
 if(cfg.lineOA===undefined)cfg.lineOA='@512dwqkm';
 if(!cfg.loyalty)cfg.loyalty=JSON.parse(JSON.stringify(DEFAULT_LOY));
 if(!Array.isArray(cfg.promos))cfg.promos=JSON.parse(JSON.stringify(DEFAULT_CFG.promos));
@@ -2436,6 +2439,7 @@ function payBlock(b){
     <ol class="paysteps"><li>แคปหน้าจอ QR นี้ แล้วเปิดแอปธนาคาร เลือก "สแกน" จากรูป</li>${useShop?`<li>กรอกยอด <b>${baht(P.amount)} ฿</b> แล้วโอน</li>`:''}<li>โอนแล้วกด "แนบสลิป" ด้านล่าง</li></ol>
     <label class="primary slipbtn">${ic('plus',18)}แนบสลิป<input type="file" accept="image/*" data-slip="${b.id}"></label></div>`;
 }
+document.addEventListener('change',e=>{if(e.target.id==='fRef'&&phoneKey(e.target.value).length>=9&&!sel.refRes){clearTimeout(refT);runRefCheck()}});
 document.addEventListener('change',async e=>{if(e.target.id!=='qrFile'||!e.target.files[0]||!isOwner())return;
   const f=e.target.files[0],P=payCfg();
   try{let payload='';
@@ -2485,7 +2489,7 @@ function ccard(o){
 }
 const durTxt=m=>m>=1440?Math.floor(m/1440)+' วัน '+(Math.floor(m%1440/60)?Math.floor(m%1440/60)+' ชม.':''):dur(Math.max(0,m));
 /* ---------- customer: booking wizard ---------- */
-const newSel=(k={})=>({wk:0,step:1,services:[],barber:'any',date:today(),time:null,quick:false,name:k.name||(custMe&&custMe.name)||'',phone:k.phone||(custMe&&custMe.phone)||'',note:'',code:'',useLoy:true,slip:'',slipAmt:0,cashPaid:false,payNow:true});
+const newSel=(k={})=>({wk:0,step:1,services:[],barber:'any',date:today(),time:null,quick:false,name:k.name||(custMe&&custMe.name)||'',phone:k.phone||(custMe&&custMe.phone)||'',note:'',code:'',useLoy:true,slip:'',slipAmt:0,cashPaid:false,payNow:true,ref:'',refRes:null});
 let sel=newSel(), lastBooking=null;
 const STEPS=['บริการ','ช่าง','วันเวลา','ยืนยัน'], MAXDUR=180;
 const selDur=()=>sel.services.reduce((a,id)=>a+svc(id).min,0);
@@ -2567,8 +2571,39 @@ function selDeal(){ // loyalty reward wins over promos (no stacking)
   const st=loyState(sel.phone);
   if(st&&st.rewards>0&&sel.useLoy){const a=loyAmount(sel.services);if(a>0)return{kind:'loy',title:'ตัด '+st.need+' ฟรี 1',amt:a,st}}
   const bp=sel.time!==null?bestPromo(sel.services,sel.date,sel.time,sel.code):null;
-  return bp?{kind:'promo',title:bp.p.title,amt:bp.amt,p:bp.p}:null;
+  if(bp)return {kind:'promo',title:bp.p.title,amt:bp.amt,p:bp.p};
+  const rf=refDeal(); return rf;
 }
+/* ---------- invite a friend: the NEW customer gets the discount ---------- */
+const refCfg=()=>cfg.referral||{active:false,amount:0};
+function refDeal(){const R=refCfg(),r=sel.refRes;if(!R.active||!(R.amount>0)||!r||!r.ok)return null;
+  if(r.phone!==phoneKey(sel.phone)||r.ref!==phoneKey(sel.ref))return null; // checked for other numbers
+  const a=Math.min(R.amount,selPrice());return a>0?{kind:'ref',title:'เพื่อนชวนมา',amt:a,ref:r.ref}:null}
+function refLocal(me,ref){ // no shop server: decide from this device's data
+  const hist=k=>bookings.filter(b=>phoneKey(b.phone||'')===k&&b.status!=='cancelled').length;
+  if(hist(me)>0)return {ok:false,why:'not_new'};
+  if(!(customers[ref]||hist(ref)>0))return {ok:false,why:'ref_unknown'};
+  return {ok:true}}
+let refT=null;
+async function runRefCheck(){
+  const me=phoneKey(sel.phone),ref=phoneKey(sel.ref);
+  if(!ref){sel.refRes=null;return renderRefBox()}
+  if(ref.length<9){sel.refRes={ok:false,why:'bad'};return renderRefBox()}
+  if(me.length<9){sel.refRes={ok:false,why:'need_phone'};return renderRefBox()}
+  if(me===ref){sel.refRes={ok:false,why:'self'};return renderRefBox()}
+  sel.refRes={wait:true};renderRefBox();
+  let r;try{r=BACKEND()?await api({a:'refcheck',phone:me,ref}):refLocal(me,ref)}catch(_){r=refLocal(me,ref)}
+  if(phoneKey(sel.ref)!==ref||phoneKey(sel.phone)!==me)return; // typed again meanwhile
+  sel.refRes=Object.assign({phone:me,ref},r&&r.ok?{ok:true}:{ok:false,why:(r&&r.why)||'ref_unknown'});renderCustomer()}
+const REF_WHY={bad:'เบอร์ไม่ครบ',need_phone:'ใส่เบอร์โทรของคุณก่อน',self:'ใส่เบอร์ตัวเองไม่ได้ ต้องเป็นเบอร์เพื่อนที่ชวนมา',not_new:'สิทธิ์นี้สำหรับลูกค้าใหม่ที่ยังไม่เคยจองเท่านั้น',ref_unknown:'ไม่พบเบอร์นี้ในสมาชิกของร้าน ลองตรวจเบอร์อีกครั้ง',off:'ตอนนี้ร้านปิดโปรชวนเพื่อนอยู่'};
+function refBoxInner(){const R=refCfg(),r=sel.refRes;
+  if(!r)return `<small class="refhint">ลูกค้าใหม่ที่เพื่อนชวนมา ลด ${R.amount} ฿</small>`;
+  if(r.wait)return `<small class="refhint">กำลังตรวจเบอร์…</small>`;
+  if(r.ok){const dl=selDeal();return dl&&dl.kind==='ref'?`<p class="okmsg">${ic('check',14)} ใช้สิทธิ์เพื่อนชวนแล้ว ลด ${dl.amt} ฿</p>`:`<p class="hint">เบอร์ถูกต้อง แต่คิวนี้ได้โปรที่คุ้มกว่าแล้ว (ใช้ร่วมกันไม่ได้)</p>`}
+  return `<p class="err">${REF_WHY[r.why]||REF_WHY.ref_unknown}</p>`}
+function renderRefBox(){const el=document.getElementById('refBox');if(el)el.innerHTML=refBoxInner()}
+function refFieldHTML(){const R=refCfg();if(!R.active||!(R.amount>0)||user)return '';
+  return `<label>เบอร์เพื่อนที่ชวนมา (ไม่บังคับ)<input id="fRef" type="tel" inputmode="tel" value="${esc(sel.ref||'')}" placeholder="ลูกค้าใหม่ใส่เบอร์เพื่อน ลด ${R.amount} ฿"></label><div id="refBox">${refBoxInner()}</div>`}
 function loyBoxHTML(){const dl=selDeal();return loyBoxInner()+loyNoteHTML(sel.services,dl&&dl.kind==='loy')}
 function loyBoxInner(){
   const st=loyState(sel.phone); if(!st)return loy().services.some(id=>sel.services.includes(id))||!sel.services.length?`<p class="hint">ใส่เบอร์โทรเพื่อสะสมแต้ม ตัด ${loy().need} ครั้ง ฟรี 1</p>`:'';
@@ -2617,6 +2652,7 @@ function stepConfirm(){
     <label>ชื่อเล่น<input id="fName" autocomplete="name" value="${esc(sel.name)}" placeholder="เช่น ต้น"></label>
     <label>เบอร์โทร<input id="fPhone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(sel.phone)}" placeholder="08x-xxx-xxxx"></label>
     <div id="loyBox">${loyBoxHTML()}</div>
+    ${refFieldHTML()}
     <label>อยากได้ทรงแบบไหน (ไม่บังคับ)<textarea id="fNote" rows="2" maxlength="200" placeholder="เช่น รองทรงสูง ข้างเฟด">${esc(sel.note)}</textarea></label>
     </div>${depositStepHTML()}<p class="err" id="err" hidden></p>`;
 }
@@ -2707,6 +2743,15 @@ function payAdminHTML(){const P=payCfg();
     <p class="hint">ตรวจเลขพร้อมเพย์ให้ถูกต้องก่อนเปิดใช้จริง ลองสแกน QR ตัวอย่างด้านล่างด้วยแอปธนาคารได้ (ยังไม่ต้องโอน)</p>
     <div class="qrwrap sm">${qrSVG(ppPayload(P.ppId,P.amount))||'<p class="err">เลขพร้อมเพย์ไม่ถูกต้อง</p>'}<div class="ppinfo"><span class="pplogo">PromptPay</span><b>${esc(P.ppName)}</b><small>${esc(maskPP(P.ppId))}</small><b class="ppamt">${baht(P.amount)} ฿</b></div></div>`}
   </div></section>`}
+function refAdminHTML(){const R=refCfg();
+  const used=bookings.filter(b=>b.refBy&&b.status!=='cancelled'), by={};used.forEach(b=>{const k=phoneKey(b.refBy);by[k]=(by[k]||0)+1});
+  const top=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  return `<h2 class="sech">ชวนเพื่อน (ลูกค้าใหม่ลด)</h2><section class="step"><div class="loyhead"><b>ลูกค้าใหม่กรอกเบอร์เพื่อนที่ชวนมา ลด ${R.amount} ฿</b><button class="ghost" id="refToggle">${R.active?'ปิดโปร':'เปิดโปร'}</button></div>
+    <div class="form" style="margin-top:10px"><label>ส่วนลดให้ลูกค้าใหม่ (฿)<input id="refAmt" type="number" min="0" max="1000" step="5" value="${R.amount}"></label></div>
+    <p class="hint" style="margin-top:8px">ใช้ได้ครั้งเดียวต่อเบอร์ เฉพาะเบอร์ที่ยังไม่เคยจอง · เบอร์เพื่อนต้องเป็นสมาชิกร้านแล้ว · ใช้ร่วมกับโปรอื่นไม่ได้</p>
+    <p class="hint">ใช้สิทธิ์แล้ว ${used.length} คิว${top.length?' · ชวนมากสุด: '+top.map(([k,n])=>{const c=customers[k];return esc((c&&c.name)||k)+' '+n+' คน'}).join(', '):''}</p></section>`}
+document.addEventListener('click',e=>{if(e.target.id==='refToggle'&&isOwner()){cfg.referral=Object.assign({},refCfg(),{active:!refCfg().active});saveCfg();renderPromos();renderCustomer();toast(cfg.referral.active?'เปิดโปรชวนเพื่อนแล้ว':'ปิดโปรชวนเพื่อนแล้ว')}});
+document.addEventListener('change',e=>{if(e.target.id==='refAmt'&&isOwner()){const n=Math.round(+e.target.value);if(!(n>=0&&n<=1000)){toast('ใส่ 0–1000 บาท');e.target.value=refCfg().amount;return}cfg.referral=Object.assign({},refCfg(),{amount:n});saveCfg();renderPromos();toast('บันทึกแล้ว ลด '+n+' ฿')}});
 function loyAdminHTML(){
   const L=loy(), red=bookings.filter(b=>b.loyaltyRedeem&&b.status==='done');
   const ready=Object.values(customers).filter(c=>(loyState(c.phone)||{}).rewards>0).length;
@@ -2726,7 +2771,7 @@ function loyAdminHTML(){
 function renderPromos(){
   if(!isOwner()){secPromos.innerHTML='';return}
   const used=id=>bookings.filter(b=>b.promoId===id&&b.status!=='cancelled');
-  let h=payAdminHTML()+loyAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
+  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
   h+=cfg.promos.map(p=>{const u=used(p.id),tot=u.reduce((a,b)=>a+(b.discount||0),0);
     return `<div class="prow ${p.active?'':'off'}">${p.img?`<span class="pthumb" style="background-image:url('${p.img}')"></span>`:''}<div class="pinfo"><span class="pval">${promoLabel(p)}</span><b>${esc(p.title)}</b><small>${esc(promoCond(p))}${p.code?' · โค้ด '+esc(p.code):' · อัตโนมัติ'}</small><small>ใช้แล้ว ${u.length} คิว · ลดไปรวม ${tot.toLocaleString()} ฿</small></div>
       <div class="pact"><button class="icon-btn" data-pmove="${p.id}|-1" aria-label="เลื่อนขึ้น" ${cfg.promos.indexOf(p)===0?'disabled':''}>↑</button><button class="icon-btn" data-pmove="${p.id}|1" aria-label="เลื่อนลง" ${cfg.promos.indexOf(p)===cfg.promos.length-1?'disabled':''}>↓</button><button class="ghost" data-ptoggle="${p.id}">${p.active?'ปิดโปร':'เปิดโปร'}</button><button class="ghost" data-pedit="${p.id}">แก้ไข</button></div></div>`}).join('')||'<p class="hint">ยังไม่มีโปรโมชั่น</p>';
@@ -3420,7 +3465,7 @@ function openBooking(id){
     ${b.doneAt!=null?`<div class="row"><span>เสร็จจริง</span><b>${fmt(b.doneAt)}</b></div>`:''}
     ${b.note?`<div class="row"><span>หมายเหตุ</span><b>${esc(b.note)}</b></div>`:''}<div class="row"><span>ช่าง</span><b>${esc(barber(b.barberId).name)}</b></div>
     ${b.phone?`<div class="row"><span>เบอร์โทร</span><b><a href="tel:${esc(b.phone)}" style="color:inherit">${esc(b.phone)}</a></b></div>`:`<div class="row"><span>ประเภท</span><b>walk-in</b></div>`}
-    ${(()=>{const st=loyState(b.phone);return st?`<div class="row"><span>แต้มสะสม</span><b>${st.stamps}/${st.need}${st.rewards?' · ตัดฟรีได้ '+st.rewards+' ครั้ง':''}</b></div>`:''})()}${b.discount?`<div class="row"><span>โปร</span><b>${esc(b.promoTitle||'')} -${b.discount} ฿</b></div>`:''}${b.prepayOff?`<div class="row"><span>ส่วนลดโอนก่อน</span><b>-${b.prepayOff} ฿</b></div>`:''}${b.payAtShop&&!b.pay?`<div class="row"><span>วิธีจ่าย</span><b>จ่ายที่ร้าน</b></div>`:''}${creditOf(b.phone)>0&&!b.credit?`<div class="row"><span>เครดิตลูกค้า</span><b>${baht(creditOf(b.phone))} ฿ <button class="linkbtn" data-usecredit="${esc(b.phone)}">หักแล้ว</button></b></div>`:''}${b.released?`<div class="row"><span>ปล่อยคิว</span><b>เลยเวลา ${lateMin()} นาที${b.credit?' · เครดิต '+baht(b.credit)+' ฿':''}</b></div>`:''}${b.pay?`<div class="row"><span>ชำระล่วงหน้า</span><b>${b.pay.status==='paid'?'ล็อกแล้ว · '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}</b></div>`:''}<div class="row"><span>ราคา</span><b>${baht(bPrice(b))} ฿</b></div>
+    ${(()=>{const st=loyState(b.phone);return st?`<div class="row"><span>แต้มสะสม</span><b>${st.stamps}/${st.need}${st.rewards?' · ตัดฟรีได้ '+st.rewards+' ครั้ง':''}</b></div>`:''})()}${b.discount?`<div class="row"><span>โปร</span><b>${esc(b.promoTitle||'')} -${b.discount} ฿</b></div>`:''}${b.prepayOff?`<div class="row"><span>ส่วนลดโอนก่อน</span><b>-${b.prepayOff} ฿</b></div>`:''}${b.refBy?`<div class="row"><span>เพื่อนที่ชวนมา</span><b>${esc((customers[phoneKey(b.refBy)]||{}).name||'')} ${esc(b.refBy)}</b></div>`:''}${b.payAtShop&&!b.pay?`<div class="row"><span>วิธีจ่าย</span><b>จ่ายที่ร้าน</b></div>`:''}${creditOf(b.phone)>0&&!b.credit?`<div class="row"><span>เครดิตลูกค้า</span><b>${baht(creditOf(b.phone))} ฿ <button class="linkbtn" data-usecredit="${esc(b.phone)}">หักแล้ว</button></b></div>`:''}${b.released?`<div class="row"><span>ปล่อยคิว</span><b>เลยเวลา ${lateMin()} นาที${b.credit?' · เครดิต '+baht(b.credit)+' ฿':''}</b></div>`:''}${b.pay?`<div class="row"><span>ชำระล่วงหน้า</span><b>${b.pay.status==='paid'?'ล็อกแล้ว · '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}</b></div>`:''}<div class="row"><span>ราคา</span><b>${baht(bPrice(b))} ฿</b></div>
     <div class="actions">${b.pay&&b.pay.status!=='paid'&&b.status==='confirmed'?`<button data-slipcheck="${b.id}" style="grid-column:1/-1">${b.pay.status==='review'?'ตรวจสลิป':'บันทึกว่ารับเงินแล้ว'}</button>`:''}${acts}${customers[phoneKey(b.phone)]?`<button data-cprof="${phoneKey(b.phone)}" style="grid-column:1/-1">ดูโปรไฟล์ลูกค้า</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`;
   dlg.dataset.id=id; dlg.showModal();
 }
@@ -3655,7 +3700,7 @@ dlg.addEventListener('click',e=>{
   if(setStatus(b,st.dataset.st))dlg.close();
 });
 
-app.addEventListener('input',e=>{if(e.target.id==='cuSearch'){cuQuery=e.target.value;renderCuList();return}if(e.target.id==='fName')sel.name=e.target.value;if(e.target.id==='fNote')sel.note=e.target.value;if(e.target.id==='fPhone'){const was=loyState(sel.phone)?.rewards>0;sel.phone=e.target.value;const now=loyState(sel.phone)?.rewards>0;const lb=document.getElementById('loyBox');if(lb)lb.innerHTML=loyBoxHTML();if(was!==now){const p=e.target.selectionStart;renderCustomer();const f=document.getElementById('fPhone');f.focus();f.setSelectionRange(p,p)}}});
+app.addEventListener('input',e=>{if(e.target.id==='cuSearch'){cuQuery=e.target.value;renderCuList();return}if(e.target.id==='fName')sel.name=e.target.value;if(e.target.id==='fNote')sel.note=e.target.value;if(e.target.id==='fRef'){sel.ref=e.target.value;sel.refRes=null;clearTimeout(refT);const n=phoneKey(sel.ref).length;if(n>=10)refT=setTimeout(runRefCheck,350);else renderRefBox()}if(e.target.id==='fPhone'){if(sel.ref){sel.refRes=null;clearTimeout(refT);refT=setTimeout(runRefCheck,600)}const was=loyState(sel.phone)?.rewards>0;sel.phone=e.target.value;const now=loyState(sel.phone)?.rewards>0;const lb=document.getElementById('loyBox');if(lb)lb.innerHTML=loyBoxHTML();if(was!==now){const p=e.target.selectionStart;renderCustomer();const f=document.getElementById('fPhone');f.focus();f.setSelectionRange(p,p)}}});
 app.addEventListener('change',e=>{
   const t=e.target;
   if(isOwner()&&['payMode','payId','payName','payAmt','payHold','paySrc','qrLabel','qrAccount','payType','payLater','prepayOff','prepayStack'].includes(t.id)){const P=payCfg();
@@ -3730,7 +3775,7 @@ app.addEventListener('click',e=>{
     const d=selDur(),bid=freeBarber(sel.barber,sel.date,sel.time,d,sel.quick?0:15);
     if(!bid){toast('เวลานี้เพิ่งมีคนจองไป เลือกเวลาใหม่ได้เลย');sel.time=null;sel.quick=false;sel.step=3;renderCustomer();return}
     const dl=selDeal();
-    const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt}):{})};
+    const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='ref'?{promoTitle:dl.title,discount:dl.amt,refBy:dl.ref}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt})):{})};
     const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(payChoice()&&!sel.payNow)b.payAtShop=true;
     if(needSlip())b.pay=sel.cashPaid&&user&&!sel.slip?{status:'paid',amount:selDeposit(),paidAt:Date.now(),cash:true}:{status:'review',amount:selDeposit(),slip:sel.slip,sentAt:Date.now()};
     else{const pp=newPay(b);if(pp)b.pay=pp}

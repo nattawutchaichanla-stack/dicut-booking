@@ -262,4 +262,19 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const r = await post({ a: 'members_list', key: KEY });
   ok(r.ok && r.members.length >= 3 && r.members.some(m => m.phoneKey === '0861112222' && m.name), 'owner gets all members with name and phone');
 }
+{ // invite a friend: new customer discount
+  const nm = core.nowMin(), day = core.todayKey();
+  await post({ a: 'join', name: 'เพื่อนเก่า', phone: '0855550000' });
+  let r = await post({ a: 'refcheck', phone: '0855551111', ref: '0855550000' });
+  ok(r.ok === true && r.amount === 30, 'new phone + member friend -> eligible 30');
+  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0855551111' })).why === 'self', 'own number rejected');
+  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0899999990' })).why === 'ref_unknown', 'unknown friend rejected');
+  r = await post({ a: 'create', booking: { id: 'REF1', date: day, start: nm + 420, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000', discount: 30, promoTitle: 'เพื่อนชวนมา' } });
+  ok(r.ok && r.booking.refBy === '0855550000' && r.booking.discount === 30, 'referral discount kept on valid booking');
+  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0855550000' })).why === 'not_new', 'second time: not a new customer');
+  r = await post({ a: 'create', booking: { id: 'REF2', date: day, start: nm + 480, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000', discount: 30, promoTitle: 'เพื่อนชวนมา' } });
+  ok(r.ok && !r.booking.refBy && !r.booking.discount, 'reused referral loses the discount');
+  r = await post({ a: 'create', booking: { id: 'REF3', date: day, start: nm + 540, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'โกง', phone: '0855552222', refBy: '0855550000', discount: 500, promoTitle: 'x' } });
+  ok(r.ok && r.booking.discount === 30, 'inflated referral discount capped to shop amount');
+}
 console.log('\n' + pass + ' checks passed');

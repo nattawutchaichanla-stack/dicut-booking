@@ -1810,13 +1810,17 @@ if(!cfg.menuV){cfg.services=[
   Object.assign(cfg,{shopName:cfg.shopName||'DI-CUT ตัดผมชาย',branch:cfg.branch||'สาขาเตาปูน',phone:cfg.phone||'094-0380836',lineOA:cfg.lineOA||'@512dwqkm',fb:cfg.fb||'DI-CUT ตัดผมชาย สาขา เตาปูน',menuV:1});
   const p2=(cfg.promos||[]).find(p=>p.title==='พุธนี้ต้องเฟด');if(p2)Object.assign(p2,{title:'พุธเพิร์มคุ้ม',desc:'ดาวเพิร์มเกาหลีลดพิเศษทุกวันพุธ',value:200,services:['perm']});
   try{localStorage.setItem(CKEY,JSON.stringify(cfg))}catch(e){}}
+// runs at start AND after the shop's shared settings arrive from the server (older saved settings skip it otherwise)
+function normPay(){
 if(!cfg.payment)cfg.payment=JSON.parse(JSON.stringify(DEFAULT_PAY));
 if(!cfg.payment.qrSource)Object.assign(cfg.payment,SHOP_QR);
 if(!cfg.payment.amountType)cfg.payment.amountType='full';
 if(!cfg.payment.v2){cfg.payment.mode=cfg.payment.mode==='off'?'off':'before';cfg.payment.v2=true}
 if(!cfg.payment.v3){Object.assign(cfg.payment,{payLater:true,prepayOff:0,prepayStack:true,v3:true})}
-if(!cfg.payment.v6){if(cfg.payment.prepayOff===20||cfg.payment.prepayOff===5)cfg.payment.prepayOff=0;cfg.payment.v4=cfg.payment.v6=true}
+if(!cfg.payment.v7){cfg.payment.prepayOff=0;cfg.payment.v4=cfg.payment.v6=cfg.payment.v7=true} // owner asked: no transfer-first discount (owner can set one again later)
 if(!cfg.payment.v5){if(!cfg.payment.qrAccount)cfg.payment.qrAccount=SHOP_QR.qrAccount;cfg.payment.v5=true}
+}
+normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
 if(cfg.lineOA===undefined)cfg.lineOA='@512dwqkm';
 if(!cfg.loyalty)cfg.loyalty=JSON.parse(JSON.stringify(DEFAULT_LOY));
@@ -3804,6 +3808,7 @@ async function pullAppCfg(){
     const keep={ownerPin:cfg.ownerPin,line:cfg.line,pins:Object.fromEntries((cfg.barbers||[]).map(b=>[b.id,b.pin]))};
     cfg=Object.assign({},a.cfg,{cfgAt:a.at,line:keep.line});if(keep.ownerPin)cfg.ownerPin=keep.ownerPin;
     (cfg.barbers||[]).forEach(b=>{if(keep.pins[b.id])b.pin=keep.pins[b.id]});
+    const pv7=cfg.payment&&cfg.payment.v7;normPay();if(!pv7&&isOwner()){cfg.cfgLocalAt=Date.now();appCfgChanged()} // push the fix back so every phone gets it
     saveJSON(CKEY,cfg);updateHours();if(!dlg.open)renderAdmin();renderMine();
   }catch(e){}
 }

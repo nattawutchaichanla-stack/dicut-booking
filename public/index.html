@@ -1626,6 +1626,12 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 @media (max-width:760px){.dspace{min-height:0}.dspace .ads{margin:14px 0 16px}}
 /* barber picker: "any barber" sits last, full width when the row would leave it alone */
 .bgrid .bc-any.wide{grid-column:1/-1}
+/* booked time slots: red, not pickable */
+.slots button.taken{cursor:not-allowed;background:color-mix(in srgb,#e5484d 8%,transparent)!important;border-color:color-mix(in srgb,#e5484d 35%,transparent)!important;color:#d92d20!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.1}
+.slots button.taken span{text-decoration:line-through;opacity:.75}
+.slots button.taken .tk-lbl{font-size:.72rem;font-weight:700;color:#d92d20}
+.slots button.taken:hover{background:color-mix(in srgb,#e5484d 8%,transparent)!important}
+@media (prefers-color-scheme:dark){.slots button.taken,.slots button.taken .tk-lbl{color:#ff6b6b!important}}
 </style>
 </head>
 <body>
@@ -2498,6 +2504,11 @@ const needSlip=()=>payCfg().mode==='before'&&selDeposit()>0;
 const slipOK=()=>!needSlip()||(sel.slip&&sel.slipAmt===selDeposit())||(!!user&&sel.cashPaid);
 const canGo=n=>!(n>=2&&!sel.services.length)&&!(n>=4&&sel.time===null);
 function daySlots(bid,date,d){const out=[];for(let t=cfg.open;t+d<=cfg.close;t+=STEP)if(freeBarber(bid,date,t,d))out.push(t);return out}
+// times someone already booked: the barber(s) work then and it isn't past, but a booking is in the way -> shown red, can't be picked
+function takenSlots(bid,date,d){const out=[],bs=bid==='any'?cfg.barbers:[barber(bid)];
+  for(let t=cfg.open;t+d<=cfg.close;t+=STEP){if(freeBarber(bid,date,t,d))continue;
+    if(bs.some(b=>works(b,date)&&t>=winStart(b)&&t+d<=winEnd(b)&&!(date===today()&&t<nowMin()+15)))out.push(t)}
+  return out}
 const dayLabel=k=>k===today()?'วันนี้':k===dkey(addDays(1))?'พรุ่งนี้':thaiDate(k);
 
 function wizTop(){const r=secBook.getBoundingClientRect();if(r.top<0)secBook.scrollIntoView({behavior:'smooth',block:'start'})}
@@ -2546,8 +2557,9 @@ function stepTime(){
   if(!sl.length){let nx=null;for(let i=1;i<BOOK_WEEKS*7&&!nx;i++){const k=dkey(new Date(fromKey(sel.date).getTime()+i*864e5));if(k<=lastDay&&daySlots(sel.barber,k,d).length)nx=k}
     return h+`<div class="emptybox">${G('empty')?`<span class="emptyart" style="${gbg('empty')}" aria-hidden="true"></span>`:''}<b>${dayLabel(sel.date)}ไม่มีคิวว่าง</b>${nx?`<button class="ghost" data-date="${nx}">ดูคิว${dayLabel(nx)}</button>`:''}${sel.barber!=='any'?`<button class="ghost" data-barber="any">ให้ร้านจัดช่างให้</button>`:''}</div></div>`}
   h+=`<div class="slotwrap" data-ind="book-time">`;
-  [['เช้า',0,720],['บ่าย',720,1020],['เย็น',1020,1440]].forEach(([g,a,z])=>{const gs=sl.filter(t=>t>=a&&t<z);if(!gs.length)return;
-    h+=`<p class="sg">${g} <small>${gs.length} ช่วง</small></p><div class="slots">`+gs.map(t=>{const bp=bestPromo(sel.services,sel.date,t,'');return `<button data-time="${t}" class="${bp?'haspromo':''}" aria-pressed="${!sel.quick&&sel.time===t}"><span>${fmt(t)}</span>${t===sl[0]?'<i>เร็วสุด</i>':''}${bp?`<u>-${bp.amt}฿</u>`:''}</button>`}).join('')+`</div>`});
+  const tk=new Set(takenSlots(sel.barber,sel.date,d)), all=[...sl,...tk].sort((a,b)=>a-b);
+  [['เช้า',0,720],['บ่าย',720,1020],['เย็น',1020,1440]].forEach(([g,a,z])=>{const gs=all.filter(t=>t>=a&&t<z);if(!gs.length)return;const nf=gs.filter(t=>!tk.has(t)).length;
+    h+=`<p class="sg">${g} <small>${nf?nf+' ช่วงว่าง':'เต็มแล้ว'}</small></p><div class="slots">`+gs.map(t=>{if(tk.has(t))return `<button class="taken" disabled aria-label="${fmt(t)} มีคนจองแล้ว"><span>${fmt(t)}</span><b class="tk-lbl">จองแล้ว</b></button>`;const bp=bestPromo(sel.services,sel.date,t,'');return `<button data-time="${t}" class="${bp?'haspromo':''}" aria-pressed="${!sel.quick&&sel.time===t}"><span>${fmt(t)}</span>${t===sl[0]?'<i>เร็วสุด</i>':''}${bp?`<u>-${bp.amt}฿</u>`:''}</button>`}).join('')+`</div>`});
   h+=`</div>${anyP?'<p class="hint" style="margin-top:10px">ช่องที่มีป้ายเหลืองได้ส่วนลด</p>':''}</div>`;
   return h;
 }

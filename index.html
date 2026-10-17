@@ -2166,7 +2166,7 @@ function openPop(anchor,html){
   pop.dataset.for=anchor.dataset.nf||'';
 }
 function closePop(){const p=document.getElementById('pop');if(p&&!p.hidden){p.hidden=true;p.innerHTML='';p.dataset.for=''}}
-function popSvc(){return `<p class="poph">บริการ <small>เลือกได้หลายอย่าง</small></p><div class="poplist">`+cfg.services.map(x=>`<button data-pop="svc:${x.id}" aria-pressed="${sel.services.includes(x.id)}"><span>${esc(x.name)}<small>${x.min} นาที</small></span><b>${priceTag(x)}</b></button>`).join('')+`</div><button class="popdone" data-pop="done">เสร็จ</button>`}
+function popSvc(){return `<p class="poph">บริการ <small>เลือกได้ 1 อย่าง</small></p><div class="poplist">`+cfg.services.map(x=>`<button data-pop="svc:${x.id}" aria-pressed="${sel.services.includes(x.id)}"><span>${esc(x.name)}<small>${x.min} นาที</small></span><b>${priceTag(x)}</b></button>`).join('')+`</div><button class="popdone" data-pop="done">เสร็จ</button>`}
 function popBar(){const d=selDur()||30;return `<p class="poph">ช่าง</p><div class="poplist">`+[{id:'any',name:'ใครก็ได้ (ว่างเร็วสุด)'}].concat(cfg.barbers).map(b=>{const sl=daySlots(b.id,sel.date,d);
   return `<button data-pop="bar:${b.id}" aria-pressed="${sel.barber===b.id}">${b.id==='any'?anyAv('sm',14):avatar(b.name,b.photo,'sm')}<span>${esc(b.name)}<small>${b.id!=='any'&&!works(b,sel.date)?dayLabel(sel.date)+'หยุด':sl.length?'ว่าง '+fmt(sl[0]):'คิวเต็ม'}</small></span></button>`}).join('')+`</div>`}
 function popDay(){const d=selDur()||30;let h=`<p class="poph">วันที่</p><div class="popdays">`;
@@ -2181,7 +2181,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-pop]');
   if(b){const [k,v]=b.dataset.pop.split(':');
     if(k==='done'){closePop();if(view==='book')goBook();return}
-    if(k==='svc'){sel.services=sel.services.includes(v)?sel.services.filter(x=>x!==v):[...sel.services,v];sel.time=null;sel.quick=false;openPop(document.querySelector('[data-nf=svc]'),popSvc())}
+    if(k==='svc'){sel.services=[v];sel.time=null;sel.quick=false;closePop()}
     if(k==='bar'){sel.barber=v;sel.pickedBarber=true;sel.time=null;sel.quick=false;closePop()}
     if(k==='day'){sel.date=v;sel.wk=weekOf(v);sel.time=null;sel.quick=false;sel.autoDated=true;closePop()}
     if(view==='book')goBook();else renderHome();
@@ -2516,7 +2516,7 @@ function renderCustomer(){
   adBind();if(typeof VIEW_TITLE!=='undefined')renderNotch();
 }
 function stepSvc(){
-  return `<h3 class="wt">ค่าบริการ</h3><p class="hint">เลือกได้มากกว่า 1 อย่าง ระบบรวมเวลาให้เอง</p><div class="svc multi">`+
+  return `<h3 class="wt">ค่าบริการ</h3><p class="hint">เลือกได้ 1 บริการต่อการจอง 1 คิว</p><div class="svc">`+
     cfg.services.map(x=>`<button data-svc="${x.id}" class="${G('svc:'+x.id)?'has-th':''}" aria-pressed="${sel.services.includes(x.id)}"><span class="ck" aria-hidden="true">${ic('check',14)}</span>${G('svc:'+x.id)?`<span class="sthumb" style="${gbg('svc:'+x.id)}" aria-hidden="true"></span>`:''}<span class="sn"><b>${esc(x.name)}</b><small>${x.min} นาที${livePromos().some(p=>!p.services.length||p.services.includes(x.id))?' <em class="ptag">มีโปร</em>':''}${loy().active&&!loy().services.includes(x.id)?' <em class="ntag">ไม่นับแต้ม</em>':''}</small>${x.note?`<small class="snote">${esc(x.note)}</small>`:''}</span><b class="sprice">${priceTag(x)}</b></button>`).join('')+`</div>`;
 }
 function stepBarber(){
@@ -3701,8 +3701,7 @@ app.addEventListener('click',e=>{
   else if(t.dataset.noshow){const b=bookings.find(x=>x.id===t.dataset.noshow);if(b&&confirm(b.name+' ไม่มาตามนัด?'))setStatus(b,'noshow')}
   else if(t.dataset.startq){const b=bookings.find(x=>x.id===t.dataset.startq);if(b)setStatus(b,'inprogress')}
   else if(t.dataset.svc){sel.autoDated=false;const id=t.dataset.svc;
-    if(sel.services.includes(id))sel.services=sel.services.filter(x=>x!==id);
-    else{if(selDur()+svc(id).min>MAXDUR){toast('จองได้รวมไม่เกิน 3 ชั่วโมงต่อคิว');return}sel.services=[...sel.services,id]}
+    sel.services=[id]; // one service per booking (owner's rule)
     sel.time=null;sel.quick=false;renderCustomer()}
   else if(t.dataset.barber){sel.autoDated=false;sel.barber=t.dataset.barber;sel.time=null;sel.quick=false;if(sel.step!==2){sel.step=3}renderCustomer()}
   else if(t.dataset.date){sel.date=t.dataset.date;sel.wk=weekOf(sel.date);sel.time=null;sel.quick=false;renderCustomer()}

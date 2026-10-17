@@ -1770,7 +1770,7 @@ const DEFAULT_CFG={open:600,close:1200,
     {id:'beard',name:'โกนหนวด/กันหน้า',min:15,price:50}],
 
   promos:[
-    {id:'p1',title:'Happy Hour เช้าวันธรรมดา',desc:'จองช่วงเช้าวันธรรมดา ลดทุกบริการ',type:'percent',value:20,services:[],days:[1,2,3,4,5],from:600,to:720,start:'',end:'',code:'',active:true},
+    {id:'p1',title:'Happy Hour เช้าวันธรรมดา',desc:'จองช่วงเช้าวันธรรมดา ลดทุกบริการ',type:'percent',value:20,services:[],days:[1,2,3,4,5],from:600,to:720,start:'',end:'',code:'',active:false},
     {id:'p2',title:'พุธเพิร์มคุ้ม',desc:'ดาวเพิร์มเกาหลีลดพิเศษทุกวันพุธ',type:'baht',value:200,services:['perm'],days:[3],from:0,to:1440,start:'',end:'',code:'',active:true},
     {id:'p3',title:'นักเรียน นักศึกษา',desc:'แสดงบัตรนักเรียนหรือนักศึกษาที่ร้าน',type:'baht',value:50,services:['cut'],days:[0,1,2,3,4,5,6],from:0,to:1440,start:'',end:'',code:'STUDENT',active:true}],
   barbers:[
@@ -1818,6 +1818,7 @@ if(!cfg.payment.v2){cfg.payment.mode=cfg.payment.mode==='off'?'off':'before';cfg
 if(!cfg.payment.v3){Object.assign(cfg.payment,{payLater:true,prepayOff:0,prepayStack:true,v3:true})}
 if(!cfg.payment.v7){cfg.payment.prepayOff=0;cfg.payment.v4=cfg.payment.v6=cfg.payment.v7=true} // owner asked: no transfer-first discount (owner can set one again later)
 if(!cfg.payment.v5){if(!cfg.payment.qrAccount)cfg.payment.qrAccount=SHOP_QR.qrAccount;cfg.payment.v5=true}
+if(!cfg.payment.v8){(cfg.promos||[]).forEach(p=>{if(p.id==='p1'&&/Happy Hour/.test(p.title||''))p.active=false});cfg.payment.v8=true} // owner asked: no discount for booking early-morning slots (sample promo, can be switched back on)
 }
 normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
@@ -3807,7 +3808,7 @@ async function pullAppCfg(){
     const keep={ownerPin:cfg.ownerPin,line:cfg.line,pins:Object.fromEntries((cfg.barbers||[]).map(b=>[b.id,b.pin]))};
     cfg=Object.assign({},a.cfg,{cfgAt:a.at,line:keep.line});if(keep.ownerPin)cfg.ownerPin=keep.ownerPin;
     (cfg.barbers||[]).forEach(b=>{if(keep.pins[b.id])b.pin=keep.pins[b.id]});
-    const pv7=cfg.payment&&cfg.payment.v7;normPay();if(!pv7&&isOwner()){cfg.cfgLocalAt=Date.now();appCfgChanged()} // push the fix back so every phone gets it
+    const pv7=cfg.payment&&cfg.payment.v8;normPay();if(!pv7&&isOwner()){cfg.cfgLocalAt=Date.now();appCfgChanged()} // push the fix back so every phone gets it
     saveJSON(CKEY,cfg);updateHours();if(!dlg.open)renderAdmin();renderMine();
   }catch(e){}
 }

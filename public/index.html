@@ -2505,7 +2505,7 @@ function renderCustomer(){
   let h=`<h2 class="sech">${user?'จองคิวให้ลูกค้า':'จองคิว'}</h2>`;
   if(lastBooking){secBook.innerHTML=h+ticketHTML();return}
   if(sel.step===1)h+=promoBannerHTML();
-  const qh=sel.step===1?quickHTML():''; if(qh)h+=`<section class="step">${qh}</section>`;
+  // (the 'free now' service chips were removed from the booking page: they repeated the service list below)
   h+=`<section class="step wiz"><ol class="stepper">`+STEPS.map((n,i)=>{const k=i+1,cls=k<sel.step?'st-done':k===sel.step?'st-cur':'';
     return `<li class="${cls}"><button data-step="${k}" ${k<sel.step?'':'disabled'} ${k===sel.step?'aria-current="step"':''}><span>${k<sel.step?ic('check',14):k}</span>${n}</button></li>`}).join('')+`</ol>`;
   h+=`<div class="wbody">${[stepSvc,stepBarber,stepTime,stepConfirm][sel.step-1]()}</div>`;

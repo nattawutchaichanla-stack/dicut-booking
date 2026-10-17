@@ -1624,6 +1624,8 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .ads-home .ads-dots button{background:rgba(255,255,255,.55)}
 .ads-home .ads-dots button[aria-current="true"]{background:var(--yellow,#FFD60A)}
 @media (max-width:760px){.dspace{min-height:0}.dspace .ads{margin:14px 0 16px}}
+/* barber picker: "any barber" sits last, full width when the row would leave it alone */
+.bgrid .bc-any.wide{grid-column:1/-1}
 </style>
 </head>
 <body>
@@ -2523,9 +2525,10 @@ function stepBarber(){
     if(b&&!works(b,sel.date))return `<em class="no">${dl}หยุด</em>`;
     const sl=daySlots(bid,sel.date,d);return sl.length?`<em>${ic('clock',14)}ว่าง ${fmt(sl[0])}</em>`:`<em class="no">${dl}คิวเต็ม</em>`};
   let h=`<h3 class="wt">เลือกช่าง</h3><p class="hint">เวลาว่างที่เห็นคือของ${dl} เปลี่ยนวันได้ในขั้นถัดไป</p><div class="bgrid" data-ind="book-barber" data-ind-soft>`;
-  h+=`<div class="bcardx" data-ind-item><button data-barber="any" aria-pressed="${sel.barber==='any'}">${anyAv('xlx',30)}<b>ช่างคนไหนก็ได้</b><small>ร้านจัดคนที่ว่างเร็วสุด</small>${info('any')}<span class="tick" aria-hidden="true">${ic('check',14)}</span></button></div>`;
   h+=cfg.barbers.map(b=>{const sk=String(b.skills||'').split(',').map(x=>x.trim()).filter(Boolean)[0]||'ช่างตัดผม';
     return `<div class="bcardx" data-ind-item><button data-barber="${b.id}" aria-pressed="${sel.barber===b.id}">${avatar(b.name,b.photo,'xlx')}<b>${esc(b.name)}</b><small>${esc(sk)}${b.years?' · '+esc(b.years)+' ปี':''}</small>${info(b.id)}<span class="tick" aria-hidden="true">${ic('check',14)}</span></button><button class="pinfo-btn" data-bprof="${b.id}" aria-label="โปรไฟล์${esc(b.name)}">${ic('user',16)}</button></div>`}).join('');
+  // "any barber" goes last so customers see the real barbers first
+  h+=`<div class="bcardx bc-any ${cfg.barbers.length%2?'':'wide'}" data-ind-item><button data-barber="any" aria-pressed="${sel.barber==='any'}">${anyAv('xlx',30)}<b>ช่างคนไหนก็ได้</b><small>ร้านจัดคนที่ว่างเร็วสุด</small>${info('any')}<span class="tick" aria-hidden="true">${ic('check',14)}</span></button></div>`;
   return h+`</div>`;
 }
 function stepTime(){

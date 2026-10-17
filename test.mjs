@@ -262,19 +262,24 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const r = await post({ a: 'members_list', key: KEY });
   ok(r.ok && r.members.length >= 3 && r.members.some(m => m.phoneKey === '0861112222' && m.name), 'owner gets all members with name and phone');
 }
-{ // invite a friend: new customer discount
+{ // invite a friend: the INVITER gets the discount after the friend's first cut
   const nm = core.nowMin(), day = core.todayKey();
-  await post({ a: 'join', name: 'เพื่อนเก่า', phone: '0855550000' });
-  let r = await post({ a: 'refcheck', phone: '0855551111', ref: '0855550000' });
-  ok(r.ok === true && r.amount === 30, 'new phone + member friend -> eligible 30');
+  await post({ a: 'join', name: 'คนชวน', phone: '0855550000' });
+  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0855550000' })).ok === true, 'new phone + member friend -> valid');
   ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0855551111' })).why === 'self', 'own number rejected');
-  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0899999990' })).why === 'ref_unknown', 'unknown friend rejected');
-  r = await post({ a: 'create', booking: { id: 'REF1', date: day, start: nm + 420, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000', discount: 30, promoTitle: 'เพื่อนชวนมา' } });
-  ok(r.ok && r.booking.refBy === '0855550000' && r.booking.discount === 30, 'referral discount kept on valid booking');
-  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0855550000' })).why === 'not_new', 'second time: not a new customer');
-  r = await post({ a: 'create', booking: { id: 'REF2', date: day, start: nm + 480, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000', discount: 30, promoTitle: 'เพื่อนชวนมา' } });
-  ok(r.ok && !r.booking.refBy && !r.booking.discount, 'reused referral loses the discount');
-  r = await post({ a: 'create', booking: { id: 'REF3', date: day, start: nm + 540, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'โกง', phone: '0855552222', refBy: '0855550000', discount: 500, promoTitle: 'x' } });
-  ok(r.ok && r.booking.discount === 30, 'inflated referral discount capped to shop amount');
+  ok((await post({ a: 'refcheck', phone: '0855551111', ref: '0899999990' })).why === 'ref_unknown', 'unknown inviter rejected');
+  let r = await post({ a: 'create', booking: { id: 'REF1', date: day, start: nm + 420, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000' } });
+  ok(r.ok && r.booking.refBy === '0855550000' && !r.booking.discount, 'new customer: inviter recorded, no discount');
+  ok((await post({ a: 'refbal', phone: '0855550000' })).count === 0, 'no reward before the friend is done');
+  r = await post({ a: 'create', booking: { id: 'RU0', date: day, start: nm + 600, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'คนชวน', phone: '0855550000', refUse: true, discount: 30, promoTitle: 'ชวนเพื่อน' } });
+  ok(r.ok && !r.booking.refUse && !r.booking.discount, 'cannot spend a reward not yet earned');
+  await post({ a: 'put', key: KEY, booking: { id: 'REF1', status: 'done' } });
+  r = await post({ a: 'refbal', phone: '0855550000' });
+  ok(r.count === 1 && r.amount === 30, 'friend done -> inviter has 1 reward of 30');
+  r = await post({ a: 'create', booking: { id: 'RU1', date: day, start: nm + 660, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'คนชวน', phone: '0855550000', refUse: true, discount: 500, promoTitle: 'ชวนเพื่อน' } });
+  ok(r.ok && r.booking.refUse && r.booking.discount === 30, 'inviter spends reward, capped at 30');
+  ok((await post({ a: 'refbal', phone: '0855550000' })).count === 0, 'reward used up');
+  r = await post({ a: 'create', booking: { id: 'REF2', date: day, start: nm + 480, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000' } });
+  ok(r.ok && !r.booking.refBy, 'second booking of same friend is not a new referral');
 }
 console.log('\n' + pass + ' checks passed');

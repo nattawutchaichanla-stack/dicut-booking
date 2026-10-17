@@ -1646,6 +1646,27 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .slipalert .sa-x{border:0;background:transparent;color:#FBF7F0;opacity:.7;font-size:1rem;padding:8px;cursor:pointer}
 @keyframes saIn{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 </style>
+<script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
+(function(){var errs=[],shown=false;
+function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
+ var d=document.createElement('div');d.id='bootErr';
+ d.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(30,24,18,.86);font-family:system-ui,sans-serif';
+ d.innerHTML='<div style="max-width:440px;width:100%;background:#FBF7F0;color:#2B2622;border-radius:24px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.4)">'+
+ '<div style="font-size:1.25rem;font-weight:700;margin-bottom:6px">แอพเปิดไม่สำเร็จ</div>'+
+ '<div style="font-size:.95rem;line-height:1.5;margin-bottom:12px">กด “ล้างข้อมูลค้างแล้วเปิดใหม่” ข้อมูลการจองไม่หาย (เก็บไว้ที่ร้าน) ถ้ายังไม่ได้ แคปหน้านี้ส่งให้ผู้ดูแล</div>'+
+ '<pre style="white-space:pre-wrap;font-size:.72rem;background:#EFE6D8;border-radius:12px;padding:10px;max-height:140px;overflow:auto;margin:0 0 14px">'+(errs.join('\n')||'โหลดไม่เสร็จภายในเวลา').replace(/</g,'&lt;')+'\n'+navigator.userAgent+'</pre>'+
+ '<button id="bootReset" style="width:100%;height:48px;border:0;border-radius:999px;background:#2B2622;color:#F2D676;font-size:1rem;font-weight:600;margin-bottom:8px">ล้างข้อมูลค้างแล้วเปิดใหม่</button>'+
+ '<button onclick="location.reload()" style="width:100%;height:44px;border:0;border-radius:999px;background:#E8DDCC;color:#2B2622;font-size:.95rem">ลองโหลดใหม่</button></div>';
+ document.body.appendChild(d);
+ document.getElementById('bootReset').onclick=function(){try{var c=JSON.parse(localStorage.getItem('barber-cfg-v2')||'null');if(c&&c.line)localStorage.setItem('barber-keep-line',JSON.stringify(c.line))}catch(e){}
+   try{var keep={'barber-me':1,'barber-session':1,'barber-keep-line':1,'barber-theme':1};
+   for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);if(!keep[k])localStorage.removeItem(k)}}catch(e){}
+   location.reload()};}
+window.addEventListener('error',function(e){errs.push((e.message||'error')+(e.lineno?' @'+e.lineno+':'+e.colno:''));if(!window.__appReady)setTimeout(show,50)});
+window.addEventListener('unhandledrejection',function(e){var r=e.reason;errs.push('promise: '+(r&&r.message||r))});
+window.addEventListener('load',function(){setTimeout(function(){if(!window.__appReady)show()},6000)});
+})();
+</script>
 </head>
 <body>
 <div id="phone" class="frame">
@@ -1847,6 +1868,7 @@ normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
 if(!cfg.referral)cfg.referral={active:true,amount:30}; // new customer types the phone of the friend who invited them -> discount for the new customer
 if(cfg.lineOA===undefined)cfg.lineOA='@512dwqkm';
+try{const kl=loadJSON('barber-keep-line');if(kl){if(!cfg.line)cfg.line=kl;localStorage.removeItem('barber-keep-line');saveJSON(CKEY,cfg)}}catch(_){} // staff key kept through a 'clear stuck data' reset
 if(!cfg.loyalty)cfg.loyalty=JSON.parse(JSON.stringify(DEFAULT_LOY));
 if(!Array.isArray(cfg.promos))cfg.promos=JSON.parse(JSON.stringify(DEFAULT_CFG.promos));
 cfg.barbers.forEach(b=>{const d=DEFAULT_CFG.barbers.find(x=>x.id===b.id);if(d)['years','skills','bio'].forEach(f=>{if(b[f]===undefined)b[f]=d[f]})});
@@ -2600,7 +2622,7 @@ function refBalLocal(me){const R=refCfg();
   const earned=new Set(bookings.filter(b=>b.refBy===me&&b.status==='done').map(b=>phoneKey(b.phone))).size;
   const used=bookings.filter(b=>phoneKey(b.phone)===me&&b.refUse&&b.status!=='cancelled'&&b.status!=='noshow').length;
   return {count:Math.max(0,earned-used),amount:R.active?R.amount:0}}
-let refT=null,refBalT=null,refBalKey='';
+var refT=null,refBalT=null,refBalKey='';
 function ensureRefBal(){const me=phoneKey(sel.phone);if(!refCfg().active||me.length<9||user)return;
   if(sel.refBal&&sel.refBal.phone===me||refBalKey===me)return; refBalKey=me;
   (async()=>{await 0;let r;try{ // await first: never re-render in the middle of a render
@@ -3935,28 +3957,29 @@ async function pullNow(full){
   renderLineStatus();slipWatch();
 }
 /* ---------- in-app alert when a customer sends a transfer slip (staff phones) ---------- */
-let slipSeen=new Set(loadJSON('slip-seen')||[]),slipRang=new Set();
+var slipSeen=null,slipRang=null;
 function slipKey(b){return b.id+':'+(b.pay&&b.pay.sentAt||0)}
-function slipWatch(){
-  if(!user)return;
+function slipWatch(){try{slipWatch_()}catch(e){console.warn('slipWatch',e)}}
+function slipWatch_(){
+  if(!user)return;if(!slipSeen){slipSeen=new Set(loadJSON('slip-seen')||[]);slipRang=new Set()}
   const fresh=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)&&!slipSeen.has(slipKey(b)));
   if(!fresh.length)return renderSlipAlert();
   fresh.sort((a,b)=>(b.pay.sentAt||0)-(a.pay.sentAt||0));
   slipAlert=fresh;renderSlipAlert();
   if(fresh.some(b=>!slipRang.has(slipKey(b)))){fresh.forEach(b=>slipRang.add(slipKey(b)));chime();try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(_){}}
 }
-let slipAlert=[];
+var slipAlert=slipAlert||[];
 function renderSlipAlert(){
   let el=document.getElementById('slipAlert');
-  slipAlert=slipAlert.filter(b=>{const x=bookings.find(y=>y.id===b.id);return x&&x.pay&&x.pay.status==='review'&&x.status==='confirmed'});
+  slipAlert=(slipAlert||[]).filter(b=>{const x=bookings.find(y=>y.id===b.id);return x&&x.pay&&x.pay.status==='review'&&x.status==='confirmed'});
   if(!slipAlert.length){if(el)el.remove();return}
   if(!el){el=document.createElement('div');el.id='slipAlert';el.className='slipalert';el.setAttribute('role','alert');document.body.appendChild(el)}
   const b=slipAlert[0],more=slipAlert.length-1;
   el.innerHTML=`<div class="sa-ic">🧾</div><div class="sa-main"><b>ลูกค้าโอนมาแล้ว</b><small>${esc(b.name||'')} · ${baht(b.pay.amount||0)} ฿ · ${b.date===today()?'วันนี้':thaiDate(b.date)} ${fmt(b.start)}${more?` · อีก ${more} รายการ`:''}</small></div><button class="sa-go" data-slipcheck="${b.id}" data-sadone="${b.id}">ตรวจสลิป</button><button class="sa-x" data-sadone="${b.id}" aria-label="ปิด">✕</button>`;
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-sadone]');if(!t)return;const b=bookings.find(x=>x.id===t.dataset.sadone);
-  if(b){slipSeen.add(slipKey(b));saveJSON('slip-seen',[...slipSeen].slice(-300))}slipAlert=slipAlert.filter(x=>x.id!==t.dataset.sadone);renderSlipAlert()});
-let audioCtx=null;
+  if(b&&slipSeen){slipSeen.add(slipKey(b));saveJSON('slip-seen',[...slipSeen].slice(-300))}slipAlert=slipAlert.filter(x=>x.id!==t.dataset.sadone);renderSlipAlert()});
+var audioCtx=null;
 function chime(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const c=audioCtx,t0=c.currentTime;
   [[880,0],[1320,.16]].forEach(([f,d])=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t0+d);g.gain.linearRampToValueAtTime(.25,t0+d+.02);g.gain.exponentialRampToValueAtTime(.001,t0+d+.35);o.connect(g).connect(c.destination);o.start(t0+d);o.stop(t0+d+.4)})}catch(_){}}
 document.addEventListener('pointerdown',()=>{try{if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();else if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(_){}},{once:true});
@@ -4382,7 +4405,7 @@ updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); i
 if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
 gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx();gfxPullServer()});
 syncIndicators(); indObs.observe(document.body,{childList:true,subtree:true});
-
+window.__appReady=1;
 </script>
 </body>
 </html>

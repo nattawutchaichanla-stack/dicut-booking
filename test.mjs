@@ -287,4 +287,15 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   r = await post({ a: 'create', booking: { id: 'REF2', date: day, start: nm + 480, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ใหม่', phone: '0855551111', refBy: '0855550000' } });
   ok(r.ok && !r.booking.refBy, 'second booking of same friend is not a new referral');
 }
+{ // extra admins: own PIN, own LINE link code, owner rights
+  let r = await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { admins: [{ id: 'ad1', name: 'แอดมินฝน' }] }) });
+  const ad = r.staff.find(x => x.staffId === 'ad1');
+  ok(ad && ad.role === 'owner' && /^\d{6}$/.test(ad.linkCode), 'admin gets an owner-role staff entry with a LINE link code');
+  await post({ a: 'appcfg', key: KEY, cfg: { shopName: 'DI-CUT', barbers: [{ id: 'b1', name: 'ช่างเอ' }], admins: [{ id: 'ad1', name: 'แอดมินฝน', pin: '2468' }] } });
+  r = await post({ a: 'login', who: 'ad1', pin: '2468' }); ok(r.ok && r.role === 'owner' && r.key === KEY, 'admin logs in with own PIN as owner');
+  ok((await post({ a: 'login', who: 'ad1', pin: '0000' })).ok === false, 'admin wrong PIN refused');
+  const app = await db.getKv('appcfg'); ok(!JSON.stringify(app).includes('2468'), 'admin PIN not stored in shared settings');
+  r = await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { admins: [] }) });
+  ok(!r.staff.some(x => x.staffId === 'ad1'), 'deleted admin disappears from staff list');
+}
 console.log('\n' + pass + ' checks passed');

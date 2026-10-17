@@ -1645,7 +1645,15 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .slipalert .sa-go{border:0;border-radius:999px;background:#F2D676;color:#2B2622;font-weight:600;padding:10px 16px;cursor:pointer;white-space:nowrap}
 .slipalert .sa-x{border:0;background:transparent;color:#FBF7F0;opacity:.7;font-size:1rem;padding:8px;cursor:pointer}
 @keyframes saIn{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.admrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.admrow>input{flex:1;min-width:140px}
+.admpin{display:flex;align-items:center;gap:6px;font-size:.88rem;white-space:nowrap}
+.admpin input{width:90px}
+.admrow input{font:inherit;font-size:1rem;border-radius:16px!important;border:1px solid var(--line)!important;background:var(--chip)!important;height:50px;padding:0 16px;color:var(--ink);outline:none}
+.admrow input:focus{border-color:var(--pole)!important;box-shadow:0 0 0 3px var(--ring)}
 </style>
+
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -1867,7 +1875,8 @@ if(!cfg.payment.v10){(cfg.promos||[]).forEach(p=>p.active=false);cfg.payment.v10
 }
 normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
-if(!cfg.referral)cfg.referral={active:true,amount:30}; // new customer types the phone of the friend who invited them -> discount for the new customer
+if(!cfg.referral)cfg.referral={active:true,amount:30};
+if(!Array.isArray(cfg.admins))cfg.admins=[]; // extra admins: same rights as the owner, own PIN + own LINE link // new customer types the phone of the friend who invited them -> discount for the new customer
 if(cfg.lineOA===undefined)cfg.lineOA='@512dwqkm';
 try{const kl=loadJSON('barber-keep-line');if(kl){if(!cfg.line)cfg.line=kl;localStorage.removeItem('barber-keep-line');saveJSON(CKEY,cfg)}}catch(_){} // staff key kept through a 'clear stuck data' reset
 if(!cfg.loyalty)cfg.loyalty=JSON.parse(JSON.stringify(DEFAULT_LOY));
@@ -3237,6 +3246,9 @@ function tick(){const n=new Date(),v=pad(n.getHours())+':'+pad(n.getMinutes())+'
 function settingsHTML(){
   let h=`<div class="sset"><h3>ข้อมูลร้าน</h3><div class="form"><label>ชื่อร้าน<input data-cfgtext="shopName" maxlength="40" value="${esc(cfg.shopName||'')}"></label><div class="two"><label>สาขา<input data-cfgtext="branch" maxlength="40" value="${esc(cfg.branch||'')}"></label><label>เบอร์โทรร้าน<input data-cfgtext="phone" type="tel" maxlength="20" value="${esc(cfg.phone||'')}"></label></div><div class="two"><label>LINE Official (@ไอดี)<input data-cfgtext="lineOA" maxlength="80" placeholder="@512dwqkm" value="${esc(cfg.lineOA||'')}"></label><label>เพจ Facebook (ลิงก์หรือชื่อเพจ)<input data-cfgtext="fb" maxlength="200" placeholder="https://facebook.com/..." value="${esc(cfg.fb||'')}"></label></div><p class="hint">ลูกค้ากดไอคอน LINE / Facebook / โทร ในหน้าแรกและเมนู "ติดต่อเจ้าหน้าที่" แล้วจะไปที่ช่องทางเหล่านี้</p></div></div><div class="sset"><h3>เวลาเปิดปิดร้าน</h3><div class="hrs">เปิด <input type="time" step="1800" data-cfg="open" value="${fmt(cfg.open)}"> ปิด <input type="time" step="1800" data-cfg="close" value="${fmt(cfg.close)}"></div>
     <p class="hint" style="margin-top:8px">ลูกค้าจองได้เฉพาะช่วงที่ทั้งร้านเปิดและช่างเข้างาน</p><div class="hrs" style="margin-top:10px">ลูกค้ายกเลิกเองได้ก่อนถึงคิว <input type="number" min="0" max="1440" data-cfg="cancelBefore" value="${cancelMin()}" style="width:84px"> นาที</div><div class="hrs" style="margin-top:10px">มาช้าเกิน <input type="number" min="0" max="120" data-cfg="lateMin" value="${lateMin()}" style="width:84px"> นาที ปล่อยคิวให้คนอื่นได้</div><div class="hrs" style="margin-top:10px">รหัสเจ้าของร้าน <input type="text" inputmode="numeric" maxlength="6" data-cfg="ownerPin" value="${esc(ownerPin())}" style="width:96px"></div></div>`;
+  h+=`<div class="sset"><h3>แอดมิน</h3><p class="hint" style="margin:0 0 10px">สิทธิ์เหมือนเจ้าของร้าน ดูคิวทั้งร้าน ยืนยันสลิป ตั้งค่าได้ · แต่ละคนมีรหัสเข้าแอพและเชื่อม LINE ของตัวเอง</p>
+    ${cfg.admins.map(a=>`<div class="admrow"><input type="text" maxlength="30" data-adm="${a.id}" data-af="name" value="${esc(a.name)}" aria-label="ชื่อแอดมิน" placeholder="ชื่อ"><label class="admpin">รหัส <input type="text" inputmode="numeric" maxlength="6" data-adm="${a.id}" data-af="pin" value="${esc(a.pin||'')}"></label><button class="linkbtn gdel" data-admdel="${a.id}">ลบ</button></div>`).join('')}
+    <button class="ghost" id="admAdd" style="margin-top:8px">+ เพิ่มแอดมิน</button>${cfg.admins.length?'<p class="hint" style="margin-top:8px">เชื่อม LINE ของแอดมินได้ในหัวข้อ LINE ด้านล่าง (รหัส 6 หลักของแต่ละคน)</p>':''}</div>`;
   h+=`<div class="sset"><h3>เวลาทำงานของช่าง</h3><div class="set-grid">`;
   cfg.barbers.forEach(b=>{
     h+=`<div class="bcard"><div class="top"><input type="text" data-b="${b.id}" data-f="name" value="${esc(b.name)}" aria-label="ชื่อช่าง"><button class="del" data-delb="${b.id}">ลบ</button></div><div class="hrs">รหัสเข้าระบบ <input type="text" inputmode="numeric" maxlength="6" data-b="${b.id}" data-f="pin" value="${esc(pinOf(b))}" style="width:96px"></div>
@@ -3676,7 +3688,7 @@ function renderAuth(){
 }
 function openLogin(){
   dlg.innerHTML=`${gban('loginArt','dlgart')}<h3>เข้าสู่ระบบร้าน</h3><p class="meta">ช่างจัดการคิวของตัวเองได้ เจ้าของร้านจัดการได้ทุกคิวและตั้งค่าร้าน</p>
-    <div class="form"><label>ใครเข้าใช้<select id="lgWho"><option value="owner">เจ้าของร้าน</option>${cfg.barbers.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select></label>
+    <div class="form"><label>ใครเข้าใช้<select id="lgWho"><option value="owner">เจ้าของร้าน</option>${(cfg.admins||[]).map(a=>`<option value="${a.id}">${esc(a.name)} (แอดมิน)</option>`).join('')}${cfg.barbers.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select></label>
     <label>รหัส<input id="lgPin" type="password" inputmode="numeric" autocomplete="off" maxlength="6"></label>
     <p class="err" id="lgErr" hidden></p>
     <button class="primary" id="lgGo">เข้าสู่ระบบ</button><button class="ghost" data-close>ยกเลิก</button>
@@ -3691,9 +3703,10 @@ async function doLogin(){
       if(r&&r.ok){ok=true;if(r.key){L().key=r.key;saveJSON(CKEY,cfg)}}
       else if(r&&(r.error==='bad_pin'||r.error==='locked')){ok=false;if(r.error==='locked')msg='ใส่รหัสผิดหลายครั้ง รอ 15 นาทีแล้วลองใหม่'}}catch(_){}
     go.disabled=false}
-  if(ok===null)ok=who==='owner'?pin===ownerPin():pin===pinOf(barber(who));
+  const adm=(cfg.admins||[]).find(a=>a.id===who);
+  if(ok===null)ok=who==='owner'?pin===ownerPin():adm?!!adm.pin&&pin===adm.pin:pin===pinOf(barber(who));
   if(!ok){e.textContent=msg;e.hidden=false;return}
-  user=who==='owner'?{role:'owner'}:{role:'barber',id:who};saveJSON('barber-session',user);
+  user=who==='owner'?{role:'owner'}:adm?{role:'owner',admin:who,name:adm.name}:{role:'barber',id:who};saveJSON('barber-session',user);
   dlg.close();walkOpen=false;renderAuth();renderAdmin();setView('today');toast('เข้าสู่ระบบแล้ว');if(BACKEND())lineConnect(false);
 }
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
@@ -3778,6 +3791,9 @@ app.addEventListener('change',e=>{
   if(t.id==='fUseRef'){sel.useRef=t.checked;renderCustomer();return}
   if(t.dataset.cfg==='lateMin'){const v=Math.round(+t.value);if(!(v>=0&&v<=120)){toast('ใส่ 0–120 นาที');t.value=lateMin();return}cfg.lateMin=v;saveCfg();renderOthers();toast(v?'มาช้าเกิน '+v+' นาที ปล่อยคิวได้':'ปิดนโยบายมาช้า');return}
   if(t.dataset.cfg==='cancelBefore'){const v=Math.round(+t.value);if(!(v>=0&&v<=1440)){toast('ใส่ 0–1440 นาที');t.value=cancelMin();return}cfg.cancelBefore=v;saveCfg();renderOthers();toast('ลูกค้ายกเลิกเองได้ก่อนถึงคิว '+v+' นาที')}
+  else if(t.dataset.adm&&isOwner()){const a=cfg.admins.find(x=>x.id===t.dataset.adm);if(!a)return;
+    if(t.dataset.af==='pin'){const v=t.value.trim();if(!/^\d{4,6}$/.test(v)){toast('รหัสต้องเป็นตัวเลข 4–6 หลัก');t.value=a.pin||'';return}a.pin=v;toast('บันทึกรหัสแอดมินแล้ว')}
+    else{const v=t.value.trim();if(!v){t.value=a.name;return}a.name=v;toast('บันทึกชื่อแล้ว')}saveCfg()}
   else if(t.dataset.cfg==='ownerPin'){const v=t.value.trim();if(!/^\d{4,6}$/.test(v)){toast('รหัสต้องเป็นตัวเลข 4–6 หลัก');t.value=ownerPin();return}cfg.ownerPin=v;saveCfg();toast('บันทึกรหัสเจ้าของร้านแล้ว')}
   else if(t.dataset.cfg){const v=parseT(t.value),o=t.dataset.cfg==='open'?v:cfg.open,c=t.dataset.cfg==='close'?v:cfg.close;
     if(!(o<c)){toast('เวลาเปิดต้องก่อนเวลาปิด');t.value=fmt(cfg[t.dataset.cfg]);return}
@@ -3878,7 +3894,7 @@ var lineView='', linePop=null;
 function L(){if(!cfg.line)cfg.line=JSON.parse(JSON.stringify(LINE_DEF));const l=cfg.line;
   l.notify=Object.assign({},LINE_DEF.notify,l.notify||{});if(l.remindMin==null)l.remindMin=5;if(l.preview==null)l.preview=true;if(!Array.isArray(l.staff))l.staff=[];return l}
 const lineStaffKey=()=>L().key&&user?L().key:'';
-const LINE_STAFF=()=>[{id:'owner',name:'เจ้าของร้าน',role:'owner'},...cfg.barbers.map(b=>({id:b.id,name:b.name,role:'barber',photo:b.photo}))];
+const LINE_STAFF=()=>[{id:'owner',name:'เจ้าของร้าน',role:'owner'},...(cfg.admins||[]).map(a=>({id:a.id,name:a.name+' (แอดมิน)',role:'owner'})),...cfg.barbers.map(b=>({id:b.id,name:b.name,role:'barber',photo:b.photo}))];
 const lstaffName=id=>id==='owner'?'เจ้าของร้าน':barber(id)?.name||'ช่าง';
 
 /* ---------- stable compare ---------- */
@@ -3909,7 +3925,7 @@ async function lineConnect(manual){
 async function pushLineCfg(){
   const l=L(); if(!sync.on||!sync.staffOk||!isOwner())return;
   const r=await api({a:'config',key:l.key,cfg:{shopName:cfg.shopName,branch:cfg.branch,phone:cfg.phone,appUrl:location.href.split('#')[0],lateMin:lateMin(),remindMin:l.remindMin,cancelBefore:cancelMin(),
-    notify:l.notify,ownerCopy:l.ownerCopy,notifyTo:l.notifyTo||'group',loyalty:{active:loy().active!==false,need:loy().need,services:loy().services},barbers:cfg.barbers.map(b=>({id:b.id,name:b.name})),services:cfg.services.map(s=>({id:s.id,name:s.name,min:s.min,price:s.price}))}});
+    notify:l.notify,ownerCopy:l.ownerCopy,notifyTo:l.notifyTo||'group',loyalty:{active:loy().active!==false,need:loy().need,services:loy().services},barbers:cfg.barbers.map(b=>({id:b.id,name:b.name})),admins:(cfg.admins||[]).map(a=>({id:a.id,name:a.name})),services:cfg.services.map(s=>({id:s.id,name:s.name,min:s.min,price:s.price}))}});
   if(r.ok){l.staff=r.staff;if(r.group)l.group=r.group;saveJSON(CKEY,cfg)}
 }
 var cfgPushT=null, appCfgT=null;
@@ -3918,9 +3934,9 @@ function appCfgChanged(){if(!sync.on||!sync.staffOk||!isOwner())return;clearTime
 async function pullAppCfg(){
   try{const r=await api({a:'appcfg'},true);const a=r&&r.app;if(!a||!a.cfg||(cfg.cfgAt||0)>=a.at)return;
     if(isOwner()&&(cfg.cfgLocalAt||0)>a.at)return; // owner has newer local edits; they will be uploaded
-    const keep={ownerPin:cfg.ownerPin,line:cfg.line,pins:Object.fromEntries((cfg.barbers||[]).map(b=>[b.id,b.pin]))};
+    const keep={ownerPin:cfg.ownerPin,line:cfg.line,pins:Object.fromEntries((cfg.barbers||[]).map(b=>[b.id,b.pin]).concat((cfg.admins||[]).map(a=>[a.id,a.pin])))};
     cfg=Object.assign({},a.cfg,{cfgAt:a.at,line:keep.line});if(keep.ownerPin)cfg.ownerPin=keep.ownerPin;
-    (cfg.barbers||[]).forEach(b=>{if(keep.pins[b.id])b.pin=keep.pins[b.id]});
+    (cfg.barbers||[]).forEach(b=>{if(keep.pins[b.id])b.pin=keep.pins[b.id]});if(!Array.isArray(cfg.admins))cfg.admins=[];cfg.admins.forEach(a=>{if(keep.pins[a.id])a.pin=keep.pins[a.id]});
     const pv7=cfg.payment&&cfg.payment.v10;normPay();if(!pv7&&isOwner()){cfg.cfgLocalAt=Date.now();appCfgChanged()} // push the fix back so every phone gets it
     saveJSON(CKEY,cfg);updateHours();if(!dlg.open)renderAdmin();renderMine();
   }catch(e){}
@@ -4207,7 +4223,7 @@ function lineAdminHTML(){
     <label>STAFF_KEY<input id="lKey" autocomplete="off" placeholder="SK-…" value="${esc(l.key)}"></label>
     <div class="uplrow"><button class="primary" id="lConnect" ${BACKEND()?'':'disabled'}>${sync.on?'เชื่อมต่อใหม่':'เชื่อมต่อ'}</button>${l.url&&!window.BACKEND_URL?`<button class="ghost" id="lDisconnect">เลิกเชื่อม</button>`:''}</div></div>
   ${sync.on&&sync.staffOk?`<h4 class="lh">เชื่อม LINE ของช่าง</h4><p class="hint">ให้แต่ละคนเพิ่มเพื่อน LINE OA ของร้าน แล้วพิมพ์รหัส 6 หลักของตัวเองส่งในแชต</p><div class="lstaff">${LINE_STAFF().map(s=>{const i=staffInfo(s.id);
-      return `<div class="lsrow">${s.id==='owner'?`<span class="av md anyav" aria-hidden="true">${ic('user',18)}</span>`:avatar(s.name,s.photo,'md')}<span class="lsn"><b>${esc(s.name)}</b>${i&&i.linked?'<small class="ok">เชื่อม LINE แล้ว</small>':i&&i.linkCode?`<small>รหัสเชื่อมต่อ <code>${i.linkCode}</code></small>`:'<small>กดเชื่อมต่อใหม่เพื่อสร้างรหัส</small>'}</span>
+      return `<div class="lsrow">${s.role==='owner'?`<span class="av md anyav" aria-hidden="true">${ic('user',18)}</span>`:avatar(s.name,s.photo,'md')}<span class="lsn"><b>${esc(s.name)}</b>${i&&i.linked?'<small class="ok">เชื่อม LINE แล้ว</small>':i&&i.linkCode?`<small>รหัสเชื่อมต่อ <code>${i.linkCode}</code></small>`:'<small>กดเชื่อมต่อใหม่เพื่อสร้างรหัส</small>'}</span>
         ${i&&i.linked?`<button class="linkbtn" data-ltest="${s.id}">ทดสอบส่ง</button><button class="linkbtn gdel" data-lunlink="${s.id}">ยกเลิก</button>`:i&&i.linkCode?`<button class="linkbtn" data-lcopy="${i.linkCode}">คัดลอก</button>`:''}</div>`}).join('')}</div>`:''}
   ${sync.on&&sync.staffOk?lineGroupHTML():''}
   <button class="linkbtn lguide-t" id="lGuideT" aria-expanded="${lineGuide}">${lineGuide?'ซ่อน':'ดู'}วิธีตั้งค่า LINE (ทำครั้งเดียว ประมาณ 15 นาที)</button>
@@ -4406,6 +4422,11 @@ updateHours(); renderAuth(); renderAdmin(); renderLineBtn(); lineEvents(true); i
 if(needWelcome())setTimeout(()=>{if(needWelcome()&&!dlg.open)openWelcome(false)},600);
 gfxInit().then(()=>{applyGfx();if(Object.keys(gfx).length){renderAdmin();renderMine()}else renderGfx();gfxPullServer()});
 syncIndicators(); indObs.observe(document.body,{childList:true,subtree:true});
+document.addEventListener('click',e=>{if(!isOwner())return;const t=e.target;
+  if(t.id==='admAdd'){if(cfg.admins.length>=10){toast('เพิ่มได้สูงสุด 10 คน');return}const pin=String(1000+Math.floor(Math.random()*9000));
+    cfg.admins.push({id:'ad'+Math.random().toString(36).slice(2,8),name:'แอดมิน '+(cfg.admins.length+1),pin});saveCfg();renderSettings();toast('เพิ่มแอดมินแล้ว รหัสเริ่มต้น '+pin+' แก้ชื่อและรหัสได้เลย')}
+  else if(t.dataset&&t.dataset.admdel){const a=cfg.admins.find(x=>x.id===t.dataset.admdel);if(!a||!confirm('ลบแอดมิน '+a.name+'? จะเข้าแอพและรับแจ้งเตือน LINE ไม่ได้อีก'))return;
+    cfg.admins=cfg.admins.filter(x=>x.id!==a.id);saveCfg();renderSettings();toast('ลบแอดมินแล้ว')}});
 window.__appReady=1;
 </script>
 </body>

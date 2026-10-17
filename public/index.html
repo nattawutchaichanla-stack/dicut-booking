@@ -1636,6 +1636,15 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 #refBox .okmsg,#refBox .err,#refBox .hint{margin:-2px 0 4px}
 .refreward{padding:14px 16px;border-radius:22px;background:color-mix(in srgb,var(--ok,#14975A) 10%,transparent);border:1px solid color-mix(in srgb,var(--ok,#14975A) 30%,transparent);display:grid;gap:6px}
 .refreward b{display:flex;align-items:center;gap:6px;font-weight:600}
+/* transfer-slip alert for staff */
+.slipalert{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:9999;width:min(560px,calc(100% - 24px));display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:24px;background:#2B2622;color:#FBF7F0;box-shadow:0 18px 50px rgba(0,0,0,.35);animation:saIn .45s cubic-bezier(.2,.9,.3,1.2)}
+.slipalert .sa-ic{font-size:1.6rem}
+.slipalert .sa-main{flex:1;min-width:0;display:grid;gap:2px}
+.slipalert b{font-weight:600}
+.slipalert small{opacity:.8;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slipalert .sa-go{border:0;border-radius:999px;background:#F2D676;color:#2B2622;font-weight:600;padding:10px 16px;cursor:pointer;white-space:nowrap}
+.slipalert .sa-x{border:0;background:transparent;color:#FBF7F0;opacity:.7;font-size:1rem;padding:8px;cursor:pointer}
+@keyframes saIn{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 </style>
 </head>
 <body>
@@ -2946,7 +2955,7 @@ function renderTimeline(){const live=adminDate===today();secTimeline.innerHTML=`
 function renderSettings(){if(!isOwner()){secSettings.innerHTML='';return}secSettings.innerHTML=`<details class="step" id="setDet" ${settingsOpen?'open':''}><summary>ตั้งเวลาทำงาน ช่าง และบริการ</summary>${settingsHTML()}</details>`}
 let settingsOpen=false;
 function renderOthers(){renderLive();if(!walkOpen)renderToday();renderTimeline();renderCustomer()}
-function renderAdmin(){expireHolds();renderCustomers();renderPromos();renderSum();renderLive();if(!walkOpen||!secToday.contains(document.activeElement))renderToday();renderTimeline();renderSettings();renderGfx();renderLineAdmin();renderCustomer();renderNotch();renderTabs();if(view==='home')renderHome()}
+function renderAdmin(){expireHolds();renderCustomers();renderPromos();renderSum();renderLive();if(!walkOpen||!secToday.contains(document.activeElement))renderToday();renderTimeline();renderSettings();renderGfx();renderLineAdmin();renderCustomer();renderNotch();renderTabs();if(view==='home')renderHome();if(typeof slipWatch==='function')slipWatch()}
 /* ---------- date picker (ark-ui DatePicker style, extended) ---------- */
 const TH_DOW=['อา','จ','อ','พ','พฤ','ศ','ส'], TH_MON_S=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 let dp={open:false,view:'day',y:0,m:0,mode:'single',rs:'',re:'',barber:'all',focus:''};
@@ -3924,8 +3933,34 @@ async function pullNow(full){
   if(changed){saveJSON(KEY,bookings);if(!dlg.open)renderAdmin();else{renderSum();renderLive();if(!walkOpen)renderToday()}}
   if(user&&lineActs.length){const b=lineActs[lineActs.length-1],w={start:'เริ่มตัด',done:'ตัดเสร็จ',noshow:'บันทึกว่าไม่มา',release:'ปล่อยคิว',paid:'ยืนยันสลิป'}[b.lastAction.act]||'อัปเดต';
     toast(`LINE: ${lstaffName(b.lastAction.by)} ${w} ${b.name||''}`)}
-  renderLineStatus();
+  renderLineStatus();slipWatch();
 }
+/* ---------- in-app alert when a customer sends a transfer slip (staff phones) ---------- */
+let slipSeen=new Set(loadJSON('slip-seen')||[]),slipRang=new Set();
+function slipKey(b){return b.id+':'+(b.pay&&b.pay.sentAt||0)}
+function slipWatch(){
+  if(!user)return;
+  const fresh=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)&&!slipSeen.has(slipKey(b)));
+  if(!fresh.length)return renderSlipAlert();
+  fresh.sort((a,b)=>(b.pay.sentAt||0)-(a.pay.sentAt||0));
+  slipAlert=fresh;renderSlipAlert();
+  if(fresh.some(b=>!slipRang.has(slipKey(b)))){fresh.forEach(b=>slipRang.add(slipKey(b)));chime();try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(_){}}
+}
+let slipAlert=[];
+function renderSlipAlert(){
+  let el=document.getElementById('slipAlert');
+  slipAlert=slipAlert.filter(b=>{const x=bookings.find(y=>y.id===b.id);return x&&x.pay&&x.pay.status==='review'&&x.status==='confirmed'});
+  if(!slipAlert.length){if(el)el.remove();return}
+  if(!el){el=document.createElement('div');el.id='slipAlert';el.className='slipalert';el.setAttribute('role','alert');document.body.appendChild(el)}
+  const b=slipAlert[0],more=slipAlert.length-1;
+  el.innerHTML=`<div class="sa-ic">🧾</div><div class="sa-main"><b>ลูกค้าโอนมาแล้ว</b><small>${esc(b.name||'')} · ${baht(b.pay.amount||0)} ฿ · ${b.date===today()?'วันนี้':thaiDate(b.date)} ${fmt(b.start)}${more?` · อีก ${more} รายการ`:''}</small></div><button class="sa-go" data-slipcheck="${b.id}" data-sadone="${b.id}">ตรวจสลิป</button><button class="sa-x" data-sadone="${b.id}" aria-label="ปิด">✕</button>`;
+}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-sadone]');if(!t)return;const b=bookings.find(x=>x.id===t.dataset.sadone);
+  if(b){slipSeen.add(slipKey(b));saveJSON('slip-seen',[...slipSeen].slice(-300))}slipAlert=slipAlert.filter(x=>x.id!==t.dataset.sadone);renderSlipAlert()});
+let audioCtx=null;
+function chime(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const c=audioCtx,t0=c.currentTime;
+  [[880,0],[1320,.16]].forEach(([f,d])=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t0+d);g.gain.linearRampToValueAtTime(.25,t0+d+.02);g.gain.exponentialRampToValueAtTime(.001,t0+d+.35);o.connect(g).connect(c.destination);o.start(t0+d);o.stop(t0+d+.4)})}catch(_){}}
+document.addEventListener('pointerdown',()=>{try{if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();else if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(_){}},{once:true});
 function syncQueue(){ // called by save(): find bookings that changed locally since last sync
   if(!sync||!sync.on)return;
   bookings.forEach(b=>{if(b.demo)return;if(sync.snap[b.id]!==stab(b))sync.queue[b.id]=sync.snap[b.id]?'upd':'new'});

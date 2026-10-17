@@ -1616,6 +1616,14 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .cu-stats b{font-family:var(--fd);font-size:1.2rem;font-weight:500;line-height:1}.cu-stats small{font-size:.68rem;color:var(--muted)}
 .cu-stats em{font-style:normal;font-size:.7rem;font-weight:600;padding:1px 7px;border-radius:99px;background:#FFF3C4;color:#8A6A00}
 .cu-stats em.ns{background:#FDE2E2;color:#C23B3B}
+
+/* ---------- home promo carousel (center of home) ---------- */
+.dspace{display:flex;align-items:center;justify-content:center}
+.dspace .ads{width:100%;max-width:620px;margin:18px 0}
+.ads-home .ad{box-shadow:0 18px 40px -18px rgba(0,0,0,.55)}
+.ads-home .ads-dots button{background:rgba(255,255,255,.55)}
+.ads-home .ads-dots button[aria-current="true"]{background:var(--yellow,#FFD60A)}
+@media (max-width:760px){.dspace{min-height:0}.dspace .ads{margin:14px 0 16px}}
 </style>
 </head>
 <body>
@@ -2304,12 +2312,13 @@ function renderHome(){
     <div class="dcol dl">${panelNow()}${panelHours()}</div>
     <div class="dcol dm">
       <div class="dtitle"><h2>${esc(cfg.shopName||'DI-CUT')}</h2><p>${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?' · โทร '+esc(cfg.phone):''}</p><p>คิววันนี้ ${tdy} คิว · ว่างตอนนี้ ${free} คน</p>${socIcons()}</div>
-      <div class="dspace"></div>
+      <div class="dspace">${promoBannerHTML('home')}</div>
       <div class="pager" id="pager">${pagerHTML()}</div>
       ${panelMembers()}
     </div>
     <div class="dcol dr">${panelDonut()}${panelWait()}</div>
   </div>`;
+  adBind();
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-bookb]');if(!t)return;e.preventDefault();
   sel.barber=t.dataset.bookb;sel.pickedBarber=true;sel.time=null;sel.date=today();goBook()});
@@ -2639,21 +2648,25 @@ document.addEventListener('click',e=>{
   const a=e.target.closest('.ad[data-addetail]');if(a&&!e.target.closest('button'))return openAdDetail(a.dataset.addetail);
   if(e.target.closest('[data-adbook]')){dlg.close();sel.step=1;setView('book');renderCustomer()}});
 document.addEventListener('keydown',e=>{const a=e.target.closest&&e.target.closest('.ad[data-addetail]');if(a&&(e.key==='Enter'||e.key===' ')&&e.target===a){e.preventDefault();openAdDetail(a.dataset.addetail)}});
-function promoBannerHTML(){
+function promoBannerHTML(where){
   const sl=adSlides(); if(!sl.length)return '';
   adIdx=Math.min(adIdx,sl.length-1);
-  return `<section class="ads" aria-roledescription="carousel" aria-label="โปรโมชั่น"><div class="ads-track" id="adsTrack">${sl.join('')}</div>
+  return `<section class="ads ${where?'ads-'+where:''}" aria-roledescription="carousel" aria-label="โปรโมชั่น"><div class="ads-track">${sl.join('')}</div>
     ${sl.length>1?`<div class="ads-dots">${sl.map((_,k)=>`<button data-ad="${k}" aria-label="โปรที่ ${k+1}" aria-current="${k===adIdx}"></button>`).join('')}</div>`:''}</section>`;
 }
-function adGo(k,smooth=true){const t=document.getElementById('adsTrack');if(!t)return;const n=t.children.length;adIdx=(k+n)%n;
+// one carousel can sit on home and another on the booking page: act on whichever is on screen
+function adTrack(){return [...document.querySelectorAll('.ads-track')].find(t=>t.offsetParent!==null&&t.children.length)||null}
+function adGo(k,smooth=true){const t=adTrack();if(!t)return;const n=t.children.length;adIdx=(k+n)%n;
   t.scrollTo({left:t.children[adIdx].offsetLeft-t.offsetLeft,behavior:smooth&&!matchMedia('(prefers-reduced-motion: reduce)').matches?'smooth':'instant'});adDots()}
-function adDots(){document.querySelectorAll('.ads-dots button').forEach((b,k)=>b.setAttribute('aria-current',k===adIdx))}
-function adBind(){const t=document.getElementById('adsTrack');if(!t||t.dataset.bound)return;t.dataset.bound=1;
-  adGo(adIdx,false);
-  let st;t.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const w=t.clientWidth;adIdx=Math.round(t.scrollLeft/(t.children[0].offsetWidth+12||w));adDots()},80)},{passive:true});
+function adDots(){const t=adTrack(),a=t&&t.closest('.ads');if(!a)return;a.querySelectorAll('.ads-dots button').forEach((b,k)=>b.setAttribute('aria-current',k===adIdx))}
+function adBind(){document.querySelectorAll('.ads-track').forEach(adBindOne)}
+function adBindOne(t){if(t.dataset.bound)return;t.dataset.bound=1;
+  if(t.offsetParent!==null&&t.children[adIdx])t.scrollLeft=t.children[adIdx].offsetLeft-t.offsetLeft;
+  let st;t.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const w=t.clientWidth;if(t!==adTrack())return;adIdx=Math.round(t.scrollLeft/(t.children[0].offsetWidth+12||w));adDots()},80)},{passive:true});
   const ads=t.closest('.ads');['pointerenter','touchstart','focusin'].forEach(ev=>ads.addEventListener(ev,()=>adHover=true,{passive:true}));
   ['pointerleave','touchend','focusout'].forEach(ev=>ads.addEventListener(ev,()=>setTimeout(()=>adHover=false,2500),{passive:true}));}
-setInterval(()=>{const t=document.getElementById('adsTrack');if(!t||adHover||document.hidden||t.children.length<2||matchMedia('(prefers-reduced-motion: reduce)').matches)return;adGo(adIdx+1)},5000);
+const AD_EVERY=3000; // slide every 3 seconds
+setInterval(()=>{const t=adTrack();if(!t||adHover||document.hidden||t.children.length<2||matchMedia('(prefers-reduced-motion: reduce)').matches)return;adGo(adIdx+1)},AD_EVERY);
 document.addEventListener('click',e=>{const d=e.target.closest('[data-ad]');if(d){adHover=true;setTimeout(()=>adHover=false,6000);adGo(+d.dataset.ad)}});
 function payAdminHTML(){const P=payCfg();
   const rv=bookings.filter(b=>b.pay&&b.pay.status==='review').length, paid=bookings.filter(b=>isLocked(b)&&b.status!=='cancelled');

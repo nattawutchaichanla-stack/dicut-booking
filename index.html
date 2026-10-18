@@ -1651,7 +1651,13 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .admpin input{width:90px}
 .admrow input{font:inherit;font-size:1rem;border-radius:16px!important;border:1px solid var(--line)!important;background:var(--chip)!important;height:50px;padding:0 16px;color:var(--ink);outline:none}
 .admrow input:focus{border-color:var(--pole)!important;box-shadow:0 0 0 3px var(--ring)}
+/* slip view: save button over the slip */
+.slipwrap{position:relative;margin-top:12px}
+.slipwrap .slipbig{display:block;margin:0 auto}
+.slipsave{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 16px;border:0;border-radius:999px;background:#2B2622;color:#F2D676;font:inherit;font-weight:600;font-size:.9rem;box-shadow:0 8px 20px rgba(0,0,0,.3);cursor:pointer}
+.slipsave svg{stroke:#F2D676}
 </style>
+
 
 
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
@@ -2049,7 +2055,7 @@ function quickHTML(){
 
 
 /* ---------- icons (lucide, ISC) ---------- */
-const ICONS={
+const ICONS={download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
   phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
   send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
   chat:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
@@ -2503,14 +2509,23 @@ document.addEventListener('change',async e=>{const inp=e.target.closest&&e.targe
   if(b.status==='cancelled'){toast('คิวนี้ถูกยกเลิกแล้ว ติดต่อร้าน');return}
   try{b.pay.slip=await fileToSlip(inp.files[0]);b.pay.status='review';b.pay.sentAt=Date.now();save();
     if(lastBooking&&lastBooking.id===b.id)renderCustomer();renderMyOut();renderAdmin();toast('ส่งสลิปแล้ว รอร้านตรวจ')}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
+// save the customer's slip image to the phone: share sheet on iPhone/iPad ("Save Image"), normal download elsewhere
+async function saveSlip(id){const b=bookings.find(x=>x.id===id);if(!b||!b.pay||!b.pay.slip||!canManage(b))return;
+  const url=b.pay.slip,name=('สลิป-'+(b.name||'ลูกค้า')+'-'+b.date+'-'+fmt(b.start).replace(':','')).replace(/[\\/:*?"<>|\s]+/g,'_')+'.jpg';
+  let blob=null;try{blob=await (await fetch(url,{mode:'cors'})).blob()}catch(_){}
+  if(!blob){window.open(url,'_blank');toast('เปิดรูปสลิปแล้ว กดค้างที่รูป แล้วเลือก "บันทึกรูปภาพ"');return}
+  const file=new File([blob],name,{type:blob.type||'image/jpeg'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'สลิป '+(b.name||'')});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('บันทึกสลิปแล้ว')}
 function openSlip(id){const b=bookings.find(x=>x.id===id);if(!b||!b.pay||!canManage(b))return;
   showSheet(`<h3>ตรวจสลิป</h3><p class="meta">${esc(b.name)} · ${thaiDate(b.date)} ${fmt(b.start)} · ${esc(barber(b.barberId).name)}</p>
     <div class="row"><span>ยอดที่ต้องได้รับ</span><b>${baht(b.pay.amount)} ฿</b></div><div class="row"><span>เข้าบัญชี</span><b>${payCfg().qrSource==='shop'?esc(payCfg().qrLabel)+(payCfg().qrAccount?' · '+esc(payCfg().qrAccount):''):esc(payCfg().ppName)+' '+esc(maskPP(payCfg().ppId))}</b></div>
-    ${b.pay.slip?`<img src="${esc(b.pay.slip)}" alt="สลิป" class="slipbig">`:'<p class="hint" style="margin-top:12px">ลูกค้ายังไม่ได้แนบสลิป</p>'}
+    ${b.pay.slip?`<div class="slipwrap"><img src="${esc(b.pay.slip)}" alt="สลิป" class="slipbig"><button class="slipsave" data-slipsave="${b.id}" aria-label="บันทึกสลิปลงเครื่อง">${ic('download',18)}<span>บันทึกสลิป</span></button></div>`:'<p class="hint" style="margin-top:12px">ลูกค้ายังไม่ได้แนบสลิป</p>'}
     <p class="hint">เช็กยอดเงินเข้าในแอปธนาคารของร้านก่อนกดยืนยัน</p>
-    <div class="actions"><button class="okb" data-paid="${b.id}" style="grid-column:1/-1">${ic('lock',18)}ยืนยันรับเงิน ล็อกคิว</button>${b.pay.slip?`<button class="cxb" data-payreject="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง ให้ลูกค้าส่งใหม่</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+    <div class="actions">${b.pay.status==='paid'?`<p class="okmsg" style="grid-column:1/-1">${ic('check',14)} ยืนยันรับเงินแล้ว คิวล็อกแล้ว</p>`:`<button class="okb" data-paid="${b.id}" style="grid-column:1/-1">${ic('lock',18)}ยืนยันรับเงิน ล็อกคิว</button>`}${b.pay.slip&&b.pay.status!=='paid'?`<button class="cxb" data-payreject="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง ให้ลูกค้าส่งใหม่</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`)}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.slipcheck)openSlip(t.dataset.slipcheck);
+  else if(t.dataset.slipsave)saveSlip(t.dataset.slipsave);
   else if(t.dataset.paid){const b=bookings.find(x=>x.id===t.dataset.paid);if(!b||!canManage(b))return;b.pay=b.pay||{amount:depositFor(b)};b.pay.status='paid';b.pay.paidAt=Date.now();b.pay.holdUntil=null;save();dlg.close();renderAdmin();toast(b.name+' ชำระแล้ว ล็อกคิว '+fmt(b.start))}
   else if(t.dataset.payreject){const b=bookings.find(x=>x.id===t.dataset.payreject);if(!b||!canManage(b))return;b.pay.status='unpaid';b.pay.rejected=true;if(payCfg().mode==='required')b.pay.holdUntil=Date.now()+payCfg().holdMin*60000;save();dlg.close();renderAdmin();toast('แจ้งให้ลูกค้าส่งสลิปใหม่แล้ว')}
 });
@@ -3527,7 +3542,7 @@ function openBooking(id){
     ${b.note?`<div class="row"><span>หมายเหตุ</span><b>${esc(b.note)}</b></div>`:''}<div class="row"><span>ช่าง</span><b>${esc(barber(b.barberId).name)}</b></div>
     ${b.phone?`<div class="row"><span>เบอร์โทร</span><b><a href="tel:${esc(b.phone)}" style="color:inherit">${esc(b.phone)}</a></b></div>`:`<div class="row"><span>ประเภท</span><b>walk-in</b></div>`}
     ${(()=>{const st=loyState(b.phone);return st?`<div class="row"><span>แต้มสะสม</span><b>${st.stamps}/${st.need}${st.rewards?' · ตัดฟรีได้ '+st.rewards+' ครั้ง':''}</b></div>`:''})()}${b.discount?`<div class="row"><span>โปร</span><b>${esc(b.promoTitle||'')} -${b.discount} ฿</b></div>`:''}${b.prepayOff?`<div class="row"><span>ส่วนลดโอนก่อน</span><b>-${b.prepayOff} ฿</b></div>`:''}${b.refUse?`<div class="row"><span>ส่วนลดชวนเพื่อน</span><b>-${b.discount||0} ฿</b></div>`:''}${b.refBy?`<div class="row"><span>ชวนมาโดย</span><b>${esc((customers[phoneKey(b.refBy)]||{}).name||'')} ${esc(b.refBy)}</b></div>`:''}${b.payAtShop&&!b.pay?`<div class="row"><span>วิธีจ่าย</span><b>จ่ายที่ร้าน</b></div>`:''}${creditOf(b.phone)>0&&!b.credit?`<div class="row"><span>เครดิตลูกค้า</span><b>${baht(creditOf(b.phone))} ฿ <button class="linkbtn" data-usecredit="${esc(b.phone)}">หักแล้ว</button></b></div>`:''}${b.released?`<div class="row"><span>ปล่อยคิว</span><b>เลยเวลา ${lateMin()} นาที${b.credit?' · เครดิต '+baht(b.credit)+' ฿':''}</b></div>`:''}${b.pay?`<div class="row"><span>ชำระล่วงหน้า</span><b>${b.pay.status==='paid'?'ล็อกแล้ว · '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}</b></div>`:''}<div class="row"><span>ราคา</span><b>${baht(bPrice(b))} ฿</b></div>
-    <div class="actions">${b.pay&&b.pay.status!=='paid'&&b.status==='confirmed'?`<button data-slipcheck="${b.id}" style="grid-column:1/-1">${b.pay.status==='review'?'ตรวจสลิป':'บันทึกว่ารับเงินแล้ว'}</button>`:''}${acts}${customers[phoneKey(b.phone)]?`<button data-cprof="${phoneKey(b.phone)}" style="grid-column:1/-1">ดูโปรไฟล์ลูกค้า</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`;
+    <div class="actions">${b.pay&&b.pay.status==='paid'&&b.pay.slip?`<button data-slipcheck="${b.id}" style="grid-column:1/-1">${ic('image',16)} ดูสลิป / บันทึกสลิป</button>`:''}${b.pay&&b.pay.status!=='paid'&&b.status==='confirmed'?`<button data-slipcheck="${b.id}" style="grid-column:1/-1">${b.pay.status==='review'?'ตรวจสลิป':'บันทึกว่ารับเงินแล้ว'}</button>`:''}${acts}${customers[phoneKey(b.phone)]?`<button data-cprof="${phoneKey(b.phone)}" style="grid-column:1/-1">ดูโปรไฟล์ลูกค้า</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`;
   dlg.dataset.id=id; dlg.showModal();
 }
 

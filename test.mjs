@@ -243,6 +243,7 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const sl = sent.slice(b4).filter(m => m.kind === 'push' && /สลิปใหม่/.test(m.messages[0].altText || ''));
   ok(sl.length === 1 && sl[0].to === 'G_SHOP', "slip alert goes to the LINE group in mode 'group'");
   ok(sl[0].messages[0].contents.footer.contents.some(x => x.action.type === 'uri' && /^tel:/.test(x.action.uri)), 'slip alert has a call-customer button');
+  ok(sl[0].messages.length === 2 && sl[0].messages[1].type === 'image' && /^https:.+\.png$/.test(sl[0].messages[1].originalContentUrl), 'slip photo sent with the card');
   await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { notifyTo: 'personal' }) });
   const b3 = sent.length; await post({ a: 'create', booking: { id: 'GRP3', date: core.todayKey(), start: nm + 360, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'กลุ่ม3', phone: '0870000003' } });
   ok(!sent.slice(b3).some(m => m.to === 'G_SHOP'), "mode 'personal': nothing to the group");

@@ -322,6 +322,8 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const okBtn = m.messages[0].contents.footer.contents.find(x => x.action.type === 'postback' && /claimok/.test(x.action.data));
   ok(!!okBtn, 'card has a confirm button');
   ok((await post({ a: 'create', booking: { id: 'CL2', claim: true, barberId: 'b1', services: ['cut'], serviceId: 'cut', dur: 30, date: core.todayKey(), start: 1, name: 'x', phone: '0877776666' } })).ok === false, 'claim without a slip is refused');
+  await lineEv({ type: 'postback', uid: 'U_OWN', postback: { data: okBtn.action.data } });
+  ok((await db.getBooking('CL1')).status === 'claim' && /เฉพาะ/.test(last().messages[0].text), 'owner / other barber cannot confirm a claim, only the barber who cut');
   await lineEv({ type: 'postback', uid: 'U_A', postback: { data: okBtn.action.data } });
   const b = await db.getBooking('CL1'); ok(b.status === 'done' && b.pay.status === 'paid', 'barber confirms in LINE: visit counted (done) and paid');
 }

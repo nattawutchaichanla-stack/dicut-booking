@@ -1678,6 +1678,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -2541,7 +2542,7 @@ function openSlip(id){const b=bookings.find(x=>x.id===id);if(!b||!b.pay||!canMan
     <div class="row"><span>ยอดที่ต้องได้รับ</span><b>${baht(b.pay.amount)} ฿</b></div><div class="row"><span>เข้าบัญชี</span><b>${payCfg().qrSource==='shop'?esc(payCfg().qrLabel)+(payCfg().qrAccount?' · '+esc(payCfg().qrAccount):''):esc(payCfg().ppName)+' '+esc(maskPP(payCfg().ppId))}</b></div>
     ${b.pay.slip?`<div class="slipwrap"><img src="${esc(b.pay.slip)}" alt="สลิป" class="slipbig"><button class="slipsave" data-slipsave="${b.id}" aria-label="บันทึกสลิปลงเครื่อง">${ic('download',18)}<span>บันทึกสลิป</span></button></div>`:'<p class="hint" style="margin-top:12px">ลูกค้ายังไม่ได้แนบสลิป</p>'}
     <p class="hint">เช็กยอดเงินเข้าในแอปธนาคารของร้านก่อนกดยืนยัน</p>
-    <div class="actions">${b.status==='claim'?`<button class="okb" data-claimok="${b.id}" style="grid-column:1/-1">${ic('check',18)}ยืนยัน ลูกค้าได้แต้ม</button><button class="cxb" data-claimno="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง</button>`:b.pay.status==='paid'?`<p class="okmsg" style="grid-column:1/-1">${ic('check',14)} ยืนยันรับเงินแล้ว คิวล็อกแล้ว</p>`:`<button class="okb" data-paid="${b.id}" style="grid-column:1/-1">${ic('lock',18)}ยืนยันรับเงิน ล็อกคิว</button>`}${b.pay.slip&&b.pay.status!=='paid'&&b.status!=='claim'?`<button class="cxb" data-payreject="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง ให้ลูกค้าส่งใหม่</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+    <div class="actions">${b.status==='claim'?(user&&user.id===b.barberId?`<button class="okb" data-claimok="${b.id}" style="grid-column:1/-1">${ic('check',18)}ยืนยัน ลูกค้าได้แต้ม</button><button class="cxb" data-claimno="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง</button>`:`<p class="meta" style="grid-column:1/-1;text-align:center">รอ${esc(barber(b.barberId).name)}ยืนยัน · เฉพาะช่างที่ตัดกดยืนยันแต้มได้</p>`):b.pay.status==='paid'?`<p class="okmsg" style="grid-column:1/-1">${ic('check',14)} ยืนยันรับเงินแล้ว คิวล็อกแล้ว</p>`:`<button class="okb" data-paid="${b.id}" style="grid-column:1/-1">${ic('lock',18)}ยืนยันรับเงิน ล็อกคิว</button>`}${b.pay.slip&&b.pay.status!=='paid'&&b.status!=='claim'?`<button class="cxb" data-payreject="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง ให้ลูกค้าส่งใหม่</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`)}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.slipcheck)openSlip(t.dataset.slipcheck);
   else if(t.dataset.slipsave)saveSlip(t.dataset.slipsave);
@@ -4508,7 +4509,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
     if(!d.name)return f('ใส่ชื่อเล่น');if(phoneKey(d.phone).length<9)return f('ใส่เบอร์โทรให้ครบ เบอร์นี้ใช้สะสมแต้ม');if(!d.slip)return f('แนบรูปสลิปก่อน');
     const sv=svc(d.svc),dur=sv.min||30,b={id:code(),claim:true,status:'claim',date:today(),start:Math.max(0,nowMin()-dur),dur,barberId:d.barber,serviceId:d.svc,services:[d.svc],name:d.name,phone:d.phone,note:'ตัดหน้าร้าน แนบสลิปขอรับแต้ม',pay:{status:'review',amount:sv.price,slip:d.slip,sentAt:Date.now()}};
     bookings.push(b);save();upsertCustomer(b.name,b.phone);claimDraft=null;dlg.close();myLookup={k:phoneKey(b.phone)};renderMyOut();renderAdmin();toast('ส่งสลิปให้ช่างแล้ว รอยืนยัน แต้มจะเข้าเอง');return}
-  const ok=t.dataset.claimok,no=t.dataset.claimno;if(!ok&&!no)return;const b=bookings.find(x=>x.id===(ok||no));if(!b||b.status!=='claim'||!canManage(b))return;
+  const ok=t.dataset.claimok,no=t.dataset.claimno;if(!ok&&!no)return;const b=bookings.find(x=>x.id===(ok||no));if(!b||b.status!=='claim'||!user||user.id!==b.barberId)return;
   if(ok){b.status='done';b.doneAt=b.start+(b.dur||30);b.pay=Object.assign({},b.pay,{status:'paid',paidAt:Date.now()});toast('ยืนยันแล้ว '+b.name+' ได้ 1 แต้ม')}
   else{if(!confirm('แจ้งว่าสลิปไม่ถูกต้อง?'))return;b.status='cancelled';b.claimRejected=true;toast('แจ้งลูกค้าแล้ว')}
   save();if(dlg.open)dlg.close();renderAdmin()});

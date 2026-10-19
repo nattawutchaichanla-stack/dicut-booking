@@ -1667,6 +1667,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -4462,7 +4463,9 @@ async function lineDiag(){const out=document.getElementById('lDiagOut');if(!out)
   const ln=(h&&h.line)||{},rows=[],ok=(b,t,sub)=>rows.push(`<li class="${b?'ok':'bad'}"><b>${b?'✅':'❌'} ${t}</b>${sub?`<small>${sub}</small>`:''}</li>`);
   ok(ln.token&&ln.secret,'บอท LINE ตั้งค่าแล้ว',ln.token&&ln.secret?'':'ยังไม่ได้ใส่ LINE_TOKEN / LINE_CHANNEL_SECRET ใน Vercel');
   const toTH={group:'กลุ่มอย่างเดียว',both:'กลุ่ม + แชตส่วนตัว',personal:'แชตส่วนตัวอย่างเดียว'}[ln.sendTo]||ln.sendTo;
-  ok(ln.sendTo==='personal'||ln.group,ln.group?'ผูกกลุ่ม LINE อยู่':'ยังไม่ได้ผูกกลุ่ม LINE',ln.group?'ตั้งให้ส่งแบบ: '+toTH:'ตั้งให้ส่งแบบ "'+toTH+'" แต่ระบบไม่รู้จักกลุ่ม แจ้งเตือนจึงไปที่แชตส่วนตัวแทน · เชิญบอทเข้ากลุ่ม แล้วพิมพ์ "ผูกกลุ่ม '+((L().group||{}).code||'รหัส 6 หลัก')+'"');
+  ok(ln.sendTo==='personal'||ln.group,ln.group?'ผูกกลุ่ม LINE อยู่':'ยังไม่ได้ผูกกลุ่ม LINE',ln.group?'ตั้งให้ส่งแบบ: '+toTH:'ตั้งให้ส่งแบบ "'+toTH+'" แต่ระบบไม่รู้จักกลุ่ม แจ้งเตือนจึงไปที่แชตส่วนตัวแทน · ในกลุ่มให้เจ้าของร้าน/แอดมินที่เชื่อม LINE แล้วพิมพ์ "ผูกกลุ่ม" (หรือใครก็ได้พิมพ์ "ผูกกลุ่ม '+((L().group||{}).code||'รหัส 6 หลัก')+'")');
+  const rcv=ln.lastReceived;
+  ok(!!rcv,rcv?'บอทได้รับข้อความล่าสุด '+esc(rcv.at||'')+' จาก'+(rcv.where==='group'?'กลุ่ม':'แชตส่วนตัว'):'บอทยังไม่ได้รับข้อความจาก LINE เลย',rcv?(rcv.text?'ข้อความ: "'+esc(rcv.text)+'"':''):'พิมพ์อะไรก็ได้ในกลุ่มแล้วกดตรวจอีกครั้ง ถ้ายังขึ้นแบบนี้ แปลว่า Webhook ไม่ทำงาน: เข้า developers.line.biz > Messaging API > เปิด Use webhook > Webhook URL = '+esc(APP_HOST())+'/api/line > กด Verify');
   ok(ln.linkedStaff>0,'เชื่อม LINE ส่วนตัวแล้ว '+(ln.linkedStaff||0)+' คน',ln.linkedStaff?'':'ยังไม่มีใครเชื่อม LINE ส่วนตัว');
   ok(ln.newBookingAlert!==false,'แจ้งเตือนคิวใหม่: '+(ln.newBookingAlert!==false?'เปิด':'ปิดอยู่'),ln.newBookingAlert===false?'เปิดได้ที่ "ส่งแจ้งเตือนเมื่อ > มีคิวใหม่" ด้านบน':'');
   const last=ln.lastSend;

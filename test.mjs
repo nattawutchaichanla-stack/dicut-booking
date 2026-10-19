@@ -249,6 +249,12 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   ok(!sent.slice(b3).some(m => m.to === 'G_SHOP'), "mode 'personal': nothing to the group");
   await gEv('ยกเลิกกลุ่ม', 'U_A'); ok(/เฉพาะเจ้าของร้าน/.test(last().messages[0].text), 'only the owner can unlink from the group');
   await post({ a: 'group', key: KEY, action: 'unlink' }); ok(!(await db.getKv('lineGroup')).id, 'owner unlinks the group from the app');
+  await gEv('ผูกกลุ่ม', 'U_A'); ok(!(await db.getKv('lineGroup')).id, 'barber cannot link the group without the code');
+  await gEv('ผูกกลุ่ม', 'U_OWN'); ok((await db.getKv('lineGroup')).id === 'G_SHOP', 'owner links the group by just typing ผูกกลุ่ม');
+  await post({ a: 'group', key: KEY, action: 'unlink' });
+  const code2 = (await post({ a: 'staff', key: KEY })).group.code, th = code2.replace(/\d/g, d => '๐๑๒๓๔๕๖๗๘๙'[d]);
+  await gEv('ผูก กลุ่ม ' + th.slice(0, 3) + '-' + th.slice(3), 'U_X'); ok((await db.getKv('lineGroup')).id === 'G_SHOP', 'code with Thai digits and a dash still links');
+  ok((await db.getKv('lineHook')).where === 'group', 'last received LINE event is recorded');
 }
 // barber photo on LINE cards
 {

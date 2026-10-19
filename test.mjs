@@ -111,10 +111,12 @@ ok(slipMsg && /สลิปใหม่/.test(slipMsg.messages[0].altText), 'sli
 const stored = await db.getBooking('BK06');
 ok(stored.pay.status === 'review' && /\/storage\/v1\/object\/public\/slips\/BK06-.+\.jpg$/.test(stored.pay.slip), 'public cannot self-mark paid; slip moved to storage');
 const paid = slipMsg.messages[0].contents.footer.contents.find(x => x.action.type === 'postback');
+await lineEv({ type: 'postback', uid: 'U_A', postback: { data: paid.action.data } });
+ok(/เฉพาะช่างเจ้าของคิว/.test(last().messages[0].text) && (await db.getBooking('BK06')).pay.status === 'review', "another barber cannot lock someone else's queue");
 await lineEv({ type: 'postback', uid: 'U_B', postback: { data: paid.action.data } });
-ok(/เฉพาะเจ้าของร้าน/.test(last().messages[0].text), 'barber cannot confirm slip');
+ok((await db.getBooking('BK06')).pay.status === 'paid' && /ล็อก/.test(last().messages[0].text), "the queue's own barber can confirm the slip and lock it in LINE");
 await lineEv({ type: 'postback', uid: 'U_OWN', postback: { data: paid.action.data } });
-ok((await db.getBooking('BK06')).pay.status === 'paid', 'owner confirms slip in LINE');
+ok(/ยืนยันไปแล้ว/.test(last().messages[0].text), 'second press: already confirmed');
 
 const all = []; const walk = o => { if (o && typeof o === 'object') { if (o.type === 'postback') all.push(o); Object.values(o).forEach(walk); } };
 sent.forEach(walk);

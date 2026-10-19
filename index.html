@@ -1662,7 +1662,17 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .ldlist li.bad{border-color:color-mix(in srgb,#e5484d 45%,transparent);background:color-mix(in srgb,#e5484d 8%,var(--chip))}
 .ldlist small{color:var(--muted);font-size:.82rem;line-height:1.45}
 .ldrec li{font-size:.82rem;color:var(--muted)}
+/* walk-in: attach slip for points */
+.claimcta{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.claimcta>div{flex:1;min-width:200px;display:grid;gap:4px}.claimcta b{display:flex;align-items:center;gap:6px}
+.claimcta small{color:var(--muted)}
+.clpick{display:flex;gap:8px;flex-wrap:wrap}
+.clpick button{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--chip);font:inherit;cursor:pointer;color:var(--ink)}
+.clpick button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink) inset}
+.clslip{justify-content:center}
 </style>
+
+
 
 
 
@@ -2526,11 +2536,11 @@ async function saveSlip(id){const b=bookings.find(x=>x.id===id);if(!b||!b.pay||!
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'สลิป '+(b.name||'')});return}}catch(e){if(e&&e.name==='AbortError')return}
   const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('บันทึกสลิปแล้ว')}
 function openSlip(id){const b=bookings.find(x=>x.id===id);if(!b||!b.pay||!canManage(b))return;
-  showSheet(`<h3>ตรวจสลิป</h3><p class="meta">${esc(b.name)} · ${thaiDate(b.date)} ${fmt(b.start)} · ${esc(barber(b.barberId).name)}</p>
+  showSheet(`<h3>${b.status==='claim'?'ลูกค้าหน้าร้าน ขอรับแต้ม':'ตรวจสลิป'}</h3><p class="meta">${esc(b.name)} · ${thaiDate(b.date)} ${fmt(b.start)} · ${esc(barber(b.barberId).name)}</p>
     <div class="row"><span>ยอดที่ต้องได้รับ</span><b>${baht(b.pay.amount)} ฿</b></div><div class="row"><span>เข้าบัญชี</span><b>${payCfg().qrSource==='shop'?esc(payCfg().qrLabel)+(payCfg().qrAccount?' · '+esc(payCfg().qrAccount):''):esc(payCfg().ppName)+' '+esc(maskPP(payCfg().ppId))}</b></div>
     ${b.pay.slip?`<div class="slipwrap"><img src="${esc(b.pay.slip)}" alt="สลิป" class="slipbig"><button class="slipsave" data-slipsave="${b.id}" aria-label="บันทึกสลิปลงเครื่อง">${ic('download',18)}<span>บันทึกสลิป</span></button></div>`:'<p class="hint" style="margin-top:12px">ลูกค้ายังไม่ได้แนบสลิป</p>'}
     <p class="hint">เช็กยอดเงินเข้าในแอปธนาคารของร้านก่อนกดยืนยัน</p>
-    <div class="actions">${b.pay.status==='paid'?`<p class="okmsg" style="grid-column:1/-1">${ic('check',14)} ยืนยันรับเงินแล้ว คิวล็อกแล้ว</p>`:`<button class="okb" data-paid="${b.id}" style="grid-column:1/-1">${ic('lock',18)}ยืนยันรับเงิน ล็อกคิว</button>`}${b.pay.slip&&b.pay.status!=='paid'?`<button class="cxb" data-payreject="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง ให้ลูกค้าส่งใหม่</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+    <div class="actions">${b.status==='claim'?`<button class="okb" data-claimok="${b.id}" style="grid-column:1/-1">${ic('check',18)}ยืนยัน ลูกค้าได้แต้ม</button><button class="cxb" data-claimno="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง</button>`:b.pay.status==='paid'?`<p class="okmsg" style="grid-column:1/-1">${ic('check',14)} ยืนยันรับเงินแล้ว คิวล็อกแล้ว</p>`:`<button class="okb" data-paid="${b.id}" style="grid-column:1/-1">${ic('lock',18)}ยืนยันรับเงิน ล็อกคิว</button>`}${b.pay.slip&&b.pay.status!=='paid'&&b.status!=='claim'?`<button class="cxb" data-payreject="${b.id}" style="grid-column:1/-1">สลิปไม่ถูกต้อง ให้ลูกค้าส่งใหม่</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`)}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.slipcheck)openSlip(t.dataset.slipcheck);
   else if(t.dataset.slipsave)saveSlip(t.dataset.slipsave);
@@ -3172,7 +3182,7 @@ function queueHTML(){
     <div><b>${revenue.toLocaleString()} ฿</b>ยอดจากคิวที่เสร็จ</div></div>
     ${isOwner()?'<button class="ghost" id="reset">ล้างคิวตัวอย่าง</button>':''}</div>`;
   const isToday=d===today(), nm=nowMin();
-  const chip={confirmed:'รอตัด',inprogress:'กำลังตัด',done:'เสร็จ',noshow:'ไม่มา'};
+  const chip={claim:'รอยืนยัน',confirmed:'รอตัด',inprogress:'กำลังตัด',done:'เสร็จ',noshow:'ไม่มา'};
   h+=`<div class="bcards">`;
   dpBarbers().forEach(b=>{
     const w=works(b,d), list=active.filter(x=>x.barberId===b.id).sort((a,c)=>a.start-c.start);
@@ -3209,6 +3219,8 @@ function todayHTML(){
   const box=(cls,icon,title,items,body,empty)=>`<section class="jbox ${cls}"><header>${ic(icon,18)}<b>${title}</b><span class="jn">${items.length}</span></header>${items.length?items.map(body).join(''):`<p class="jempty">${empty}</p>`}</section>`;
   let h=`<h2 class="sech">ลูกค้าวันนี้</h2>`;
   const rv=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
+  const cl=bookings.filter(b=>b.status==='claim'&&canManage(b)).sort((a,b)=>(b.pay&&b.pay.sentAt||0)-(a.pay&&a.pay.sentAt||0));
+  if(cl.length)h+=box('j-pay','lock','ลูกค้าหน้าร้านส่งสลิป ขอรับแต้ม',cl,b=>`<div class="jrow">${who(b,`<small>ยอด ${baht((b.pay||{}).amount||0)} ฿ · ตัดหน้าร้าน</small>`)}<button class="jbtn start" data-slipcheck="${b.id}">ตรวจ / ยืนยัน</button></div>`,'');
   if(rv.length)h+=box('j-pay','lock','รอตรวจสลิป',rv,b=>`<div class="jrow">${who(b,`<small>${thaiDate(b.date)} · ${fmt(b.start)} · ยอด ${baht(b.pay.amount)} ฿</small>`)}<button class="jbtn start" data-slipcheck="${b.id}">ตรวจสลิป</button></div>`,'');
   h+=box('j-busy','scissors','กำลังตัด',cut,b=>{const st=b.startedAt??b.start,el=Math.max(0,nm-st),rem=b.dur-el,pct=Math.min(100,el/b.dur*100);
     return `<div class="jrow">${who(b,`<span class="prog"><i style="width:${pct}%"></i></span><small class="${rem<0?'late':''}">เริ่ม ${fmt(st)} · ${rem>=0?'เหลือประมาณ '+rem+' นาที':'เกินเวลา '+(-rem)+' นาที'}</small>`)}
@@ -3535,7 +3547,7 @@ let toastT;
 function toast(msg){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';t.setAttribute('role','status');(document.getElementById('phone')||document.body).appendChild(t)}
   t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,1800)}
 
-const STATUS={confirmed:'รอตัด',inprogress:'กำลังตัด',done:'ตัดเสร็จ',noshow:'ไม่มาตามนัด',cancelled:'ยกเลิก'};
+const STATUS={claim:'รอช่างยืนยันสลิป',confirmed:'รอตัด',inprogress:'กำลังตัด',done:'ตัดเสร็จ',noshow:'ไม่มาตามนัด',cancelled:'ยกเลิก'};
 function openBooking(id){
   const b=bookings.find(x=>x.id===id); if(!b||!canManage(b))return; const s=svc(b.serviceId);
   const acts={confirmed:`<button class="okb" data-st="inprogress">เริ่มตัด</button>${isOverdue(b)?`<button data-release="${b.id}">ปล่อยคิว</button>`:'<button data-st="noshow">ไม่มาตามนัด</button>'}<button class="cxb" data-st="cancelled" style="grid-column:1/-1">ยกเลิกคิว</button>`,
@@ -3583,7 +3595,8 @@ function renderMine(){
   secMine.innerHTML=`${gban('mineBanner')}<h2 class="sech">โปรไฟล์ของฉัน</h2><section class="step">
     <p class="hint" style="margin-bottom:12px">ใส่เบอร์โทรที่ใช้ตอนจอง</p>
     <div class="form"><label>เบอร์โทร<input id="myPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="08x-xxx-xxxx"></label>
-    <p class="err" id="myErr" hidden></p><button class="primary" id="myFind">${ic('search',18)}ดูประวัติของฉัน</button></div></section><div id="myOut"></div>`;
+    <p class="err" id="myErr" hidden></p><button class="primary" id="myFind">${ic('search',18)}ดูประวัติของฉัน</button></div></section>
+    <section class="step claimcta"><div><b>${ic('scissors',18)} ตัดที่ร้านแล้ว ไม่ได้จองผ่านแอพ?</b><small>แนบสลิปที่โอนจ่ายร้าน ช่างยืนยันแล้วได้แต้มสะสมทันที</small></div><button class="primary" id="claimOpen">แนบสลิปรับแต้ม</button></section><div id="myOut"></div>`;
   if(custMe){const i=document.getElementById('myPhone');if(i&&!i.value)i.value=custMe.phone;if(!myLookup){const k=findMe(custMe.phone);if(k)myLookup={k}}}
   renderMyOut();
 }
@@ -4001,7 +4014,7 @@ function slipKey(b){return b.id+':'+(b.pay&&b.pay.sentAt||0)}
 function slipWatch(){try{slipWatch_()}catch(e){console.warn('slipWatch',e)}}
 function slipWatch_(){
   if(!user)return;if(!slipSeen){slipSeen=new Set(loadJSON('slip-seen')||[]);slipRang=new Set()}
-  const fresh=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)&&!slipSeen.has(slipKey(b)));
+  const fresh=bookings.filter(b=>(b.status==='confirmed'||b.status==='claim')&&b.pay&&b.pay.status==='review'&&canManage(b)&&!slipSeen.has(slipKey(b)));
   if(!fresh.length)return renderSlipAlert();
   fresh.sort((a,b)=>(b.pay.sentAt||0)-(a.pay.sentAt||0));
   slipAlert=fresh;renderSlipAlert();
@@ -4010,7 +4023,7 @@ function slipWatch_(){
 var slipAlert=slipAlert||[];
 function renderSlipAlert(){
   let el=document.getElementById('slipAlert');
-  slipAlert=(slipAlert||[]).filter(b=>{const x=bookings.find(y=>y.id===b.id);return x&&x.pay&&x.pay.status==='review'&&x.status==='confirmed'});
+  slipAlert=(slipAlert||[]).filter(b=>{const x=bookings.find(y=>y.id===b.id);return x&&x.pay&&x.pay.status==='review'&&(x.status==='confirmed'||x.status==='claim')});
   if(!slipAlert.length){if(el)el.remove();return}
   if(!el){el=document.createElement('div');el.id='slipAlert';el.className='slipalert';el.setAttribute('role','alert');document.body.appendChild(el)}
   const b=slipAlert[0],more=slipAlert.length-1;
@@ -4474,6 +4487,33 @@ async function lineDiag(){const out=document.getElementById('lDiagOut');if(!out)
   const rec=(ln.recent||[]).slice(0,6).map(r=>`<li>${r.ok?'✅':'❌'} ${esc(r.at||'')} · ${r.to==='group'?'กลุ่ม':r.to==='person'?'ส่วนตัว':esc(r.to||'')}${r.ok?'':' · '+esc(lineErrTH(r))}</li>`).join('');
   out.innerHTML=`<ul class="ldlist">${rows.join('')}</ul>${rec?`<p class="hint" style="margin:10px 0 4px">ส่งล่าสุด</p><ul class="ldrec">${rec}</ul>`:''}<p class="hint" style="margin-top:8px">ตรวจเมื่อ ${esc(h.time||'')}</p>`}
 document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#lDiag')&&isOwner())lineDiag()});
+/* ---------- walk-in customer: attach the transfer slip, barber confirms, the visit earns a loyalty point ---------- */
+let claimDraft=null;
+function openClaim(){const me=custMe||{};claimDraft={barber:cfg.barbers[0]&&cfg.barbers[0].id,svc:(cfg.services[0]||{}).id,slip:'',name:me.name||'',phone:me.phone||''};renderClaim()}
+function renderClaim(){const d=claimDraft;if(!d)return;const sv=svc(d.svc);
+  showSheet(`<h3>ตัดที่ร้านแล้ว แนบสลิปรับแต้ม</h3><p class="psub">ช่างจะได้รับแจ้งเตือนและกดยืนยัน แล้วแต้มเข้าทันที</p>
+    <div class="form"><div class="two"><label>ชื่อเล่น<input id="clName" value="${esc(d.name)}"></label><label>เบอร์โทร<input id="clPhone" type="tel" inputmode="tel" value="${esc(d.phone)}"></label></div>
+    <p class="psub" style="margin-top:6px">ช่างที่ตัดให้</p><div class="clpick">${cfg.barbers.map(b=>`<button data-clbar="${b.id}" aria-pressed="${d.barber===b.id}">${avatar(b.name,b.photo,'sm')}<span>${esc(b.name)}</span></button>`).join('')}</div>
+    <label>บริการ<select id="clSvc">${cfg.services.map(x=>`<option value="${x.id}" ${x.id===d.svc?'selected':''}>${esc(x.name)} · ${priceTag(x)}</option>`).join('')}</select></label>
+    <div class="row"><span>ยอดที่จ่าย</span><b>${baht(sv.price)} ฿</b></div>
+    <label class="upl clslip">${d.slip?'เปลี่ยนรูปสลิป':ic('image',18)+' เลือกรูปสลิป'}<input type="file" accept="image/*" id="clSlip"></label>
+    ${d.slip?`<img src="${esc(d.slip)}" class="slipthumb" alt="สลิปที่แนบ">`:''}<p class="err" id="clErr" hidden></p></div>
+    <div class="actions"><button class="okb" id="clGo" style="grid-column:1/-1" ${d.slip?'':'aria-disabled="true"'}>ส่งให้ช่างยืนยัน</button><button data-close style="grid-column:1/-1">ยกเลิก</button></div>`)}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.id==='claimOpen'){openClaim();return}
+  if(t.dataset.clbar&&claimDraft){claimDraft.barber=t.dataset.clbar;renderClaim();return}
+  if(t.id==='clGo'&&claimDraft){const d=claimDraft,err=document.getElementById('clErr'),f=m=>{err.textContent=m;err.hidden=false};
+    d.name=(document.getElementById('clName').value||'').trim();d.phone=(document.getElementById('clPhone').value||'').trim();
+    if(!d.name)return f('ใส่ชื่อเล่น');if(phoneKey(d.phone).length<9)return f('ใส่เบอร์โทรให้ครบ เบอร์นี้ใช้สะสมแต้ม');if(!d.slip)return f('แนบรูปสลิปก่อน');
+    const sv=svc(d.svc),dur=sv.min||30,b={id:code(),claim:true,status:'claim',date:today(),start:Math.max(0,nowMin()-dur),dur,barberId:d.barber,serviceId:d.svc,services:[d.svc],name:d.name,phone:d.phone,note:'ตัดหน้าร้าน แนบสลิปขอรับแต้ม',pay:{status:'review',amount:sv.price,slip:d.slip,sentAt:Date.now()}};
+    bookings.push(b);save();upsertCustomer(b.name,b.phone);claimDraft=null;dlg.close();myLookup={k:phoneKey(b.phone)};renderMyOut();renderAdmin();toast('ส่งสลิปให้ช่างแล้ว รอยืนยัน แต้มจะเข้าเอง');return}
+  const ok=t.dataset.claimok,no=t.dataset.claimno;if(!ok&&!no)return;const b=bookings.find(x=>x.id===(ok||no));if(!b||b.status!=='claim'||!canManage(b))return;
+  if(ok){b.status='done';b.doneAt=b.start+(b.dur||30);b.pay=Object.assign({},b.pay,{status:'paid',paidAt:Date.now()});toast('ยืนยันแล้ว '+b.name+' ได้ 1 แต้ม')}
+  else{if(!confirm('แจ้งว่าสลิปไม่ถูกต้อง?'))return;b.status='cancelled';b.claimRejected=true;toast('แจ้งลูกค้าแล้ว')}
+  save();if(dlg.open)dlg.close();renderAdmin()});
+document.addEventListener('change',async e=>{if(!claimDraft)return;
+  if(e.target.id==='clSvc'){claimDraft.svc=e.target.value;renderClaim()}
+  if(e.target.id==='clSlip'&&e.target.files[0]){try{claimDraft.name=document.getElementById('clName').value;claimDraft.phone=document.getElementById('clPhone').value;claimDraft.slip=await fileToSlip(e.target.files[0]);renderClaim()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}}});
 window.__appReady=1;
 </script>
 </body>

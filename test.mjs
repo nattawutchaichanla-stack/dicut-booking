@@ -305,4 +305,17 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   r = await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { admins: [] }) });
   ok(!r.staff.some(x => x.staffId === 'ad1'), 'deleted admin disappears from staff list');
 }
+{ // walk-in customer sends a slip to earn a point; barber confirms in LINE
+  await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { notifyTo: 'personal', admins: [] }) });
+  const before = sent.length;
+  let r = await post({ a: 'create', booking: { id: 'CL1', claim: true, date: '2020-01-01', start: 1, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'หน้าร้าน', phone: '0877776666', status: 'done', pay: { status: 'paid', amount: 150, slip: 'data:image/png;base64,iVBORw0KGgo=' } } });
+  ok(r.ok && r.booking.status === 'claim' && r.booking.date === core.todayKey() && r.booking.pay.status === 'review', 'walk-in claim saved as waiting for barber (cannot self-mark done/paid)');
+  const m = sent.slice(before).find(x => x.kind === 'push' && /ขอรับแต้ม/.test(x.messages[0].altText || ''));
+  ok(m && m.messages[1] && m.messages[1].type === 'image', 'barber gets the claim card with the slip photo');
+  const okBtn = m.messages[0].contents.footer.contents.find(x => x.action.type === 'postback' && /claimok/.test(x.action.data));
+  ok(!!okBtn, 'card has a confirm button');
+  ok((await post({ a: 'create', booking: { id: 'CL2', claim: true, barberId: 'b1', services: ['cut'], serviceId: 'cut', dur: 30, date: core.todayKey(), start: 1, name: 'x', phone: '0877776666' } })).ok === false, 'claim without a slip is refused');
+  await lineEv({ type: 'postback', uid: 'U_A', postback: { data: okBtn.action.data } });
+  const b = await db.getBooking('CL1'); ok(b.status === 'done' && b.pay.status === 'paid', 'barber confirms in LINE: visit counted (done) and paid');
+}
 console.log('\n' + pass + ' checks passed');

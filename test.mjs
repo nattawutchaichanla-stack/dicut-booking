@@ -267,6 +267,13 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   ok(/https:\/\/dicut-booking\.vercel\.app\/api\/app\?a=photo&id=b1&v=\d+/.test(hdr), "LINE card header shows the barber's photo");
   const p = await core.photo({ id: 'b1' }); ok(p && p.type === 'image/jpeg' && p.bytes.length > 50, 'photo endpoint serves the image bytes');
   ok(!(await core.photo({ id: 'b2' })), 'barber without photo: no image (card shows text only)');
+  // slip card for a barber with a photo: header text must stay on a text node (LINE rejects "text" on a box)
+  const b5 = sent.length;
+  await post({ a: 'create', booking: { id: 'PH2', date: core.todayKey(), start: nm + 560, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'รูปสลิป', phone: '0870000098', pay: { status: 'review', amount: 150, slip: 'data:image/png;base64,iVBORw0KGgo=' } } });
+  const sm = sent.slice(b5).find(x => /สลิปใหม่/.test((x.messages[0] || {}).altText || ''));
+  const bad = []; const walk = n => { if (!n || typeof n !== 'object') return; if (n.type === 'box' && 'text' in n) bad.push(n); (n.contents || []).forEach(walk); };
+  walk(sm && sm.messages[0].contents.header);
+  ok(sm && !bad.length && /ลูกค้าส่งสลิป/.test(JSON.stringify(sm.messages[0].contents.header)) && sm.messages[1].type === 'image', 'slip card valid when the barber has a photo');
 }
 // owner sees every member
 {

@@ -1656,7 +1656,14 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .slipwrap .slipbig{display:block;margin:0 auto}
 .slipsave{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 16px;border:0;border-radius:999px;background:#2B2622;color:#F2D676;font:inherit;font-weight:600;font-size:.9rem;box-shadow:0 8px 20px rgba(0,0,0,.3);cursor:pointer}
 .slipsave svg{stroke:#F2D676}
+.ldiag{margin-bottom:6px}.ldiag #lDiag{width:100%}
+.ldlist,.ldrec{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.ldlist li{padding:10px 12px;border-radius:14px;background:var(--chip);border:1px solid var(--line);display:grid;gap:2px}
+.ldlist li.bad{border-color:color-mix(in srgb,#e5484d 45%,transparent);background:color-mix(in srgb,#e5484d 8%,var(--chip))}
+.ldlist small{color:var(--muted);font-size:.82rem;line-height:1.45}
+.ldrec li{font-size:.82rem;color:var(--muted)}
 </style>
+
 
 
 
@@ -4209,7 +4216,8 @@ function lineStatHTML(){const l=L();
 function lineGroupHTML(){
   const l=L(), g=l.group||{}, m=l.notifyTo||'group';
   const opt=(v,t,sub)=>`<label class="ltog"><input type="radio" name="lnto" data-lnto="${v}" ${m===v?'checked':''}><span><b>${t}</b><small>${sub}</small></span></label>`;
-  return `<h4 class="lh">ส่งเข้ากลุ่ม LINE</h4>
+  return `<h4 class="lh">ตรวจสถานะ LINE</h4><div class="ldiag"><button class="primary" id="lDiag">${ic('search',16)} ตรวจสถานะ LINE ตอนนี้</button><div id="lDiagOut" aria-live="polite"></div></div>
+  <h4 class="lh">ส่งเข้ากลุ่ม LINE</h4>
     <div class="lgroup ${g.linked?'on':''}">${g.linked?`<p><b>${ic('check',16)} ผูกกลุ่ม LINE แล้ว</b><small>คิวใหม่ ถึงคิว และลูกค้ามาช้า จะแจ้งเข้ากลุ่มนี้</small></p><div class="uplrow"><button class="ghost" data-lgroup="test">ทดสอบส่งเข้ากลุ่ม</button><button class="ghost gdel" data-lgroup="unlink">ยกเลิกกลุ่ม</button></div>`
       :`<ol class="lgsteps"><li>เปิด LINE OA ของร้านใน manager.line.biz &gt; ตั้งค่า &gt; ตั้งค่าบัญชี &gt; <b>อนุญาตให้เข้าร่วมกลุ่ม</b></li><li>เชิญบัญชี LINE OA เข้ากลุ่มช่างที่ต้องการ</li><li>พิมพ์ในกลุ่ม: <code>ผูกกลุ่ม ${esc(g.code||'······')}</code> <button class="linkbtn" data-lcopy="ผูกกลุ่ม ${esc(g.code||'')}">คัดลอก</button></li></ol><button class="linkbtn" data-lgroup="refresh">เช็กสถานะอีกครั้ง</button>`}</div>
     <div class="ltogs">${opt('group','ส่งเข้ากลุ่มอย่างเดียว','ประหยัดโควตา: 1 ข้อความต่อครั้ง ทุกคนในกลุ่มเห็น')}${opt('both','ส่งทั้งกลุ่มและแชตส่วนตัวช่าง','ช่างได้ 2 ที่ ใช้โควตาเพิ่ม')}${opt('personal','ส่งแชตส่วนตัวอย่างเดียว','ไม่ส่งเข้ากลุ่ม')}</div>
@@ -4441,6 +4449,28 @@ document.addEventListener('click',e=>{if(!isOwner())return;const t=e.target;
     cfg.admins.push({id:'ad'+Math.random().toString(36).slice(2,8),name:'แอดมิน '+(cfg.admins.length+1),pin});saveCfg();renderSettings();toast('เพิ่มแอดมินแล้ว รหัสเริ่มต้น '+pin+' แก้ชื่อและรหัสได้เลย')}
   else if(t.dataset&&t.dataset.admdel){const a=cfg.admins.find(x=>x.id===t.dataset.admdel);if(!a||!confirm('ลบแอดมิน '+a.name+'? จะเข้าแอพและรับแจ้งเตือน LINE ไม่ได้อีก'))return;
     cfg.admins=cfg.admins.filter(x=>x.id!==a.id);saveCfg();renderSettings();toast('ลบแอดมินแล้ว')}});
+/* ---------- LINE diagnosis for the owner: plain Thai, straight from the shop server ---------- */
+function lineErrTH(e){if(!e)return '';const st=e.status,t=String(e.error||'');
+  if(st===429)return 'โควตาข้อความฟรีของ LINE เดือนนี้หมดแล้ว (รอต้นเดือน หรืออัปเกรดแพ็กเกจ LINE OA)';
+  if(st===401)return 'รหัส LINE_TOKEN ใช้ไม่ได้ (อาจกด Reissue ไปแล้ว) ต้องใส่ token ใหม่ใน Vercel';
+  if(st===400&&/to|group|not found|invalid/i.test(t))return 'บอทไม่ได้อยู่ในกลุ่ม/แชตนั้นแล้ว ให้เชิญบอทกลับเข้ากลุ่ม แล้วพิมพ์ "ผูกกลุ่ม" ใหม่';
+  if(st===403)return 'LINE ไม่อนุญาตให้ส่ง (บัญชีถูกจำกัดหรือยังไม่เปิด Messaging API)';
+  return 'LINE ตอบกลับ '+(st||'')+' '+t.slice(0,80)}
+async function lineDiag(){const out=document.getElementById('lDiagOut');if(!out)return;out.innerHTML='<p class="hint">กำลังตรวจ…</p>';
+  let h;try{h=await api({a:'health'},true)}catch(e){out.innerHTML='<p class="err">ติดต่อระบบหลังบ้านไม่ได้ ลองใหม่อีกครั้ง</p>';return}
+  const ln=(h&&h.line)||{},rows=[],ok=(b,t,sub)=>rows.push(`<li class="${b?'ok':'bad'}"><b>${b?'✅':'❌'} ${t}</b>${sub?`<small>${sub}</small>`:''}</li>`);
+  ok(ln.token&&ln.secret,'บอท LINE ตั้งค่าแล้ว',ln.token&&ln.secret?'':'ยังไม่ได้ใส่ LINE_TOKEN / LINE_CHANNEL_SECRET ใน Vercel');
+  const toTH={group:'กลุ่มอย่างเดียว',both:'กลุ่ม + แชตส่วนตัว',personal:'แชตส่วนตัวอย่างเดียว'}[ln.sendTo]||ln.sendTo;
+  ok(ln.sendTo==='personal'||ln.group,ln.group?'ผูกกลุ่ม LINE อยู่':'ยังไม่ได้ผูกกลุ่ม LINE',ln.group?'ตั้งให้ส่งแบบ: '+toTH:'ตั้งให้ส่งแบบ "'+toTH+'" แต่ระบบไม่รู้จักกลุ่ม แจ้งเตือนจึงไปที่แชตส่วนตัวแทน · เชิญบอทเข้ากลุ่ม แล้วพิมพ์ "ผูกกลุ่ม '+((L().group||{}).code||'รหัส 6 หลัก')+'"');
+  ok(ln.linkedStaff>0,'เชื่อม LINE ส่วนตัวแล้ว '+(ln.linkedStaff||0)+' คน',ln.linkedStaff?'':'ยังไม่มีใครเชื่อม LINE ส่วนตัว');
+  ok(ln.newBookingAlert!==false,'แจ้งเตือนคิวใหม่: '+(ln.newBookingAlert!==false?'เปิด':'ปิดอยู่'),ln.newBookingAlert===false?'เปิดได้ที่ "ส่งแจ้งเตือนเมื่อ > มีคิวใหม่" ด้านบน':'');
+  const last=ln.lastSend;
+  if(!last)ok(false,'ยังไม่มีการส่ง LINE ตั้งแต่อัปเดตระบบ','ลองจองคิวทดลองแบบลูกค้า 1 คิว แล้วกดตรวจอีกครั้ง');
+  else ok(last.ok,'ส่ง LINE ล่าสุด '+(last.ok?'สำเร็จ':'ไม่สำเร็จ')+' · '+esc(last.at||'')+' · ไปที่'+(last.to==='group'?'กลุ่ม':last.to==='person'?'แชตส่วนตัว':'—'),last.ok?'':esc(lineErrTH(last)));
+  if(ln.group!==undefined){const l=L();l.group=Object.assign({},l.group||{},{linked:!!ln.group});saveJSON(CKEY,cfg)}
+  const rec=(ln.recent||[]).slice(0,6).map(r=>`<li>${r.ok?'✅':'❌'} ${esc(r.at||'')} · ${r.to==='group'?'กลุ่ม':r.to==='person'?'ส่วนตัว':esc(r.to||'')}${r.ok?'':' · '+esc(lineErrTH(r))}</li>`).join('');
+  out.innerHTML=`<ul class="ldlist">${rows.join('')}</ul>${rec?`<p class="hint" style="margin:10px 0 4px">ส่งล่าสุด</p><ul class="ldrec">${rec}</ul>`:''}<p class="hint" style="margin-top:8px">ตรวจเมื่อ ${esc(h.time||'')}</p>`}
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#lDiag')&&isOwner())lineDiag()});
 window.__appReady=1;
 </script>
 </body>

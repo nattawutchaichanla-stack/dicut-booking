@@ -1670,7 +1670,12 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .clpick button{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--chip);font:inherit;cursor:pointer;color:var(--ink)}
 .clpick button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink) inset}
 .clslip{justify-content:center}
+
+.clhits{display:grid;gap:6px;margin:-4px 0 4px}
+.clhits button{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px;border-radius:12px;border:1px solid var(--line,#e6e0d8);background:var(--card,#fff);color:inherit;font:inherit;width:100%}
+.clhits button span{display:grid;line-height:1.25}.clhits small{opacity:.7}
 </style>
+
 
 
 
@@ -4496,7 +4501,7 @@ let claimDraft=null;
 function openClaim(owner,k){const me=owner?(customers[k]||{}):(custMe||{});claimDraft={owner:!!owner,barber:cfg.barbers[0]&&cfg.barbers[0].id,svc:(cfg.services[0]||{}).id,slip:'',name:me.name||'',phone:me.phone||'',date:today()};renderClaim()}
 function renderClaim(){const d=claimDraft;if(!d)return;const sv=svc(d.svc);
   showSheet(`<h3>${d.owner?'เพิ่มแต้มให้ลูกค้า':'ตัดที่ร้านแล้ว แนบสลิปรับแต้ม'}</h3><p class="psub">${d.owner?'เจ้าของร้านเพิ่มเองได้ ต้องแนบสลิปที่ลูกค้าโอนเป็นหลักฐานทุกครั้ง แต้มเข้าทันที':'ช่างจะได้รับแจ้งเตือนและกดยืนยัน แล้วแต้มเข้าทันที'}</p>
-    <div class="form"><div class="two"><label>ชื่อเล่น<input id="clName" value="${esc(d.name)}"></label><label>เบอร์โทร<input id="clPhone" type="tel" inputmode="tel" value="${esc(d.phone)}"></label></div>
+    <div class="form">${d.owner?`<label>ค้นหาลูกค้าในแอพ<div class="searchwrap">${ic('search',18)}<input id="clFind" class="search" type="search" placeholder="พิมพ์ชื่อหรือเบอร์ แล้วแตะเลือก" autocomplete="off"></div></label><div id="clHits" class="clhits"></div>`:''}<div class="two"><label>ชื่อเล่น<input id="clName" value="${esc(d.name)}"></label><label>เบอร์โทร<input id="clPhone" type="tel" inputmode="tel" value="${esc(d.phone)}"></label></div>
     <p class="psub" style="margin-top:6px">ช่างที่ตัดให้</p><div class="clpick">${cfg.barbers.map(b=>`<button data-clbar="${b.id}" aria-pressed="${d.barber===b.id}">${avatar(b.name,b.photo,'sm')}<span>${esc(b.name)}</span></button>`).join('')}</div>
     <label>บริการ<select id="clSvc">${cfg.services.map(x=>`<option value="${x.id}" ${x.id===d.svc?'selected':''}>${esc(x.name)} · ${priceTag(x)}</option>`).join('')}</select></label>
     ${d.owner?`<label>วันที่มาตัด<input id="clDate" type="date" value="${esc(d.date)}" max="${today()}"></label>`:''}<div class="row"><span>ยอดที่จ่าย</span><b>${baht(sv.price)} ฿</b></div>
@@ -4519,6 +4524,13 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
   if(ok){b.status='done';b.doneAt=b.start+(b.dur||30);b.pay=Object.assign({},b.pay,{status:'paid',paidAt:Date.now()});toast('ยืนยันแล้ว '+b.name+' ได้ 1 แต้ม')}
   else{if(!confirm('แจ้งว่าสลิปไม่ถูกต้อง?'))return;b.status='cancelled';b.claimRejected=true;toast('แจ้งลูกค้าแล้ว')}
   save();if(dlg.open)dlg.close();renderAdmin()});
+function clHits(q){const el=document.getElementById('clHits');if(!el)return;q=(q||'').trim().toLowerCase();const qd=q.replace(/\D/g,'');
+  if(!q){el.innerHTML='';return}
+  const rows=cuAll().filter(r=>(r.name||'').toLowerCase().includes(q)||(qd.length>=2&&r.k.includes(qd))).sort((a,b)=>(b.last||'').localeCompare(a.last||'')).slice(0,6);
+  el.innerHTML=rows.length?rows.map(r=>{const L=loyState(r.phone||r.k);return`<button type="button" data-clpick="${r.k}">${avatar(r.name||'?',r.photo,'sm')}<span><b>${esc(r.name||'ไม่ระบุชื่อ')}</b><small>${esc(r.phone||r.k)}${L&&L.need?' · แต้ม '+L.stamps+'/'+L.need:''}</small></span></button>`}).join(''):'<p class="hint">ไม่พบลูกค้า กรอกชื่อและเบอร์ด้านล่างได้เลย</p>'}
+document.addEventListener('input',e=>{if(e.target.id==='clFind')clHits(e.target.value)});
+document.addEventListener('click',e=>{const t=e.target.closest('[data-clpick]');if(!t||!claimDraft)return;const r=cuAll().find(x=>x.k===t.dataset.clpick);if(!r)return;
+  claimDraft.name=r.name||'';claimDraft.phone=r.phone||r.k;const dd=document.getElementById('clDate');if(dd)claimDraft.date=dd.value;renderClaim();toast('เลือก '+(r.name||r.phone)+' แล้ว')});
 document.addEventListener('change',async e=>{if(!claimDraft)return;
   if(e.target.id==='clSvc'){claimDraft.svc=e.target.value;renderClaim()}
   if(e.target.id==='clDate'){claimDraft.date=e.target.value}

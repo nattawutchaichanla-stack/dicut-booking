@@ -1679,6 +1679,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -3454,6 +3455,7 @@ function openCustomer(k,edit=false){
     h+=`<div class="pstats"><div><b>${done.length}</b>มาแล้ว (ครั้ง)</div><div><b>${spent.toLocaleString()}</b>ยอดรวม ฿</div><div><b>${fav?esc(barber(fav[0]).name):'–'}</b>ช่างประจำ</div></div>`;
     if(up)h+=`<p class="okbanner" style="margin:12px 0 0">คิวถัดไป ${thaiDate(up.date)} ${fmt(up.start)} · ${esc(bName(up))} กับ${esc(barber(up.barberId).name)}</p>`;
     h+=loyCardHTML(loyState(c.phone));
+    if(isOwner())h+=`<button class="ghost" data-addpt="${k}" style="width:100%;margin-top:10px">${ic('plus',16)} เพิ่มแต้ม (แนบสลิป)</button>`;
     h+=`<p class="psub">ทรงที่ชอบ / หมายเหตุ</p><p class="bio">${c.note?esc(c.note):'<span class="hint">ยังไม่มีบันทึก</span>'}</p>`;
     h+=`<p class="psub">ประวัติ</p><div class="hist">${hist.length?hist.slice(0,10).map(x=>`<div><span><b>${thaiDate(x.date)}</b> ${fmt(x.start)}<small>${esc(bName(x))} · ${esc(barber(x.barberId).name)}</small></span><span class="chip ${x.status}">${STATUS[x.status]}</span></div>`).join(''):'<p class="hint">ยังไม่มีประวัติ</p>'}</div>`;
     h+=`<div class="actions"><button data-cedit="${k}">แก้ไขโปรไฟล์</button><button data-close>ปิด</button></div>`;
@@ -3492,7 +3494,7 @@ function renderCustomers(){
   const sb=(v,t)=>`<button data-cusort="${v}" aria-pressed="${cuSort===v}">${t}</button>`;
   secCustomers.innerHTML=`<div id="cuSum" class="cusum"></div><section class="step"><div class="searchwrap">${ic('search',18)}<input id="cuSearch" class="search" type="search" placeholder="ค้นหาชื่อหรือเบอร์โทร" value="${esc(cuQuery)}"></div>
     <div class="cusort" role="group" aria-label="เรียงลำดับ">${sb('last','มาล่าสุด')}${sb('visits','มาบ่อยสุด')}${sb('new','สมัครใหม่')}${sb('spend','ยอดสูงสุด')}</div>
-    <div id="cuList" class="culist"></div>${isOwner()?`<button class="ghost" id="cuCsv" style="width:100%;margin-top:12px">${ic('arrow-ur',16)} ดาวน์โหลดรายชื่อลูกค้า (Excel/CSV)</button>`:''}</section>`;
+    <div id="cuList" class="culist"></div>${isOwner()?`<button class="primary" data-addpt="" style="width:100%;margin-top:12px">${ic('plus',16)} เพิ่มแต้มให้ลูกค้า (แนบสลิป)</button>`:''}${isOwner()?`<button class="ghost" id="cuCsv" style="width:100%;margin-top:12px">${ic('arrow-ur',16)} ดาวน์โหลดรายชื่อลูกค้า (Excel/CSV)</button>`:''}</section>`;
   renderCuList();cuPullServer();
 }
 function renderCuList(){
@@ -4491,22 +4493,26 @@ async function lineDiag(){const out=document.getElementById('lDiagOut');if(!out)
 document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#lDiag')&&isOwner())lineDiag()});
 /* ---------- walk-in customer: attach the transfer slip, barber confirms, the visit earns a loyalty point ---------- */
 let claimDraft=null;
-function openClaim(){const me=custMe||{};claimDraft={barber:cfg.barbers[0]&&cfg.barbers[0].id,svc:(cfg.services[0]||{}).id,slip:'',name:me.name||'',phone:me.phone||''};renderClaim()}
+function openClaim(owner,k){const me=owner?(customers[k]||{}):(custMe||{});claimDraft={owner:!!owner,barber:cfg.barbers[0]&&cfg.barbers[0].id,svc:(cfg.services[0]||{}).id,slip:'',name:me.name||'',phone:me.phone||'',date:today()};renderClaim()}
 function renderClaim(){const d=claimDraft;if(!d)return;const sv=svc(d.svc);
-  showSheet(`<h3>ตัดที่ร้านแล้ว แนบสลิปรับแต้ม</h3><p class="psub">ช่างจะได้รับแจ้งเตือนและกดยืนยัน แล้วแต้มเข้าทันที</p>
+  showSheet(`<h3>${d.owner?'เพิ่มแต้มให้ลูกค้า':'ตัดที่ร้านแล้ว แนบสลิปรับแต้ม'}</h3><p class="psub">${d.owner?'เจ้าของร้านเพิ่มเองได้ ต้องแนบสลิปที่ลูกค้าโอนเป็นหลักฐานทุกครั้ง แต้มเข้าทันที':'ช่างจะได้รับแจ้งเตือนและกดยืนยัน แล้วแต้มเข้าทันที'}</p>
     <div class="form"><div class="two"><label>ชื่อเล่น<input id="clName" value="${esc(d.name)}"></label><label>เบอร์โทร<input id="clPhone" type="tel" inputmode="tel" value="${esc(d.phone)}"></label></div>
     <p class="psub" style="margin-top:6px">ช่างที่ตัดให้</p><div class="clpick">${cfg.barbers.map(b=>`<button data-clbar="${b.id}" aria-pressed="${d.barber===b.id}">${avatar(b.name,b.photo,'sm')}<span>${esc(b.name)}</span></button>`).join('')}</div>
     <label>บริการ<select id="clSvc">${cfg.services.map(x=>`<option value="${x.id}" ${x.id===d.svc?'selected':''}>${esc(x.name)} · ${priceTag(x)}</option>`).join('')}</select></label>
-    <div class="row"><span>ยอดที่จ่าย</span><b>${baht(sv.price)} ฿</b></div>
+    ${d.owner?`<label>วันที่มาตัด<input id="clDate" type="date" value="${esc(d.date)}" max="${today()}"></label>`:''}<div class="row"><span>ยอดที่จ่าย</span><b>${baht(sv.price)} ฿</b></div>
     <label class="upl clslip">${d.slip?'เปลี่ยนรูปสลิป':ic('image',18)+' เลือกรูปสลิป'}<input type="file" accept="image/*" id="clSlip"></label>
     ${d.slip?`<img src="${esc(d.slip)}" class="slipthumb" alt="สลิปที่แนบ">`:''}<p class="err" id="clErr" hidden></p></div>
-    <div class="actions"><button class="okb" id="clGo" style="grid-column:1/-1" ${d.slip?'':'aria-disabled="true"'}>ส่งให้ช่างยืนยัน</button><button data-close style="grid-column:1/-1">ยกเลิก</button></div>`)}
+    <div class="actions"><button class="okb" id="clGo" style="grid-column:1/-1" ${d.slip?'':'aria-disabled="true"'}>${d.owner?'เพิ่ม 1 แต้ม':'ส่งให้ช่างยืนยัน'}</button><button data-close style="grid-column:1/-1">ยกเลิก</button></div>`)}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.id==='claimOpen'){openClaim();return}
+  if(t.dataset.addpt!=null&&isOwner()){openClaim(true,t.dataset.addpt);return}
   if(t.dataset.clbar&&claimDraft){claimDraft.barber=t.dataset.clbar;renderClaim();return}
   if(t.id==='clGo'&&claimDraft){const d=claimDraft,err=document.getElementById('clErr'),f=m=>{err.textContent=m;err.hidden=false};
     d.name=(document.getElementById('clName').value||'').trim();d.phone=(document.getElementById('clPhone').value||'').trim();
     if(!d.name)return f('ใส่ชื่อเล่น');if(phoneKey(d.phone).length<9)return f('ใส่เบอร์โทรให้ครบ เบอร์นี้ใช้สะสมแต้ม');if(!d.slip)return f('แนบรูปสลิปก่อน');
+    if(d.owner){if(!isOwner())return;const dt=(document.getElementById('clDate')||{}).value||today();if(dt>today())return f('วันที่ต้องไม่เกินวันนี้');
+      const sv=svc(d.svc),dur=sv.min||30,b={id:code(),manualPoint:true,addedBy:user.name||'เจ้าของร้าน',status:'done',date:dt,start:dt===today()?Math.max(0,nowMin()-dur):720,dur,doneAt:(dt===today()?Math.max(0,nowMin()-dur):720)+dur,barberId:d.barber,serviceId:d.svc,services:[d.svc],name:d.name,phone:d.phone,note:'เจ้าของร้านเพิ่มแต้ม (แนบสลิป)',pay:{status:'paid',amount:sv.price,slip:d.slip,paidAt:Date.now()},createdAt:Date.now()};
+      bookings.push(b);save();upsertCustomer(b.name,b.phone);claimDraft=null;dlg.close();renderAdmin();if(typeof renderCustomers==='function')renderCustomers();const L=loyState(b.phone);toast('เพิ่ม 1 แต้มให้ '+b.name+' แล้ว'+(L&&L.need?' · ตอนนี้ '+L.stamps+'/'+L.need:''));return}
     const sv=svc(d.svc),dur=sv.min||30,b={id:code(),claim:true,status:'claim',date:today(),start:Math.max(0,nowMin()-dur),dur,barberId:d.barber,serviceId:d.svc,services:[d.svc],name:d.name,phone:d.phone,note:'ตัดหน้าร้าน แนบสลิปขอรับแต้ม',pay:{status:'review',amount:sv.price,slip:d.slip,sentAt:Date.now()}};
     bookings.push(b);save();upsertCustomer(b.name,b.phone);claimDraft=null;dlg.close();myLookup={k:phoneKey(b.phone)};renderMyOut();renderAdmin();toast('ส่งสลิปให้ช่างแล้ว รอยืนยัน แต้มจะเข้าเอง');return}
   const ok=t.dataset.claimok,no=t.dataset.claimno;if(!ok&&!no)return;const b=bookings.find(x=>x.id===(ok||no));if(!b||b.status!=='claim'||!user||user.id!==b.barberId)return;
@@ -4515,7 +4521,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
   save();if(dlg.open)dlg.close();renderAdmin()});
 document.addEventListener('change',async e=>{if(!claimDraft)return;
   if(e.target.id==='clSvc'){claimDraft.svc=e.target.value;renderClaim()}
-  if(e.target.id==='clSlip'&&e.target.files[0]){try{claimDraft.name=document.getElementById('clName').value;claimDraft.phone=document.getElementById('clPhone').value;claimDraft.slip=await fileToSlip(e.target.files[0]);renderClaim()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}}});
+  if(e.target.id==='clDate'){claimDraft.date=e.target.value}
+  if(e.target.id==='clSlip'&&e.target.files[0]){try{const dd=document.getElementById('clDate');if(dd)claimDraft.date=dd.value;claimDraft.name=document.getElementById('clName').value;claimDraft.phone=document.getElementById('clPhone').value;claimDraft.slip=await fileToSlip(e.target.files[0]);renderClaim()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}}});
 window.__appReady=1;
 </script>
 </body>

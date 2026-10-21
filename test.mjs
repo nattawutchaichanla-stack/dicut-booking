@@ -329,4 +329,10 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   await lineEv({ type: 'postback', uid: 'U_A', postback: { data: okBtn.action.data } });
   const b = await db.getBooking('CL1'); ok(b.status === 'done' && b.pay.status === 'paid', 'barber confirms in LINE: visit counted (done) and paid');
 }
+{ // owner adds a loyalty point by hand, slip required
+  ok((await post({ a: 'create', key: KEY, booking: { id: 'MP0', manualPoint: true, date: core.todayKey(), start: 600, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'แต้มมือ', phone: '0861112222', status: 'done', pay: { status: 'paid', amount: 150 } } })).ok === false, 'manual point without a slip is refused');
+  ok((await post({ a: 'create', booking: { id: 'MP1', manualPoint: true, date: core.todayKey(), start: 600, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'แต้มมือ', phone: '0861112222', pay: { slip: 'data:image/png;base64,iVBORw0KGgo=' } } })).ok === false, 'customer cannot add a manual point');
+  const r = await post({ a: 'create', key: KEY, booking: { id: 'MP2', manualPoint: true, date: core.todayKey(), start: 600, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'แต้มมือ', phone: '0861112222', status: 'done', pay: { status: 'paid', amount: 150, slip: 'data:image/png;base64,iVBORw0KGgo=' } } });
+  ok(r.ok && r.booking.status === 'done' && /\/slips\/MP2-.+\.png$/.test(r.booking.pay.slip), 'owner adds a point with a slip: counted as a done visit, slip stored');
+}
 console.log('\n' + pass + ' checks passed');

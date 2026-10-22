@@ -1674,7 +1674,23 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .clhits{display:grid;gap:6px;margin:-4px 0 4px}
 .clhits button{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px;border-radius:12px;border:1px solid var(--line,#e6e0d8);background:var(--card,#fff);color:inherit;font:inherit;width:100%}
 .clhits button span{display:grid;line-height:1.25}.clhits small{opacity:.7}
+
+/* single-use promo codes */
+.vchips{display:grid;gap:6px;margin-top:4px}
+.vchip{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;text-align:left;padding:9px 12px;border-radius:12px;border:1.5px dashed var(--accent,#c9a227);background:transparent;color:inherit;font:inherit;width:100%}
+.vchip b{letter-spacing:.08em}.vchip small{opacity:.75}
+.vbig{display:grid;justify-items:center;gap:4px;margin:14px 0;padding:18px 12px;border-radius:16px;border:2px dashed var(--accent,#c9a227);text-align:center}
+.vbig b{font-size:30px;letter-spacing:.14em;font-variant-numeric:tabular-nums}
+.vbig.sm{margin:10px 0;padding:12px}.vbig.sm b{font-size:22px}
+.vbig small{opacity:.75}
+.vlist .vrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line,#e6e0d8)}
+.vlist .vrow:last-of-type{border-bottom:0}
+.vlist .vrow b{letter-spacing:.08em}.vlist .vrow div{display:grid}.vlist .vrow small{opacity:.7}
+.vlist .vrow.off{opacity:.55}
+.vshopbtn{width:100%;margin:0 0 12px}
 </style>
+
+
 
 
 
@@ -1930,8 +1946,9 @@ function promoCalc(p,ids,date,t){
   const sub=el.reduce((a,id)=>a+svc(id).price,0);
   return p.type==='percent'?Math.round(sub*p.value/100):Math.min(p.value,sub)}
 const codeMatch=(p,code)=>!!p.code&&!!code&&p.code.toUpperCase()===String(code).trim().toUpperCase();
-function bestPromo(ids,date,t,code){let best=null;
-  cfg.promos.forEach(p=>{if(p.code&&!codeMatch(p,code))return;const a=promoCalc(p,ids,date,t);if(a>0&&(!best||a>best.amt))best={p,amt:a}});return best}
+// every promo needs the customer's own single-use code (claimed from the banner): v = that verified code
+function bestPromo(ids,date,t,v){if(!v||!v.code||v.usedAt||(typeof sel!=='undefined'&&sel&&v.phone&&phoneKey(sel.phone||'')!==v.phone))return null;
+  const p=cfg.promos.find(x=>x.id===v.promoId);if(!p)return null;const a=promoCalc(p,ids,date,t);return a>0?{p,amt:a}:null}
 const promoLabel=p=>p.type==='percent'?'ลด '+p.value+'%':'ลด '+p.value+' ฿';
 function promoCond(p){
   const sv=p.services.length?p.services.map(id=>svc(id).name).join(', '):'ทุกบริการ';
@@ -2645,7 +2662,7 @@ function stepTime(){
   h+=`<div class="slotwrap" data-ind="book-time">`;
   const tk=new Set(takenSlots(sel.barber,sel.date,d)), all=[...sl,...tk].sort((a,b)=>a-b);
   [['เช้า',0,720],['บ่าย',720,1020],['เย็น',1020,1440]].forEach(([g,a,z])=>{const gs=all.filter(t=>t>=a&&t<z);if(!gs.length)return;const nf=gs.filter(t=>!tk.has(t)).length;
-    h+=`<p class="sg">${g} <small>${nf?nf+' ช่วงว่าง':'เต็มแล้ว'}</small></p><div class="slots">`+gs.map(t=>{if(tk.has(t))return `<button class="taken" disabled aria-label="${fmt(t)} มีคนจองแล้ว"><span>${fmt(t)}</span><b class="tk-lbl">จองแล้ว</b></button>`;const bp=bestPromo(sel.services,sel.date,t,'');return `<button data-time="${t}" class="${bp?'haspromo':''}" aria-pressed="${!sel.quick&&sel.time===t}"><span>${fmt(t)}</span>${t===sl[0]?'<i>เร็วสุด</i>':''}${bp?`<u>-${bp.amt}฿</u>`:''}</button>`}).join('')+`</div>`});
+    h+=`<p class="sg">${g} <small>${nf?nf+' ช่วงว่าง':'เต็มแล้ว'}</small></p><div class="slots">`+gs.map(t=>{if(tk.has(t))return `<button class="taken" disabled aria-label="${fmt(t)} มีคนจองแล้ว"><span>${fmt(t)}</span><b class="tk-lbl">จองแล้ว</b></button>`;const bp=bestPromo(sel.services,sel.date,t,sel.voucher);return `<button data-time="${t}" class="${bp?'haspromo':''}" aria-pressed="${!sel.quick&&sel.time===t}"><span>${fmt(t)}</span>${t===sl[0]?'<i>เร็วสุด</i>':''}${bp?`<u>-${bp.amt}฿</u>`:''}</button>`}).join('')+`</div>`});
   h+=`</div>${anyP?'<p class="hint" style="margin-top:10px">ช่องที่มีป้ายเหลืองได้ส่วนลด</p>':''}</div>`;
   return h;
 }
@@ -2654,7 +2671,7 @@ function selDeal(){ // loyalty reward wins over promos (no stacking)
   const st=loyState(sel.phone);
   if(st&&st.rewards>0&&sel.useLoy){const a=loyAmount(sel.services);if(a>0)return{kind:'loy',title:'ตัด '+st.need+' ฟรี 1',amt:a,st}}
   const rf=refDeal(); if(rf)return rf; // inviter's reward comes before time promos
-  const bp=sel.time!==null?bestPromo(sel.services,sel.date,sel.time,sel.code):null;
+  const bp=sel.time!==null?bestPromo(sel.services,sel.date,sel.time,sel.voucher):null;
   return bp?{kind:'promo',title:bp.p.title,amt:bp.amt,p:bp.p}:null;
 }
 /* ---------- invite a friend: the INVITER gets the discount ----------
@@ -2742,11 +2759,8 @@ function stepConfirm(){
   return `<h3 class="wt">ตรวจสอบและยืนยัน</h3>
   <div class="tk mini-tk"><div class="tkh">${b?avatar(b.name,b.photo,'md'):anyAv('md',20)}<div><b>${b?esc(b.name):'ร้านจัดช่างให้'}</b><small>${sel.quick?'<span class="qtag">คิวด่วน</span> ':''}${dayLabel(sel.date)} · ${fmt(sel.time)}–${fmt(sel.time+d)}</small></div></div>
     <div class="tkl">${sel.services.map(id=>`<div><span>${esc(svc(id).name)}</span><span>${priceTag(svc(id))}</span></div>`).join('')}${sel.services.some(id=>svc(id).from)?'<p class="snote" style="margin:4px 0 0">ราคาสุดท้ายขึ้นกับทรงและความยาก ช่างจะแจ้งก่อนเริ่มบริการ</p>':''}${(()=>{const dl=selDeal(),pd=prepayDisc(),off=dealAmt()+pd;return (dl?`<div class="disc"><span>${esc(dl.title)}</span><span>-${dl.amt} ฿</span></div>`:'')+(pd?`<div class="disc"><span>ส่วนลดโอนก่อน</span><span>-${pd} ฿</span></div>`:'')+(off?`<div class="tot"><span>รวม ${d} นาที</span><span><s>${baht(selPrice())}</s> ${baht(selNet())} ฿</span></div>`:`<div class="tot"><span>รวม ${d} นาที</span><span>${baht(selPrice())} ฿</span></div>`)})()}</div></div>
-  <div class="codebox"><input id="fCode" value="${esc(sel.code)}" placeholder="มีโค้ดส่วนลดไหม" autocapitalize="characters" aria-label="โค้ดส่วนลด"><button class="ghost" id="applyCode">ใช้โค้ด</button></div>
-  ${(()=>{if(!sel.code)return '';const p=cfg.promos.find(x=>codeMatch(x,sel.code));const bp=bestPromo(sel.services,sel.date,sel.time,sel.code);
-    if(!p||!p.active)return `<p class="err">ไม่พบโค้ด “${esc(sel.code)}”</p>`;
-    if(!promoCalc(p,sel.services,sel.date,sel.time))return `<p class="err">โค้ดนี้ใช้กับบริการ วัน หรือเวลาที่เลือกไม่ได้</p>`;
-    return bp.p===p?`<p class="okmsg">ใช้โค้ด ${esc(p.code)} แล้ว ${promoLabel(p)}</p>`:`<p class="okmsg">ใช้โปร “${esc(bp.p.title)}” ที่คุ้มกว่าให้แล้ว</p>`})()}
+  <div class="codebox"><input id="fCode" value="${esc(sel.code)}" placeholder="มีโค้ดรับสิทธิ์ไหม เช่น DCAB12CD" autocapitalize="characters" aria-label="โค้ดรับสิทธิ์"><button class="ghost" id="applyCode">ใช้โค้ด</button></div>
+  <div id="vMsg">${vMsgHTML()}</div><div id="vChips" class="vchips">${vChipsHTML()}</div>
   <div class="form" style="margin-top:14px">
     <label>ชื่อเล่น<input id="fName" autocomplete="name" value="${esc(sel.name)}" placeholder="เช่น ต้น"></label>
     <label>เบอร์โทร<input id="fPhone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(sel.phone)}" placeholder="08x-xxx-xxxx"></label>
@@ -2772,9 +2786,9 @@ function loySlideHTML(L,phone,preview){
 }
 function promoSlideHTML(p,preview){
   const img=okImg(p.img);
-  return `<article class="ad ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''} ${preview?'':`data-addetail="${p.id}" tabindex="0" role="button" aria-label="ดูรายละเอียดโปร ${esc(p.title)}"`}><div class="ad-body"><span class="ad-kicker">${p.code?'ใช้โค้ด':'ลดอัตโนมัติ'}</span>
+  return `<article class="ad ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''} ${preview?'':`data-addetail="${p.id}" tabindex="0" role="button" aria-label="ดูรายละเอียดโปร ${esc(p.title)}"`}><div class="ad-body"><span class="ad-kicker">รับโค้ด ใช้ได้ครั้งเดียว</span>
     <span class="ad-val">${promoLabel(p)}</span><h3>${esc(p.title||'ชื่อโปรโมชั่น')}</h3><p>${esc(p.desc||promoCond(p))}</p><small>${esc(promoCond(p))}</small>
-    ${p.code?`<button class="ad-cta" ${preview?'tabindex="-1"':`data-usecode="${esc(p.code)}"`}>ใช้โค้ด ${esc(p.code)}</button>`:`<span class="ad-note">${ic('check',14)} ลดให้เองตอนจอง</span>`}</div><span class="ad-more" aria-hidden="true">ดูรายละเอียด ›</span></article>`;
+    <button class="ad-cta" ${preview?'tabindex="-1"':`data-vclaim="${p.id}"`}>รับสิทธิ์</button></div><span class="ad-more" aria-hidden="true">ดูรายละเอียด ›</span></article>`;
 }
 function adSlides(){
   const out=[];
@@ -2791,13 +2805,13 @@ function openAdDetail(key){
       <p class="psub">เงื่อนไข</p><ul class="addet-list"><li>นับ 1 แต้มต่อการตัด 1 ครั้ง เมื่อช่างกดตัดเสร็จ</li><li>บริการที่นับแต้ม: ${L.services.map(id=>esc(svc(id).name)).join(', ')}</li><li>ครบ ${L.need} แต้ม ตัดฟรี 1 ครั้ง มูลค่าไม่เกิน ${svc(L.reward).price} ฿ (${esc(svc(L.reward).name)})</li><li>ใช้ร่วมกับโปรโมชั่นอื่นไม่ได้</li></ul>
       <div class="actions"><button class="okb" data-adbook style="grid-column:1/-1">จองคิวเลย</button><button data-view="mine" data-close style="grid-column:1/-1">ดูแต้มของฉัน</button></div>`;
   }else{const p=cfg.promos.find(x=>x.id===key);if(!p)return;const img=okImg(p.img);
-    h=`<div class="addet-hero ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''}><span class="ad-kicker">${p.code?'ใช้โค้ด '+esc(p.code):'ลดอัตโนมัติ'}</span><span class="ad-val">${promoLabel(p)}</span><b>${esc(p.title)}</b></div>
+    h=`<div class="addet-hero ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''}><span class="ad-kicker">รับโค้ด ใช้ได้ครั้งเดียว</span><span class="ad-val">${promoLabel(p)}</span><b>${esc(p.title)}</b></div>
       ${p.desc?`<p class="bio">${esc(p.desc)}</p>`:''}${p.detail?`<div class="addet-text">${esc(p.detail)}</div>`:''}
       <p class="psub">เงื่อนไข</p><ul class="addet-list"><li>ใช้กับ: ${p.services.length?p.services.map(id=>esc(svc(id).name)).join(', '):'ทุกบริการ'}</li>
       <li>วัน: ${p.days.length===7?'ทุกวัน':p.days.map(d=>DAY[d]).join(' ')}${p.from>cfg.open||p.to<cfg.close?` · เวลา ${fmt(p.from)}–${fmt(Math.min(p.to,1439))}`:''}</li>
       ${p.start||p.end?`<li>ระยะเวลา: ${p.start?thaiDate(p.start):'วันนี้'} – ${p.end?thaiDate(p.end):'ไม่มีกำหนด'}</li>`:''}
-      <li>${p.code?`กรอกโค้ด <b>${esc(p.code)}</b> ตอนยืนยันการจอง`:'ระบบลดให้อัตโนมัติเมื่อจองตรงเงื่อนไข'}</li><li>ใช้ได้ทีละ 1 โปร ระบบเลือกโปรที่คุ้มที่สุดให้</li></ul>
-      <div class="actions">${p.code?`<button class="okb" data-usecode="${esc(p.code)}" data-adbook style="grid-column:1/-1">ใช้โค้ดและจองเลย</button>`:`<button class="okb" data-adbook style="grid-column:1/-1">จองคิวเลย</button>`}<button data-close style="grid-column:1/-1">ปิด</button></div>`}
+      <li>กด "รับสิทธิ์" ได้โค้ดส่วนตัว 1 คน 1 โค้ด ใช้ได้ครั้งเดียว</li><li>ใช้ตอนจองในแอพ (กรอกโค้ดในหน้ายืนยัน) หรือแสดงโค้ดให้ช่างที่ร้าน</li>${+p.limit>0?`<li>จำกัด ${+p.limit} สิทธิ์ หมดแล้วหมดเลย</li>`:''}<li>ใช้ร่วมกับโปรอื่นไม่ได้</li></ul>
+      <div class="actions"><button class="okb" data-vclaim="${p.id}" style="grid-column:1/-1">รับสิทธิ์</button><button data-close style="grid-column:1/-1">ปิด</button></div>`}
   showSheet(h);
 }
 document.addEventListener('click',e=>{
@@ -2872,7 +2886,7 @@ function renderPromos(){
   const used=id=>bookings.filter(b=>b.promoId===id&&b.status!=='cancelled');
   let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
   h+=cfg.promos.map(p=>{const u=used(p.id),tot=u.reduce((a,b)=>a+(b.discount||0),0);
-    return `<div class="prow ${p.active?'':'off'}">${p.img?`<span class="pthumb" style="background-image:url('${p.img}')"></span>`:''}<div class="pinfo"><span class="pval">${promoLabel(p)}</span><b>${esc(p.title)}</b><small>${esc(promoCond(p))}${p.code?' · โค้ด '+esc(p.code):' · อัตโนมัติ'}</small><small>ใช้แล้ว ${u.length} คิว · ลดไปรวม ${tot.toLocaleString()} ฿</small></div>
+    return `<div class="prow ${p.active?'':'off'}">${p.img?`<span class="pthumb" style="background-image:url('${p.img}')"></span>`:''}<div class="pinfo"><span class="pval">${promoLabel(p)}</span><b>${esc(p.title)}</b><small>${esc(promoCond(p))} · ${+p.limit>0?'จำกัด '+(+p.limit)+' สิทธิ์':'ไม่จำกัดสิทธิ์'}</small><small>ใช้แล้ว ${u.length} คิว · ลดไปรวม ${tot.toLocaleString()} ฿</small></div>
       <div class="pact"><button class="icon-btn" data-pmove="${p.id}|-1" aria-label="เลื่อนขึ้น" ${cfg.promos.indexOf(p)===0?'disabled':''}>↑</button><button class="icon-btn" data-pmove="${p.id}|1" aria-label="เลื่อนลง" ${cfg.promos.indexOf(p)===cfg.promos.length-1?'disabled':''}>↓</button><button class="ghost" data-ptoggle="${p.id}">${p.active?'ปิดโปร':'เปิดโปร'}</button><button class="ghost" data-pedit="${p.id}">แก้ไข</button></div></div>`}).join('')||'<p class="hint">ยังไม่มีโปรโมชั่น</p>';
   h+=`</div><button class="primary" data-pedit="new" style="margin-top:12px">${ic('plus',18)}สร้างโปรโมชั่น</button></section>`;
   secPromos.innerHTML=h;
@@ -2893,7 +2907,8 @@ function openPromoForm(id){
     <div class="two"><label>เวลาเริ่ม<input id="pFrom" type="time" step="1800" value="${fmt(Math.min(p.from,1410))}"></label><label>ถึง<input id="pTo" type="time" step="1800" value="${p.to>=1440?'23:59':fmt(p.to)}"></label></div>
     <div class="two"><label>เริ่มวันที่ (ไม่บังคับ)<input id="pStart" type="date" value="${p.start}"></label><label>ถึงวันที่ (ไม่บังคับ)<input id="pEnd" type="date" value="${p.end}"></label></div>
     <div class="adimg"><span>รูปโฆษณา (ไม่บังคับ แนวนอน 2:1)</span><div class="adprev" id="adPrev" ${p.img?`style="background-image:url('${p.img}')"`:''}>${p.img?'':'ยังไม่มีรูป ใช้แบนเนอร์สีน้ำเงินแทน'}</div><div class="uplrow"><label class="upl">${p.img?'เปลี่ยนรูป':'อัปโหลดรูป'}<input type="file" accept="image/*" id="adFile"></label>${p.img?'<button class="ghost" id="adRm" type="button">ลบรูป</button>':''}</div></div>
-    <label>โค้ดส่วนลด (เว้นว่าง = ลดให้อัตโนมัติ)<input id="pCode" value="${esc(p.code)}" maxlength="16" autocapitalize="characters" placeholder="เช่น STUDENT"></label>
+    <label>จำนวนสิทธิ์ทั้งหมด (เว้นว่าง = ไม่จำกัด)<input id="pLimit" type="number" min="0" step="1" value="${+p.limit>0?+p.limit:''}" placeholder="เช่น 50"></label>
+    <p class="hint">ลูกค้ากด "รับสิทธิ์" ได้โค้ดส่วนตัว 1 คน 1 โค้ด ใช้ได้ครั้งเดียว ตอนจองหรือที่ร้าน</p>
     <p class="err" id="pErr" hidden></p>
     <button class="primary" data-psave="${id}">บันทึกโปรโมชั่น</button>
     ${id!=='new'?`<button class="ghost" data-pdel="${id}" style="color:var(--danger)">ลบโปรนี้</button>`:''}<button class="ghost" data-close>ยกเลิก</button></div>`);
@@ -2910,7 +2925,7 @@ document.addEventListener('change',async e=>{if(e.target.id!=='adFile'||!e.targe
 document.addEventListener('click',e=>{if(e.target.id==='adRm'){adDraft='';const pv=document.getElementById('adPrev');pv.style.backgroundImage='';pv.textContent='ยังไม่มีรูป ใช้แบนเนอร์สีน้ำเงินแทน';refreshAdLive()}});
 function promoDraft(){const g=x=>document.getElementById(x);if(!g('pTitle'))return null;
   const cur=cfg.promos.find(p=>p.id===(document.querySelector('[data-psave]')?.dataset.psave))||{};
-  return {...cur,title:g('pTitle').value.trim(),desc:g('pDesc').value.trim(),type:g('pType').value,value:Math.round(+g('pValue').value)||0,code:g('pCode').value.trim().toUpperCase(),
+  return {...cur,title:g('pTitle').value.trim(),desc:g('pDesc').value.trim(),type:g('pType').value,value:Math.round(+g('pValue').value)||0,limit:Math.max(0,Math.round(+g('pLimit').value)||0),
     services:[...document.querySelectorAll('input[name=psvc]:checked')].map(i=>i.value),days:[...document.querySelectorAll('input[name=pday]:checked')].map(i=>+i.value),
     from:parseT(g('pFrom').value),to:g('pTo').value==='23:59'?1440:parseT(g('pTo').value),start:g('pStart').value,end:g('pEnd').value,img:adDraft!==undefined?adDraft:cur.img}}
 function refreshAdLive(){const el=document.getElementById('adLive'),d=promoDraft();if(el&&d)el.innerHTML=promoSlideHTML(d,true)}
@@ -2922,16 +2937,14 @@ function savePromo(id){
   const from=parseT(g('pFrom').value), toRaw=g('pTo').value, to=toRaw==='23:59'?1440:parseT(toRaw);
   const days=[...document.querySelectorAll('input[name=pday]:checked')].map(i=>+i.value);
   const services=[...document.querySelectorAll('input[name=psvc]:checked')].map(i=>i.value);
-  const code=g('pCode').value.trim().toUpperCase(), start=g('pStart').value, end=g('pEnd').value;
+  const limit=Math.max(0,Math.round(+g('pLimit').value)||0), start=g('pStart').value, end=g('pEnd').value;
   if(!title)return err('ใส่ชื่อโปรก่อน');
   if(!(value>0))return err('ส่วนลดต้องมากกว่า 0');
   if(type==='percent'&&value>100)return err('ส่วนลดเปอร์เซ็นต์ต้องไม่เกิน 100');
   if(!days.length)return err('เลือกอย่างน้อย 1 วัน');
   if(!(from<to))return err('เวลาเริ่มต้องก่อนเวลาสิ้นสุด');
   if(start&&end&&start>end)return err('วันเริ่มต้องไม่เกินวันสิ้นสุด');
-  if(code&&!/^[A-Z0-9]{3,16}$/.test(code))return err('โค้ดใช้ได้เฉพาะ A–Z และ 0–9 ความยาว 3–16 ตัว');
-  if(code&&cfg.promos.some(p=>p.id!==id&&p.code===code))return err('โค้ดนี้มีโปรอื่นใช้อยู่แล้ว');
-  const data={title,detail:g('pDetail').value.trim(),desc:g('pDesc').value.trim(),type,value,services,days:days.sort(),from,to,start,end,code};
+  const data={title,detail:g('pDetail').value.trim(),desc:g('pDesc').value.trim(),type,value,services,days:days.sort(),from,to,start,end,limit,code:''};
   if(adDraft!==undefined)data.img=adDraft;
   if(id==='new')cfg.promos.push({id:uid('p'),active:true,...data});else Object.assign(cfg.promos.find(p=>p.id===id),data);
   saveCfg();dlg.close();renderPromos();renderCustomer();toast('บันทึกโปรโมชั่นแล้ว');
@@ -2942,8 +2955,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
   else if(t.dataset.psave&&isOwner())savePromo(t.dataset.psave);
   else if(t.dataset.pdel&&isOwner()){if(confirm('ลบโปรโมชั่นนี้? คิวที่ใช้โปรไปแล้วยังเก็บส่วนลดไว้เหมือนเดิม')){cfg.promos=cfg.promos.filter(p=>p.id!==t.dataset.pdel);saveCfg();dlg.close();renderPromos();renderCustomer()}}
   else if(t.dataset.ptoggle&&isOwner()){const p=cfg.promos.find(x=>x.id===t.dataset.ptoggle);p.active=!p.active;saveCfg();renderPromos();renderCustomer();toast(p.active?'เปิดโปรแล้ว':'ปิดโปรแล้ว')}
-  else if(t.dataset.usecode){sel.code=t.dataset.usecode;toast('จำโค้ด '+sel.code+' ไว้แล้ว ส่วนลดจะคิดตอนยืนยัน')}
-  else if(t.id==='applyCode'){sel.code=(document.getElementById('fCode').value||'').trim().toUpperCase();renderCustomer()}
+  else if(t.id==='applyCode'){vApply(document.getElementById('fCode').value)}
 });
 function releasedHTML(b){if(!b.released)return '';
   return `<p class="cxmsg">คิวนี้ถูกปล่อยให้ลูกค้าท่านอื่น เพราะเลยเวลานัดเกิน ${lateMin()} นาที${b.credit?` · ยอด ${baht(b.credit)} ฿ เก็บเป็นเครดิตใช้ครั้งถัดไป`:''}</p>`}
@@ -3225,7 +3237,7 @@ function todayHTML(){
   const who=(b,extra='')=>{const inner=`${avatar(b.name,cphoto(b),'md')}<span class="jw"><b>${esc(b.name)}</b>${tag(b)}${payBadge(b)}<small>${esc(barber(b.barberId).name)} · ${esc(bName(b))}</small>${extra}</span>`;
     return canManage(b)?`<button class="jwho" data-bk="${b.id}" aria-label="รายละเอียดคิว ${esc(b.name)}">${inner}</button>`:`<div class="jwho">${inner}</div>`};
   const box=(cls,icon,title,items,body,empty)=>`<section class="jbox ${cls}"><header>${ic(icon,18)}<b>${title}</b><span class="jn">${items.length}</span></header>${items.length?items.map(body).join(''):`<p class="jempty">${empty}</p>`}</section>`;
-  let h=`<h2 class="sech">ลูกค้าวันนี้</h2>`;
+  let h=`<h2 class="sech">ลูกค้าวันนี้</h2><button class="ghost vshopbtn" data-vshop>${ic('tag',16)} ลูกค้าแสดงโค้ดโปร ใช้สิทธิ์หน้าร้าน</button>`;
   const rv=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
   const cl=bookings.filter(b=>b.status==='claim'&&canManage(b)).sort((a,b)=>(b.pay&&b.pay.sentAt||0)-(a.pay&&a.pay.sentAt||0));
   if(cl.length)h+=box('j-pay','lock','ลูกค้าหน้าร้านส่งสลิป ขอรับแต้ม',cl,b=>`<div class="jrow">${who(b,`<small>ยอด ${baht((b.pay||{}).amount||0)} ฿ · ตัดหน้าร้าน</small>`)}<button class="jbtn start" data-slipcheck="${b.id}">ตรวจ / ยืนยัน</button></div>`,'');
@@ -3658,7 +3670,7 @@ function renderMyOut(){expireHolds();
         <span class="hmeta"><b>${esc(bName(b))}</b><small>${esc(barber(b.barberId).name)} · ${fmt(b.start)}${b.loyaltyRedeem?' · ตัดฟรีจากแต้ม':''}</small>${b.promoTitle&&!b.loyaltyRedeem?`<em class="ptag">${esc(b.promoTitle)} -${baht(b.discount)} ฿</em>`:''}${b.prepayOff?`<em class="ptag">โอนก่อน -${baht(b.prepayOff)} ฿</em>`:''}</span>
         <span class="hp">${off?`<s>${baht(bFull(b))}</s>`:''}<b>${baht(bPrice(b))} ฿</b></span></li>`}).join('')}</ul>`
     :'<p class="hint">ยังไม่มีประวัติการตัด</p>'}</section>`}
-  o.innerHTML=h;
+  o.innerHTML=`<div id="myV"></div>`+h;myVLoad(phone||k);
 }
 document.addEventListener('change',async e=>{if(!myLookup)return;const c=customers[myLookup.k];if(!c)return;
   if(e.target.id==='myNote'){c.note=e.target.value.trim();saveCu();toast('บันทึกแล้ว ช่างจะเห็นข้อมูลนี้')}
@@ -3765,7 +3777,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-wk]');if(!
     renderCustomer()}
   else if(k==='queue'){adminWk=off;if(weekOf(adminDate)!==off){adminDate=off===0?today():dkey(weekDaysOf(off)[0])}renderAdmin()}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='lgPin')doLogin();if(e.key==='Enter'&&e.target.id==='fCode'){e.preventDefault();sel.code=e.target.value.trim().toUpperCase();renderCustomer()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='lgPin')doLogin();if(e.key==='Enter'&&e.target.id==='fCode'){e.preventDefault();vApply(e.target.value)}});
 function updateHours(){document.title=(cfg.shopName||'ร้านตัดผม')+' จองคิว';
   document.getElementById('shopHours').innerHTML=`${esc(cfg.branch||'')}${cfg.branch?' · ':''}เปิด ${fmt(cfg.open)}–${fmt(cfg.close)}${cfg.phone?` · <a href="tel:${esc(cfg.phone.replace(/[^0-9+]/g,''))}">${esc(cfg.phone)}</a>`:''}`}
 
@@ -3886,11 +3898,12 @@ app.addEventListener('click',e=>{
     const d=selDur(),bid=freeBarber(sel.barber,sel.date,sel.time,d,sel.quick?0:15);
     if(!bid){toast('เวลานี้เพิ่งมีคนจองไป เลือกเวลาใหม่ได้เลย');sel.time=null;sel.quick=false;sel.step=3;renderCustomer();return}
     const dl=selDeal();
-    const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='refuse'?{promoTitle:dl.title,discount:dl.amt,refUse:true}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt})):{})};
+    const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='refuse'?{promoTitle:dl.title,discount:dl.amt,refUse:true}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt,voucher:sel.voucher.code})):{})};
     if(refOK())b.refBy=phoneKey(sel.ref);
     const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(payChoice()&&!sel.payNow)b.payAtShop=true;
     if(needSlip())b.pay=sel.cashPaid&&user&&!sel.slip?{status:'paid',amount:selDeposit(),paidAt:Date.now(),cash:true}:{status:'review',amount:selDeposit(),slip:sel.slip,sentAt:Date.now()};
     else{const pp=newPay(b);if(pp)b.pay=pp}
+    if(b.voucher&&!BACKEND())vLocalMark(b.voucher,b.id);
     bookings.push(b);save();upsertCustomer(b.name,b.phone);lastBooking=b;sel=newSel();renderAdmin();wizTop();toast('จองคิว '+b.name+' แล้ว')}
     else if(t.id==='walkBtn'){walkOpen=true;walkPref='';t.blur();renderAdmin();document.getElementById('wName')?.focus()}
   else if(t.dataset.walkfor){walkOpen=true;walkPref=t.dataset.walkfor;t.blur();renderAdmin();const w=document.getElementById('wName');if(w){w.scrollIntoView({behavior:'smooth',block:'center'});w.focus({preventScroll:true})}}
@@ -4535,6 +4548,87 @@ document.addEventListener('change',async e=>{if(!claimDraft)return;
   if(e.target.id==='clSvc'){claimDraft.svc=e.target.value;renderClaim()}
   if(e.target.id==='clDate'){claimDraft.date=e.target.value}
   if(e.target.id==='clSlip'&&e.target.files[0]){try{const dd=document.getElementById('clDate');if(dd)claimDraft.date=dd.value;claimDraft.name=document.getElementById('clName').value;claimDraft.phone=document.getElementById('clPhone').value;claimDraft.slip=await fileToSlip(e.target.files[0]);renderClaim()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}}});
+/* ---------- single-use promo codes: claim from a banner, use once when booking or at the shop ---------- */
+const VKEY='barber-vouchers', vNorm=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function vStore(){try{const o=JSON.parse(localStorage.getItem(VKEY)||'{}');return o&&typeof o==='object'?o:{}}catch(_){return {}}}
+function vSave(o){try{localStorage.setItem(VKEY,JSON.stringify(o))}catch(_){}}
+function vPub(v){const p=cfg.promos.find(x=>x.id===v.promoId);return Object.assign({},v,{title:p?p.title:(v.title||'โปรโมชั่น'),label:p?promoLabel(p):'',end:p?p.end:'',active:!!(p&&p.active&&(!p.end||p.end>=today()))})}
+function vLocalMark(code,id){const S=vStore(),v=S[vNorm(code)];if(v){v.usedAt=Date.now();v.usedVia='booking';v.bookingId=id;vSave(S)}}
+function vLocal(b){const S=vStore(),all=Object.values(S);
+  if(b.a==='vclaim'){const pk=phoneKey(b.phone||'');if(pk.length<9)return{ok:false,why:'phone'};const p=cfg.promos.find(x=>x.id===b.promoId);if(!p||!p.active||(p.end&&p.end<today()))return{ok:false,why:'inactive'};
+    const had=all.find(v=>v.promoId===p.id&&v.phone===pk);if(had)return{ok:true,existing:true,voucher:vPub(had)};
+    const n=all.filter(v=>v.promoId===p.id).length;if(+p.limit>0&&n>=+p.limit)return{ok:false,why:'full'};
+    let c;do{c='DC'+Array.from({length:6},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('')}while(S[c]);
+    const v={code:c,promoId:p.id,title:p.title,phone:pk,name:String(b.name||'').trim(),createdAt:Date.now(),usedAt:null};S[c]=v;vSave(S);return{ok:true,voucher:vPub(v),left:+p.limit>0?+p.limit-n-1:null}}
+  if(b.a==='vlist'){const pk=phoneKey(b.phone||'');return{ok:true,vouchers:all.filter(v=>v.phone===pk).sort((x,y)=>y.createdAt-x.createdAt).map(vPub)}}
+  const v=S[vNorm(b.code)];if(!v)return{ok:false,why:'unknown'};
+  if(b.a==='vcheck'){if(!b.key&&phoneKey(b.phone||'')!==v.phone)return{ok:false,why:'not_yours'};return{ok:true,voucher:vPub(v)}}
+  if(b.a==='vuse'){if(v.usedAt)return{ok:false,why:'used',voucher:vPub(v)};Object.assign(v,{usedAt:Date.now(),usedVia:'shop',usedBy:b.by||''});vSave(S);return{ok:true,voucher:vPub(v)}}
+  return{ok:false}}
+async function vApi(b){if(BACKEND()){try{return await api(b)}catch(_){return{ok:false,why:'net'}}}return vLocal(b)}
+const V_WHY={phone:'ใส่เบอร์โทรให้ครบ 10 หลัก',inactive:'โปรนี้ปิดหรือหมดเขตแล้ว',full:'สิทธิ์เต็มแล้ว ขอบคุณที่สนใจ',unknown:'ไม่พบโค้ดนี้ ตรวจตัวอักษรอีกครั้ง',not_yours:'โค้ดนี้เป็นของเบอร์อื่น ใช้ได้เฉพาะเจ้าของโค้ด',used:'โค้ดนี้ใช้ไปแล้ว',net:'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง',need_phone:'ใส่เบอร์โทรด้านล่างก่อน แล้วกดใช้โค้ดอีกครั้ง'};
+// booking: check the typed code belongs to this phone and is still unused
+async function vApply(raw){const code=vNorm(raw);sel.code=code;
+  const fp=document.getElementById('fPhone');if(fp)sel.phone=fp.value;const fn=document.getElementById('fName');if(fn)sel.name=fn.value;
+  if(!code){sel.voucher=null;sel.vres=null;return renderCustomer()}
+  if(phoneKey(sel.phone||'').length<9){sel.voucher=null;sel.vres={ok:false,why:'need_phone'};return renderCustomer()}
+  sel.vres={wait:true};vRender();
+  const r=await vApi({a:'vcheck',code,phone:phoneKey(sel.phone)});if(sel.code!==code)return;
+  sel.vres=r;sel.voucher=r&&r.ok&&!r.voucher.usedAt&&r.voucher.active?r.voucher:null;renderCustomer()}
+function vRender(){const m=document.getElementById('vMsg');if(m)m.innerHTML=vMsgHTML();const c=document.getElementById('vChips');if(c)c.innerHTML=vChipsHTML()}
+function vMsgHTML(){const r=sel.vres;if(!r||!sel.code)return '';if(r.wait)return '<p class="hint">กำลังตรวจโค้ด…</p>';
+  if(!r.ok)return `<p class="err">${V_WHY[r.why]||'ใช้โค้ดนี้ไม่ได้'}</p>`;const v=r.voucher;
+  if(v.usedAt)return `<p class="err">${V_WHY.used}</p>`;if(!v.active)return `<p class="err">${V_WHY.inactive}</p>`;
+  if(phoneKey(sel.phone||'')!==v.phone)return `<p class="err">${V_WHY.not_yours}</p>`;
+  if(sel.time==null)return `<p class="okmsg">โค้ด ${esc(v.code)} พร้อมใช้ · ${esc(v.title)}</p>`;
+  const st=loyState(sel.phone);if(st&&st.rewards>0&&sel.useLoy)return `<p class="hint">ครั้งนี้ใช้สิทธิ์ตัดฟรีจากแต้มอยู่ โค้ดยังเก็บไว้ใช้ครั้งหน้าได้</p>`;
+  const bp=bestPromo(sel.services,sel.date,sel.time,v);
+  return bp?`<p class="okmsg">ใช้โค้ด ${esc(v.code)} แล้ว · ${esc(v.title)} -${bp.amt} ฿</p>`:`<p class="err">โค้ดนี้ใช้กับบริการ วัน หรือเวลาที่เลือกไม่ได้ ลองเปลี่ยนเวลาหรือบริการ</p>`}
+function vChipsHTML(){const pk=phoneKey(sel.phone||'');if(pk.length<9)return '';
+  if(sel.myVk!==pk){sel.myVk=pk;sel.myV=null;vApi({a:'vlist',phone:pk}).then(r=>{if(phoneKey(sel.phone||'')!==pk)return;sel.myV=(r&&r.vouchers)||[];vRender()})}
+  const ok=(sel.myV||[]).filter(v=>!v.usedAt&&v.active&&v.code!==sel.code);
+  return ok.length?`<p class="psub" style="margin:6px 0 4px">โค้ดของคุณที่ยังไม่ได้ใช้</p>${ok.map(v=>`<button type="button" class="vchip" data-vpick="${esc(v.code)}"><b>${esc(v.code)}</b><small>${esc(v.title)} · ${esc(v.label)}</small></button>`).join('')}`:''}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-vpick]');if(!t)return;const i=document.getElementById('fCode');if(i)i.value=t.dataset.vpick;vApply(t.dataset.vpick)});
+// claim from a banner
+let vDraft=null;
+function openVClaim(pid){const p=cfg.promos.find(x=>x.id===pid);if(!p)return;const me=custMe||{};
+  vDraft={pid,name:me.name||sel.name||'',phone:me.phone||sel.phone||''};
+  showSheet(`<h3>รับสิทธิ์ ${esc(p.title)}</h3><p class="psub">${promoLabel(p)} · ${esc(promoCond(p))}</p><p class="hint" style="margin:6px 0 10px">ได้โค้ดส่วนตัว 1 คน 1 โค้ด ใช้ได้ครั้งเดียว ผูกกับเบอร์โทรของคุณ</p>
+    <div class="form"><div class="two"><label>ชื่อเล่น<input id="vcName" value="${esc(vDraft.name)}"></label><label>เบอร์โทร<input id="vcPhone" type="tel" inputmode="tel" value="${esc(vDraft.phone)}" placeholder="08x-xxx-xxxx"></label></div><p class="err" id="vcErr" hidden></p></div>
+    <div class="actions"><button class="okb" id="vcGo" style="grid-column:1/-1">รับโค้ด</button><button data-close style="grid-column:1/-1">ยกเลิก</button></div>`)}
+function vCodeSheet(v,existing){showSheet(`<h3>${existing?'คุณรับสิทธิ์นี้ไปแล้ว':'รับสิทธิ์สำเร็จ'} 🎉</h3><p class="psub">${esc(v.title)} · ${esc(v.label)}</p>
+  <div class="vbig"><small>โค้ดของคุณ</small><b>${esc(v.code)}</b><small>${v.usedAt?'ใช้ไปแล้ว':'ใช้ได้ครั้งเดียว · เฉพาะเบอร์ '+esc(String(v.phone).replace(/^(\d{3})\d+(\d{4})$/,'$1-xxx-$2'))}</small></div>
+  <ul class="addet-list"><li>จองในแอพ: กรอกโค้ดนี้ในหน้ายืนยันการจอง ส่วนลดคิดให้ทันที</li><li>มาที่ร้าน: แสดงโค้ดนี้ให้ช่าง</li><li>ดูโค้ดทั้งหมดได้ที่แท็บ "ของฉัน"</li></ul>
+  <div class="actions">${v.usedAt?'':`<button class="okb" data-vbook="${esc(v.code)}" style="grid-column:1/-1">ใช้จองคิวเลย</button>`}<button class="ghost" data-vcopy="${esc(v.code)}" style="grid-column:1/-1">คัดลอกโค้ด</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.vclaim){e.stopPropagation();openVClaim(t.dataset.vclaim);return}
+  if(t.id==='vcGo'&&vDraft){const err=document.getElementById('vcErr'),f=m=>{err.textContent=m;err.hidden=false};
+    vDraft.name=document.getElementById('vcName').value.trim();vDraft.phone=document.getElementById('vcPhone').value.trim();
+    if(!vDraft.name)return f('ใส่ชื่อเล่น');if(phoneKey(vDraft.phone).length<9)return f(V_WHY.phone);
+    t.disabled=true;const r=await vApi({a:'vclaim',promoId:vDraft.pid,phone:phoneKey(vDraft.phone),name:vDraft.name});t.disabled=false;
+    if(!r||!r.ok)return f(V_WHY[r&&r.why]||'รับสิทธิ์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    if(!sel.name)sel.name=vDraft.name;if(!sel.phone)sel.phone=vDraft.phone;sel.myVk=null;vDraft=null;vCodeSheet(r.voucher,r.existing);if(myLookup)renderMyOut();return}
+  if(t.dataset.vbook){const code=t.dataset.vbook,r=await vApi({a:'vcheck',code,phone:phoneKey(sel.phone||(custMe&&custMe.phone)||'')});
+    if(!sel.phone&&custMe)sel.phone=custMe.phone;sel.code=code;sel.vres=r;sel.voucher=r&&r.ok&&!r.voucher.usedAt&&r.voucher.active?r.voucher:null;
+    if(r&&r.ok&&!sel.phone)sel.phone=r.voucher.phone;if(dlg.open)dlg.close();setView('book');renderCustomer();toast('ใส่โค้ด '+code+' ให้แล้ว เลือกบริการและเวลาได้เลย');return}
+  if(t.dataset.vcopy){try{await navigator.clipboard.writeText(t.dataset.vcopy);toast('คัดลอกโค้ดแล้ว')}catch(_){toast('โค้ด '+t.dataset.vcopy)}return}});
+// "ของฉัน": codes this phone has claimed
+async function myVLoad(phone){const pk=phoneKey(phone||'');if(pk.length<9)return;const r=await vApi({a:'vlist',phone:pk});const el=document.getElementById('myV');if(!el||!r||!r.vouchers||!r.vouchers.length)return;
+  el.innerHTML=`<h2 class="sech">โค้ดของฉัน</h2><section class="step vlist">${r.vouchers.map(v=>`<div class="vrow ${v.usedAt||!v.active?'off':''}"><div><b>${esc(v.code)}</b><small>${esc(v.title)} · ${esc(v.label)}</small></div>${v.usedAt?'<span class="chip done">ใช้แล้ว</span>':!v.active?'<span class="chip cancelled">หมดเขต</span>':`<button class="ghost" data-vbook="${esc(v.code)}">ใช้จอง</button>`}</div>`).join('')}<p class="hint" style="margin-top:8px">มาที่ร้าน แสดงโค้ดให้ช่างได้เลย</p></section>`}
+// staff: customer shows a code at the shop
+function openVShop(){showSheet(`<h3>ใช้โค้ดโปรหน้าร้าน</h3><p class="psub">พิมพ์โค้ดที่ลูกค้าแสดง ระบบตรวจว่าใช้ได้ไหม แล้วกดใช้สิทธิ์ (ใช้ได้ครั้งเดียว)</p>
+  <div class="form"><div class="codebox"><input id="vsCode" placeholder="เช่น DCAB12CD" autocapitalize="characters"><button class="ghost" id="vsCheck">ตรวจ</button></div><div id="vsOut"></div></div>
+  <div class="actions"><button data-close style="grid-column:1/-1">ปิด</button></div>`);setTimeout(()=>document.getElementById('vsCode')?.focus(),50)}
+async function vsCheck(){const code=vNorm(document.getElementById('vsCode').value),o=document.getElementById('vsOut');if(!code||!o)return;o.innerHTML='<p class="hint">กำลังตรวจ…</p>';
+  const r=await vApi({a:'vcheck',code,key:L().key||'staff'});if(!r||!r.ok){o.innerHTML=`<p class="err">${V_WHY[r&&r.why]||'ตรวจไม่ได้'}</p>`;return}const v=r.voucher;
+  o.innerHTML=`<div class="vbig sm"><b>${esc(v.code)}</b><small>${esc(v.title)} · ${esc(v.label)}</small><small>${esc(v.name||'')} · ${esc(v.phone)}</small></div>`+(v.usedAt?`<p class="err">ใช้ไปแล้ว${v.usedVia==='booking'?' (ตอนจองในแอพ)':''} · ${new Date(v.usedAt).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})}</p>`:!v.active?`<p class="err">${V_WHY.inactive}</p>`:`<div class="actions" style="margin-top:4px"><button class="okb" data-vuse="${esc(v.code)}" style="grid-column:1/-1">ใช้สิทธิ์ ${esc(v.label)}</button></div>`)}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t||!user)return;
+  if(t.dataset.vshop!=null){openVShop();return}
+  if(t.id==='vsCheck'){vsCheck();return}
+  if(t.dataset.vuse){t.disabled=true;const r=await vApi({a:'vuse',code:t.dataset.vuse,key:L().key||'staff',by:user.name||''});
+    const o=document.getElementById('vsOut');if(r&&r.ok){if(o)o.innerHTML=`<p class="okmsg">ใช้สิทธิ์แล้ว ${esc(r.voucher.title)} ${esc(r.voucher.label)} · ลูกค้า ${esc(r.voucher.name||r.voucher.phone)}</p>`;toast('ใช้สิทธิ์โค้ด '+r.voucher.code+' แล้ว')}
+    else{t.disabled=false;if(o)o.insertAdjacentHTML('beforeend',`<p class="err">${V_WHY[r&&r.why]||'ใช้สิทธิ์ไม่สำเร็จ'}</p>`)}}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='vsCode'){e.preventDefault();vsCheck()}});
 window.__appReady=1;
 </script>
 </body>

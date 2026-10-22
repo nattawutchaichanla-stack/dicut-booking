@@ -335,4 +335,30 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const r = await post({ a: 'create', key: KEY, booking: { id: 'MP2', manualPoint: true, date: core.todayKey(), start: 600, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'แต้มมือ', phone: '0861112222', status: 'done', pay: { status: 'paid', amount: 150, slip: 'data:image/png;base64,iVBORw0KGgo=' } } });
   ok(r.ok && r.booking.status === 'done' && /\/slips\/MP2-.+\.png$/.test(r.booking.pay.slip), 'owner adds a point with a slip: counted as a done visit, slip stored');
 }
+{ // single-use promo codes
+  await post({ a: 'appcfg', key: KEY, cfg: { shopName: 'DI-CUT', barbers: [{ id: 'b1', name: 'ช่างเอ' }], promos: [{ id: 'pz', title: 'ลด 50', type: 'baht', value: 50, active: true, limit: 2 }, { id: 'poff', title: 'ปิด', type: 'baht', value: 9, active: false }] } });
+  ok((await post({ a: 'vclaim', promoId: 'poff', phone: '0891110001' })).why === 'inactive', 'cannot claim a switched-off promo');
+  const c1 = await post({ a: 'vclaim', promoId: 'pz', phone: '0891110001', name: 'หนึ่ง' });
+  ok(c1.ok && /^DC[A-Z0-9]{6}$/.test(c1.voucher.code) && c1.left === 1, 'customer claims a personal code');
+  const again = await post({ a: 'vclaim', promoId: 'pz', phone: '089-111-0001' });
+  ok(again.ok && again.existing && again.voucher.code === c1.voucher.code, 'one customer = one code per promo');
+  ok((await post({ a: 'vclaim', promoId: 'pz', phone: '0891110002' })).ok, 'second customer claims');
+  ok((await post({ a: 'vclaim', promoId: 'pz', phone: '0891110003' })).why === 'full', 'promo limit reached');
+  ok((await post({ a: 'vlist', phone: '0891110001' })).vouchers.length === 1, 'customer sees own codes');
+  ok((await post({ a: 'vcheck', code: c1.voucher.code, phone: '0891110002' })).why === 'not_yours', "someone else's code is refused");
+  const bk = (id, phone, code) => ({ id, date: core.todayKey(), start: 1300, dur: 30, barberId: 'bvc', serviceId: 'cut', services: ['cut'], name: 'v', phone, promoId: 'pz', promoTitle: 'ลด 50', discount: 50, voucher: code });
+  ok((await post({ a: 'create', booking: bk('VC0', '0891110002', c1.voucher.code) })).ok === false, 'code of another phone cannot be used to book');
+  const nb = await post({ a: 'create', booking: Object.assign(bk('VC1', '0891110001', c1.voucher.code.toLowerCase()), { start: 1340 }) });
+  ok(nb.ok && nb.booking.discount === 50 && nb.booking.voucher === c1.voucher.code, 'booking with own code gets the discount');
+  ok((await post({ a: 'vlist', phone: '0891110001' })).vouchers[0].usedAt > 0, 'code marked used');
+  ok((await post({ a: 'create', booking: Object.assign(bk('VC2', '0891110001', c1.voucher.code), { start: 1380 }) })).ok === false, 'used code cannot be used twice');
+  const np = await post({ a: 'create', booking: Object.assign(bk('VC3', '0891110009', ''), { start: 1420 }) });
+  ok(np.ok && !np.booking.discount && !np.booking.promoId, 'promo discount without a code is removed');
+  await post({ a: 'cancel', id: 'VC1', phone: '0891110001' });
+  ok(!(await post({ a: 'vlist', phone: '0891110001' })).vouchers[0].usedAt, 'cancelled booking gives the code back');
+  ok((await post({ a: 'vuse', code: c1.voucher.code })).ok === false, 'shop use needs staff key');
+  const u = await post({ a: 'vuse', key: KEY, code: c1.voucher.code, by: 'ช่างเอ' });
+  ok(u.ok && u.voucher.usedVia === 'shop', 'staff uses the code at the shop');
+  ok((await post({ a: 'vuse', key: KEY, code: c1.voucher.code })).why === 'used', 'shop cannot use it twice');
+}
 console.log('\n' + pass + ' checks passed');

@@ -1690,19 +1690,21 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .vshopbtn{width:100%;margin:0 0 12px}
 
 
-/* "หน้าแรก" view switcher as a big black glossy pearl pill */
-.dk-pill{position:relative;isolation:isolate;height:56px;padding:0 26px 0 30px;gap:12px;color:#d9d9de;font:600 1.12rem var(--fb);letter-spacing:.01em;
-  background:radial-gradient(120% 140% at 50% 120%,#2a2a2e 0%,#0b0b0d 55%,#000 100%);
-  box-shadow:0 14px 26px -8px rgba(0,0,0,.55),0 4px 10px rgba(0,0,0,.35),inset 0 -6px 12px rgba(255,255,255,.06),inset 0 0 0 1px rgba(255,255,255,.08);
-  transition:transform .15s ease,box-shadow .15s ease}
-.dk-pill::before{content:"";position:absolute;z-index:-1;left:7%;right:7%;top:4px;height:46%;border-radius:999px;
-  background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.05) 85%,rgba(255,255,255,0))}
-.dk-pill svg{width:20px;height:20px;opacity:.85}
-.dk-pill:hover{background:radial-gradient(120% 140% at 50% 120%,#34343a 0%,#121215 55%,#000 100%)}
-.dk-pill:active{transform:scale(.96);box-shadow:0 6px 14px -6px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.08)}
+/* "หน้าแรก" view switcher: big glossy blue pearl pill, larger than the dock (dock keeps its height) */
+.dock{overflow:visible!important}
+.dk-pill{position:relative;isolation:isolate;height:74px;padding:0 34px 0 40px;gap:14px;color:#fff;font:600 1.3rem var(--fb);letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,20,60,.45);
+  background:radial-gradient(120% 150% at 50% 115%,#4f8dff 0%,#1f5fe0 45%,#0d3aa3 80%,#082a7a 100%);
+  box-shadow:0 16px 30px -10px rgba(10,40,120,.65),0 5px 12px rgba(10,40,120,.35),inset 0 -8px 14px rgba(120,190,255,.35),inset 0 0 0 1px rgba(255,255,255,.18);
+  transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
+.dk-pill::before{content:"";position:absolute;z-index:-1;left:8%;right:8%;top:5px;height:46%;border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.12) 85%,rgba(255,255,255,0))}
+.dk-pill svg{width:22px;height:22px}
+.dk-pill:hover{filter:brightness(1.08);background:radial-gradient(120% 150% at 50% 115%,#4f8dff 0%,#1f5fe0 45%,#0d3aa3 80%,#082a7a 100%)}
+.dk-pill:active{transform:scale(.96);box-shadow:0 6px 14px -6px rgba(10,40,120,.7),inset 0 0 0 1px rgba(255,255,255,.18)}
 .dk-pill:focus-visible{outline:2px solid #f2d36b;outline-offset:3px}
-@media (max-width:640px){.dk-pill{height:46px;padding:0 16px 0 18px;font-size:.98rem}.dk-pill svg{width:16px;height:16px}}
+@media (max-width:640px){.dk-pill{height:58px;padding:0 18px 0 22px;font-size:1.05rem;gap:8px}.dk-pill svg{width:17px;height:17px}}
 </style>
+
 
 
 

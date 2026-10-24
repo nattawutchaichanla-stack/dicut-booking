@@ -1689,21 +1689,15 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .vlist .vrow.off{opacity:.55}
 .vshopbtn{width:100%;margin:0 0 12px}
 
-/* privacy notice card */
-.consent{position:fixed;z-index:60;right:24px;bottom:104px;width:320px;max-width:calc(100vw - 32px);display:flex;flex-direction:column;align-items:center;text-align:left;
-  padding:44px 20px 18px;border-radius:18px;background:var(--paper,#fbf8f3);color:var(--muted,#5f5a54);border:1px solid var(--line,rgba(120,110,100,.25));box-shadow:0 18px 50px rgba(20,16,10,.25);font-size:14px;line-height:1.55;
-  opacity:0;transform:translateY(16px);transition:opacity .25s ease,transform .25s ease}
-.consent.in{opacity:1;transform:none}
-.consent-ic{position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:#f2d36b;color:#3b2f1e;box-shadow:0 6px 18px rgba(0,0,0,.18)}
-.consent h2{width:100%;margin:0 0 8px;font-size:18px;font-weight:600;color:var(--ink,#221d18)}
-.consent p{margin:0}
-.consent .linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:600;text-decoration:underline;color:inherit;cursor:pointer}
-.consent-act{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin-top:18px}
-.consent-act .primary{width:auto;padding:9px 24px;margin:0}
-.consent-act .primary:active{transform:scale(.95)}
-@media (max-width:640px){.consent{left:16px;right:16px;width:auto;bottom:86px}}
-@media (prefers-reduced-motion:reduce){.consent{transition:none}}
+
+/* big logo popping out of the dock top (like the badge on the reference card) */
+.dock{overflow:visible!important}
+.dk-brand{gap:14px}
+.dk-logo{width:78px;height:78px;margin:-30px 0 0 -4px;border:4px solid var(--paper,#fff);box-shadow:0 10px 24px rgba(0,0,0,.22);position:relative;z-index:1}
+.dk-logo svg{width:30px;height:30px}
+@media (max-width:640px){.dk-logo{width:60px;height:60px;margin:-24px 0 0 -2px;border-width:3px}.dk-logo svg{width:24px;height:24px}}
 </style>
+
 
 
 
@@ -1731,7 +1725,7 @@ function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__app
  '<button onclick="location.reload()" style="width:100%;height:44px;border:0;border-radius:999px;background:#E8DDCC;color:#2B2622;font-size:.95rem">ลองโหลดใหม่</button></div>';
  document.body.appendChild(d);
  document.getElementById('bootReset').onclick=function(){try{var c=JSON.parse(localStorage.getItem('barber-cfg-v2')||'null');if(c&&c.line)localStorage.setItem('barber-keep-line',JSON.stringify(c.line))}catch(e){}
-   try{var keep={'barber-me':1,'barber-session':1,'barber-keep-line':1,'barber-theme':1,'barber-consent':1};
+   try{var keep={'barber-me':1,'barber-session':1,'barber-keep-line':1,'barber-theme':1};
    for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);if(!keep[k])localStorage.removeItem(k)}}catch(e){}
    location.reload()};}
 window.addEventListener('error',function(e){errs.push((e.message||'error')+(e.lineno?' @'+e.lineno+':'+e.colno:''));if(!window.__appReady)setTimeout(show,50)});
@@ -4646,31 +4640,6 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
     const o=document.getElementById('vsOut');if(r&&r.ok){if(o)o.innerHTML=`<p class="okmsg">ใช้สิทธิ์แล้ว ${esc(r.voucher.title)} ${esc(r.voucher.label)} · ลูกค้า ${esc(r.voucher.name||r.voucher.phone)}</p>`;toast('ใช้สิทธิ์โค้ด '+r.voucher.code+' แล้ว')}
     else{t.disabled=false;if(o)o.insertAdjacentHTML('beforeend',`<p class="err">${V_WHY[r&&r.why]||'ใช้สิทธิ์ไม่สำเร็จ'}</p>`)}}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='vsCode'){e.preventDefault();vsCheck()}});
-/* ---------- privacy notice (first visit): what the app keeps and why, one tap to accept ---------- */
-const CONSENT_KEY='barber-consent', CONSENT_VER=1;
-function consentOK(){try{const c=JSON.parse(localStorage.getItem(CONSENT_KEY)||'null');return !!(c&&c.v>=CONSENT_VER)}catch(_){return true}}
-function consentShow(){if(consentOK()||document.getElementById('consent')||user)return;
-  const el=document.createElement('section');el.id='consent';el.className='consent';el.setAttribute('role','dialog');el.setAttribute('aria-label','ความเป็นส่วนตัว');
-  el.innerHTML=`<span class="consent-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 14v.01"/></svg></span>
-    <h2>เราใส่ใจความเป็นส่วนตัวของคุณ</h2>
-    <p>แอพเก็บชื่อเล่น เบอร์โทร ประวัติการจอง และรูปสลิป เพื่อใช้จองคิว สะสมแต้ม และแจ้งเตือนร้านเท่านั้น ไม่ขายหรือส่งต่อให้ใคร <button type="button" class="linkbtn" data-consentmore>อ่านรายละเอียด</button></p>
-    <div class="consent-act"><button type="button" class="linkbtn" data-consentmore>ตัวเลือกเพิ่มเติม</button><button type="button" class="primary" data-consentok>ยอมรับ</button></div>`;
-  document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('in'))}
-function consentAccept(){try{localStorage.setItem(CONSENT_KEY,JSON.stringify({v:CONSENT_VER,at:Date.now()}))}catch(_){}
-  const el=document.getElementById('consent');if(el){el.classList.remove('in');setTimeout(()=>el.remove(),250)}}
-function consentMore(){showSheet(`<h3>ข้อมูลที่แอพเก็บ และใช้ทำอะไร</h3>
-  <ul class="addet-list"><li><b>ชื่อเล่นและเบอร์โทร</b> ใช้ระบุคิว สะสมแต้ม และให้ร้านโทรหาเมื่อจำเป็น</li>
-  <li><b>ประวัติการจองและแต้ม</b> ใช้แสดงคิวของคุณ สิทธิ์ตัดฟรี และโค้ดโปรโมชั่น</li>
-  <li><b>รูปสลิปโอนเงิน</b> ใช้ให้ร้านตรวจยอดและยืนยันคิว</li>
-  <li><b>เบอร์คนที่ชวนมา</b> (ถ้ากรอก) ใช้ให้ส่วนลดกับคนชวน</li>
-  <li>ข้อมูลส่งให้เจ้าของร้านและช่างผ่านระบบร้านและ LINE ของร้านเท่านั้น ไม่ขาย ไม่ใช้โฆษณา</li>
-  <li>บางส่วนจำไว้ในเครื่องนี้ (เช่น ชื่อและเบอร์ที่กรอกไว้) เพื่อไม่ต้องกรอกซ้ำ</li>
-  <li>อยากแก้ไขหรือลบข้อมูล ติดต่อร้านได้ทุกเมื่อ</li></ul>
-  <div class="actions"><button class="okb" data-consentok style="grid-column:1/-1">เข้าใจแล้ว ยอมรับ</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
-document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
-  if(t.hasAttribute('data-consentok')){consentAccept();if(t.closest('dialog')&&dlg.open)dlg.close();return}
-  if(t.hasAttribute('data-consentmore')){consentMore();return}});
-setTimeout(()=>{try{consentShow()}catch(_){}},1200);
 window.__appReady=1;
 </script>
 </body>

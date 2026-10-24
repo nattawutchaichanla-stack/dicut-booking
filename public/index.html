@@ -1690,20 +1690,30 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .vshopbtn{width:100%;margin:0 0 12px}
 
 
-/* "หน้าแรก" view switcher: big glossy blue pearl pill, larger than the dock (dock keeps its height) */
-.dock{overflow:visible!important}
-.dk-pill{position:relative;isolation:isolate;height:74px;padding:0 34px 0 40px;gap:14px;color:#fff;font:600 1.3rem var(--fb);letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,20,60,.45);
+/* "หน้าแรก" view switcher: big glossy blue pearl pill that sticks out of the dock.
+   It keeps a small layout box and is enlarged with transform, so the dock itself never grows. */
+.dock{overflow:visible!important;height:70px!important;min-height:0!important;max-height:70px!important}
+.dk-pill{position:relative;isolation:isolate;z-index:2;height:48px;padding:0 22px 0 26px;margin:0 58px;gap:9px;white-space:nowrap;flex:none;color:#fff;font:600 .98rem var(--fb);letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,20,60,.45);
+  transform:scale(1.75);transform-origin:center;
   background:radial-gradient(120% 150% at 50% 115%,#4f8dff 0%,#1f5fe0 45%,#0d3aa3 80%,#082a7a 100%);
-  box-shadow:0 16px 30px -10px rgba(10,40,120,.65),0 5px 12px rgba(10,40,120,.35),inset 0 -8px 14px rgba(120,190,255,.35),inset 0 0 0 1px rgba(255,255,255,.18);
-  transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
-.dk-pill::before{content:"";position:absolute;z-index:-1;left:8%;right:8%;top:5px;height:46%;border-radius:999px;
+  box-shadow:0 10px 20px -8px rgba(10,40,120,.65),0 3px 8px rgba(10,40,120,.35),inset 0 -5px 10px rgba(120,190,255,.35),inset 0 0 0 1px rgba(255,255,255,.18);
+  transition:transform .15s ease,filter .15s ease}
+.dk-pill::before{content:"";position:absolute;z-index:-1;left:8%;right:8%;top:3px;height:46%;border-radius:999px;
   background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.12) 85%,rgba(255,255,255,0))}
-.dk-pill svg{width:22px;height:22px}
+.dk-pill svg{width:15px;height:15px}
 .dk-pill:hover{filter:brightness(1.08);background:radial-gradient(120% 150% at 50% 115%,#4f8dff 0%,#1f5fe0 45%,#0d3aa3 80%,#082a7a 100%)}
-.dk-pill:active{transform:scale(.96);box-shadow:0 6px 14px -6px rgba(10,40,120,.7),inset 0 0 0 1px rgba(255,255,255,.18)}
-.dk-pill:focus-visible{outline:2px solid #f2d36b;outline-offset:3px}
-@media (max-width:640px){.dk-pill{height:58px;padding:0 18px 0 22px;font-size:1.05rem;gap:8px}.dk-pill svg{width:17px;height:17px}}
+.dk-pill:active{transform:scale(1.66)}
+.dk-pill:focus-visible{outline:2px solid #f2d36b;outline-offset:2px}
+@media (max-width:900px) and (min-width:761px){.dk-brand span{display:none}}
+@media (max-width:1060px) and (min-width:761px){.dk-pill{transform:scale(1.55);margin:0 42px}.dk-pill:active{transform:scale(1.48)}}
+@media (max-width:760px){.dock{height:62px!important;max-height:62px!important}
+  .dk-pill{height:40px;padding:0 14px 0 16px;margin:0 24px;font-size:.88rem;gap:6px;transform:scale(1.5)}.dk-mid .dk-ic[data-dk=back]{display:none}.dk-pill{}.dk-pill:active{transform:scale(1.42)}.dk-pill svg{width:13px;height:13px}}
 </style>
+
+
+
+
+
 
 
 

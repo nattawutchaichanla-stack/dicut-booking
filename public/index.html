@@ -1708,7 +1708,14 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 @media (max-width:1060px) and (min-width:761px){.dk-pill{transform:scale(1.55);margin:0 42px}.dk-pill:active{transform:scale(1.48)}}
 @media (max-width:760px){.dock{height:62px!important;max-height:62px!important}
   .dk-pill{height:40px;padding:0 14px 0 16px;margin:0 24px;font-size:.88rem;gap:6px;transform:scale(1.5)}.dk-mid .dk-ic[data-dk=back]{display:none}.dk-pill{}.dk-pill:active{transform:scale(1.42)}.dk-pill svg{width:13px;height:13px}}
+
+/* shop announcement slide */
+.ad.ad-notice:not(.has-img),.addet-hero.ad-notice:not(.has-img){background:linear-gradient(135deg,#1d3f8f,#2c64d6 60%,#4b86f0)}
+.ad.ad-notice .ad-kicker{display:inline-flex;align-items:center;gap:5px}
+.ad.ad-notice h3{font-size:1.45rem;line-height:1.25}
 </style>
+
+
 
 
 
@@ -2822,11 +2829,13 @@ function promoSlideHTML(p,preview){
 }
 function adSlides(){
   const out=[];
+  liveNotices().forEach(n=>out.push(noticeSlideHTML(n)));
   if(loy().active)out.push(loySlideHTML(loy(),sel.phone));
   livePromos().forEach(p=>out.push(promoSlideHTML(p)));
   return out;
 }
 function openAdDetail(key){
+  if(String(key).startsWith('n:'))return openNotice(key.slice(2));
   let h;
   if(key==='loy'){const L=loy(),img=okImg(L.img);
     h=`<div class="addet-hero ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''}><span class="ad-kicker">โปรประจำร้าน</span><b>ตัด ${L.need} ครั้ง ฟรี 1</b></div>
@@ -2914,7 +2923,7 @@ function loyAdminHTML(){
 function renderPromos(){
   if(!isOwner()){secPromos.innerHTML='';return}
   const used=id=>bookings.filter(b=>b.promoId===id&&b.status!=='cancelled');
-  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
+  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+noticeAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
   h+=cfg.promos.map(p=>{const u=used(p.id),tot=u.reduce((a,b)=>a+(b.discount||0),0);
     return `<div class="prow ${p.active?'':'off'}">${p.img?`<span class="pthumb" style="background-image:url('${p.img}')"></span>`:''}<div class="pinfo"><span class="pval">${promoLabel(p)}</span><b>${esc(p.title)}</b><small>${esc(promoCond(p))} · ${+p.limit>0?'จำกัด '+(+p.limit)+' สิทธิ์':'ไม่จำกัดสิทธิ์'}</small><small>ใช้แล้ว ${u.length} คิว · ลดไปรวม ${tot.toLocaleString()} ฿</small></div>
       <div class="pact"><button class="icon-btn" data-pmove="${p.id}|-1" aria-label="เลื่อนขึ้น" ${cfg.promos.indexOf(p)===0?'disabled':''}>↑</button><button class="icon-btn" data-pmove="${p.id}|1" aria-label="เลื่อนลง" ${cfg.promos.indexOf(p)===cfg.promos.length-1?'disabled':''}>↓</button><button class="ghost" data-ptoggle="${p.id}">${p.active?'ปิดโปร':'เปิดโปร'}</button><button class="ghost" data-pedit="${p.id}">แก้ไข</button></div></div>`}).join('')||'<p class="hint">ยังไม่มีโปรโมชั่น</p>';
@@ -4659,6 +4668,53 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
     const o=document.getElementById('vsOut');if(r&&r.ok){if(o)o.innerHTML=`<p class="okmsg">ใช้สิทธิ์แล้ว ${esc(r.voucher.title)} ${esc(r.voucher.label)} · ลูกค้า ${esc(r.voucher.name||r.voucher.phone)}</p>`;toast('ใช้สิทธิ์โค้ด '+r.voucher.code+' แล้ว')}
     else{t.disabled=false;if(o)o.insertAdjacentHTML('beforeend',`<p class="err">${V_WHY[r&&r.why]||'ใช้สิทธิ์ไม่สำเร็จ'}</p>`)}}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='vsCode'){e.preventDefault();vsCheck()}});
+/* ---------- shop announcements: slides in the promo carousel, text only (no price, no code) ---------- */
+function notices(){return Array.isArray(cfg.notices)?cfg.notices:(cfg.notices=[])}
+function liveNotices(){return notices().filter(n=>n.active&&(!n.start||n.start<=today())&&(!n.end||n.end>=today()))}
+function noticeSlideHTML(n,preview){const img=okImg(n.img);
+  return `<article class="ad ad-notice ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''} ${preview?'':`data-addetail="n:${n.id}" tabindex="0" role="button" aria-label="อ่านประกาศ ${esc(n.title)}"`}><div class="ad-body"><span class="ad-kicker">${ic('bell',13)} ประกาศจากร้าน</span>
+    <h3>${esc(n.title||'หัวข้อประกาศ')}</h3>${n.desc?`<p>${esc(n.desc)}</p>`:''}${n.start||n.end?`<small>${noticeWhen(n)}</small>`:''}</div><span class="ad-more" aria-hidden="true">อ่านต่อ ›</span></article>`}
+function noticeWhen(n){return n.start&&n.end?(n.start===n.end?thaiDate(n.start):thaiDate(n.start)+' – '+thaiDate(n.end)):n.start?'ตั้งแต่ '+thaiDate(n.start):'ถึง '+thaiDate(n.end)}
+function openNotice(id){const n=notices().find(x=>x.id===id);if(!n)return;const img=okImg(n.img);
+  showSheet(`<div class="addet-hero ad-notice ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''}><span class="ad-kicker">${ic('bell',13)} ประกาศจากร้าน</span><b>${esc(n.title)}</b></div>
+    ${n.desc?`<p class="bio">${esc(n.desc)}</p>`:''}${n.detail?`<div class="addet-text">${esc(n.detail)}</div>`:''}${n.start||n.end?`<p class="psub">ช่วงเวลา: ${noticeWhen(n)}</p>`:''}
+    <div class="actions"><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+function noticeAdminHTML(){const L=notices();
+  return `<h2 class="sech">ประกาศจากร้าน</h2><section class="step"><p class="hint" style="margin-bottom:10px">ขึ้นเป็นแบนเนอร์เลื่อนในหน้าแรกและหน้าจองคิว ไม่มีราคา ใช้แจ้งข่าว เช่น ร้านปิด วันหยุด เวลาเปิดใหม่</p><div class="plist">`
+    +(L.map((n,i)=>`<div class="prow ${n.active?'':'off'}">${n.img?`<span class="pthumb" style="background-image:url('${n.img}')"></span>`:''}<div class="pinfo"><span class="pval">${ic('bell',13)} ประกาศ</span><b>${esc(n.title)}</b><small>${n.start||n.end?esc(noticeWhen(n)):'ขึ้นตลอดจนกว่าจะปิด'}${n.end&&n.end<today()?' · หมดเวลาแล้ว':''}</small></div>
+      <div class="pact"><button class="icon-btn" data-nmove="${n.id}|-1" aria-label="เลื่อนขึ้น" ${i===0?'disabled':''}>↑</button><button class="icon-btn" data-nmove="${n.id}|1" aria-label="เลื่อนลง" ${i===L.length-1?'disabled':''}>↓</button><button class="ghost" data-ntoggle="${n.id}">${n.active?'ปิดประกาศ':'เปิดประกาศ'}</button><button class="ghost" data-nedit="${n.id}">แก้ไข</button></div></div>`).join('')||'<p class="hint">ยังไม่มีประกาศ</p>')
+    +`</div><button class="primary" data-nedit="new" style="margin-top:12px">${ic('plus',18)}สร้างประกาศ</button></section>`}
+let nImg;
+function openNoticeForm(id){if(!isOwner())return;nImg=undefined;
+  const n=id==='new'?{id:'',title:'',desc:'',detail:'',start:'',end:'',img:'',active:true}:notices().find(x=>x.id===id);if(!n)return;
+  showSheet(`<h3>${id==='new'?'สร้างประกาศ':'แก้ไขประกาศ'}</h3><p class="psub">ตัวอย่างแบนเนอร์</p><div class="adlive" id="nLive">${noticeSlideHTML(n,true)}</div><div class="form nform" style="margin-top:12px">
+    <label>หัวข้อประกาศ<input id="nTitle" value="${esc(n.title)}" maxlength="40" placeholder="เช่น ร้านปิด 5 พ.ย. งดให้บริการ 1 วัน"></label>
+    <label>ข้อความสั้นบนแบนเนอร์ (ไม่บังคับ)<input id="nDesc" value="${esc(n.desc)}" maxlength="90" placeholder="เช่น เปิดตามปกติวันที่ 6 พ.ย. 10:00 น."></label>
+    <label>รายละเอียดเต็ม (ขึ้นเมื่อลูกค้ากดอ่าน)<textarea id="nDetail" rows="4" maxlength="800" placeholder="รายละเอียดเพิ่มเติม">${esc(n.detail||'')}</textarea></label>
+    <div class="two"><label>เริ่มแสดงวันที่ (ไม่บังคับ)<input id="nStart" type="date" value="${n.start}"></label><label>แสดงถึงวันที่ (ไม่บังคับ)<input id="nEnd" type="date" value="${n.end}"></label></div>
+    <div class="adimg"><span>รูปประกอบ (ไม่บังคับ แนวนอน 2:1)</span><div class="adprev" id="nPrev" ${n.img?`style="background-image:url('${n.img}')"`:''}>${n.img?'':'ยังไม่มีรูป'}</div><div class="uplrow"><label class="upl">${n.img?'เปลี่ยนรูป':'อัปโหลดรูป'}<input type="file" accept="image/*" id="nFile"></label>${n.img?'<button class="ghost" id="nRm" type="button">ลบรูป</button>':''}</div></div>
+    <p class="err" id="nErr" hidden></p>
+    <button class="primary" data-nsave="${id}">บันทึกประกาศ</button>
+    ${id!=='new'?`<button class="ghost" data-ndel="${id}" style="color:var(--danger)">ลบประกาศนี้</button>`:''}<button class="ghost" data-close>ยกเลิก</button></div>`)}
+function noticeDraft(){const g=x=>document.getElementById(x);if(!g('nTitle'))return null;const cur=notices().find(x=>x.id===document.querySelector('[data-nsave]')?.dataset.nsave)||{};
+  return {...cur,title:g('nTitle').value.trim(),desc:g('nDesc').value.trim(),start:g('nStart').value,end:g('nEnd').value,img:nImg!==undefined?nImg:(cur.img||'')}}
+function nLive(){const el=document.getElementById('nLive'),d=noticeDraft();if(el&&d)el.innerHTML=noticeSlideHTML(d,true)}
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('dialog .nform'))nLive()});
+document.addEventListener('change',async e=>{if(!(e.target.closest&&e.target.closest('dialog .nform')))return;
+  if(e.target.id==='nFile'&&e.target.files[0]){try{nImg=await fileToBanner(e.target.files[0]);const pv=document.getElementById('nPrev');pv.style.backgroundImage=`url('${nImg}')`;pv.textContent='';toast('ใส่รูปแล้ว กดบันทึกเพื่อใช้')}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}}
+  nLive()});
+function saveNotice(id){const g=x=>document.getElementById(x),err=m=>{const e=g('nErr');e.textContent=m;e.hidden=false};
+  const d=noticeDraft();if(!d.title)return err('ใส่หัวข้อประกาศก่อน');if(d.start&&d.end&&d.start>d.end)return err('วันเริ่มต้องไม่เกินวันสิ้นสุด');
+  const data={title:d.title,desc:d.desc,detail:g('nDetail').value.trim(),start:d.start,end:d.end,img:d.img};
+  if(id==='new')notices().unshift({id:uid('n'),active:true,createdAt:Date.now(),...data});else Object.assign(notices().find(x=>x.id===id),data);
+  saveCfg();dlg.close();renderPromos();renderCustomer();toast('บันทึกประกาศแล้ว')}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||!isOwner())return;
+  if(t.id==='nRm'){nImg='';const pv=document.getElementById('nPrev');pv.style.backgroundImage='';pv.textContent='ยังไม่มีรูป';nLive();return}
+  if(t.dataset.nedit){openNoticeForm(t.dataset.nedit);return}
+  if(t.dataset.nsave){saveNotice(t.dataset.nsave);return}
+  if(t.dataset.ntoggle){const n=notices().find(x=>x.id===t.dataset.ntoggle);if(!n)return;n.active=!n.active;saveCfg();renderPromos();renderCustomer();toast(n.active?'เปิดประกาศแล้ว':'ปิดประกาศแล้ว');return}
+  if(t.dataset.ndel){if(!confirm('ลบประกาศนี้?'))return;cfg.notices=notices().filter(x=>x.id!==t.dataset.ndel);saveCfg();dlg.close();renderPromos();renderCustomer();return}
+  if(t.dataset.nmove){const [id,dd]=t.dataset.nmove.split('|'),a=notices(),k=a.findIndex(x=>x.id===id),m=k+(+dd);if(m<0||m>=a.length)return;[a[k],a[m]]=[a[m],a[k]];saveCfg();renderPromos();renderCustomer()}});
 window.__appReady=1;
 </script>
 </body>

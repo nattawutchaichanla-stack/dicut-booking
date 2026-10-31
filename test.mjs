@@ -8,7 +8,9 @@ const sent = [];
 const fetchImpl = async (url, o) => { const p = JSON.parse(o.body); sent.push({ kind: url.endsWith('/push') ? 'push' : 'reply', to: p.to, messages: p.messages }); return { ok: true, status: 200, text: async () => '{}' }; };
 const env = { STAFF_KEY: 'SK-TEST', APP_SECRET: 'secret', LINE_TOKEN: 'T', LINE_CHANNEL_SECRET: 'chsec', CRON_SECRET: 'cron' };
 const db = memoryDb();
-const core = createCore({ db, env, fetchImpl, now: () => clock, log: () => {} });
+const pushes = [], deadEp = new Set();
+const pushImpl = async (sub, payload, opts) => { if (deadEp.has(sub.endpoint)) { const e = new Error('gone'); e.statusCode = 410; throw e; } pushes.push({ ep: sub.endpoint, msg: JSON.parse(payload), opts }); };
+const core = createCore({ db, env, fetchImpl, now: () => clock, log: () => {}, pushImpl });
 const KEY = env.STAFF_KEY, get = q => core.appGet(q), post = b => core.appPost(b).catch(e => ({ ok: false, error: e.message }));
 const lineEv = ev => core.handleLine([Object.assign({ replyToken: 'RT', source: { type: 'user', userId: ev.uid } }, ev)]);
 const last = () => sent[sent.length - 1];
@@ -360,5 +362,30 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const u = await post({ a: 'vuse', key: KEY, code: c1.voucher.code, by: 'ช่างเอ' });
   ok(u.ok && u.voucher.usedVia === 'shop', 'staff uses the code at the shop');
   ok((await post({ a: 'vuse', key: KEY, code: c1.voucher.code })).why === 'used', 'shop cannot use it twice');
+}
+{ // phone notifications for the customer
+  const k = await post({ a: 'pushkey' }); ok(k.ok && k.key.length > 60 && (await post({ a: 'pushkey' })).key === k.key, 'VAPID key created once and reused');
+  const sub = ep => ({ endpoint: 'https://push.example/' + ep, keys: { p256dh: 'BPk', auth: 'au' } });
+  ok((await post({ a: 'pushsub', phone: '12', sub: sub('x') })).ok === false, 'subscribe needs a phone');
+  ok((await post({ a: 'pushsub', phone: '0865550001', sub: { endpoint: 'http://bad' } })).ok === false, 'bad subscription refused');
+  let n = pushes.length; await post({ a: 'pushsub', phone: '0865550001', sub: sub('a'), test: true });
+  ok(pushes.length === n + 1 && /เปิดแจ้งเตือน/.test(pushes[n].msg.title) && pushes[n].opts.vapidDetails.publicKey === k.key, 'test notification sent when turning on');
+  n = pushes.length;
+  await post({ a: 'create', booking: { id: 'PU1', date: core.todayKey(), start: core.nowMin() + 600, dur: 30, barberId: 'bpu', serviceId: 'cut', services: ['cut'], name: 'พุช', phone: '0865550001' } });
+  ok(pushes.length === n + 1 && /จองคิวสำเร็จ/.test(pushes[n].msg.title), 'booking saved -> phone notification');
+  n = pushes.length; const cur = await db.getBooking('PU1');
+  await post({ a: 'put', key: KEY, booking: Object.assign({}, cur, { accepted: clock, acceptedBy: 'ช่าง' }) });
+  ok(pushes.length === n + 1 && /รับคิวแล้ว/.test(pushes[n].msg.title), 'barber accepted -> phone notification');
+  n = pushes.length; await post({ a: 'put', key: KEY, booking: Object.assign({}, await db.getBooking('PU1'), { note: 'x' }) });
+  ok(pushes.length === n, 'no notification for unrelated edits');
+  n = pushes.length; await post({ a: 'put', key: KEY, booking: Object.assign({}, await db.getBooking('PU1'), { status: 'cancelled', cancelledBy: 'shop' }) });
+  ok(pushes.length === n + 1 && /ยกเลิก/.test(pushes[n].msg.title), 'shop cancelled -> phone notification');
+  deadEp.add('https://push.example/a'); await post({ a: 'pushsub', phone: '0865550001', sub: sub('b') });
+  await post({ a: 'create', booking: { id: 'PU2', date: core.todayKey(), start: core.nowMin() + 640, dur: 30, barberId: 'bpu', serviceId: 'cut', services: ['cut'], name: 'พุช', phone: '0865550001' } });
+  ok((await db.getKv('ps:0865550001')).length === 1, 'expired phone subscription removed');
+  // reminder ~1 hour before, once
+  await post({ a: 'create', booking: { id: 'PU3', date: core.todayKey(), start: core.nowMin() + 50, dur: 30, barberId: 'bpu2', serviceId: 'cut', services: ['cut'], name: 'พุช', phone: '0865550001' } });
+  n = pushes.length; await core.tick(); await core.tick();
+  ok(pushes.slice(n).filter(p => /1 ชั่วโมง/.test(p.msg.title)).length === 1, 'reminder about an hour before, sent once');
 }
 console.log('\n' + pass + ' checks passed');

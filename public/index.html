@@ -1713,7 +1713,15 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .ad.ad-notice:not(.has-img),.addet-hero.ad-notice:not(.has-img){background:linear-gradient(135deg,#1d3f8f,#2c64d6 60%,#4b86f0)}
 .ad.ad-notice .ad-kicker{display:inline-flex;align-items:center;gap:5px}
 .ad.ad-notice h3{font-size:1.45rem;line-height:1.25}
+
+/* phone notifications card */
+.pushcard{display:grid;gap:6px;margin:14px 0 0;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--chip)}
+.pushcard b{display:flex;align-items:center;gap:8px;color:var(--ink)}
+.pushcard small{color:var(--muted);line-height:1.5}
+.pushcard .primary{margin-top:4px}
+.pushok{display:flex;align-items:center;gap:8px;margin:12px 0 0;color:var(--ok);font-size:.88rem}
 </style>
+
 
 
 
@@ -3044,7 +3052,7 @@ function ticketHTML(){
     ${(()=>{const st=loyState(b.phone);if(!st||b.status==='cancelled')return '';return b.loyaltyRedeem?`<p class="loyline">${ic('scissors',16)} ใช้สิทธิ์ตัดฟรีกับคิวนี้แล้ว</p>`:!loyEligible(b)?loyNoteHTML(bIds(b)):loyEligible(b)?`<p class="loyline">${ic('scissors',16)} ตัดเสร็จได้ 1 แต้ม · ตอนนี้ ${st.stamps}/${st.need}${st.rewards?` · มีสิทธิ์ตัดฟรี ${st.rewards} ครั้ง`:''}</p>`:''})()}
     ${payBlock(b)}
     ${cancelBlock(b)}
-    ${accHTML(b)}
+    ${accHTML(b)}${b.status==='confirmed'?pushCardHTML(b.phone):''}
     <button class="primary" id="again" style="width:100%;margin-top:14px">จองคิวใหม่</button></div></section>`;
 }
 /* ---------- admin ---------- */
@@ -3709,7 +3717,7 @@ function renderMyOut(){expireHolds();
         <span class="hmeta"><b>${esc(bName(b))}</b><small>${esc(barber(b.barberId).name)} · ${fmt(b.start)}${b.loyaltyRedeem?' · ตัดฟรีจากแต้ม':''}</small>${b.promoTitle&&!b.loyaltyRedeem?`<em class="ptag">${esc(b.promoTitle)} -${baht(b.discount)} ฿</em>`:''}${b.prepayOff?`<em class="ptag">โอนก่อน -${baht(b.prepayOff)} ฿</em>`:''}</span>
         <span class="hp">${off?`<s>${baht(bFull(b))}</s>`:''}<b>${baht(bPrice(b))} ฿</b></span></li>`}).join('')}</ul>`
     :'<p class="hint">ยังไม่มีประวัติการตัด</p>'}</section>`}
-  o.innerHTML=`<div id="myV"></div>`+h;myVLoad(phone||k);
+  o.innerHTML=pushCardHTML(phone||k)+`<div id="myV"></div>`+h;myVLoad(phone||k);
 }
 document.addEventListener('change',async e=>{if(!myLookup)return;const c=customers[myLookup.k];if(!c)return;
   if(e.target.id==='myNote'){c.note=e.target.value.trim();saveCu();toast('บันทึกแล้ว ช่างจะเห็นข้อมูลนี้')}
@@ -4715,6 +4723,30 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||
   if(t.dataset.ntoggle){const n=notices().find(x=>x.id===t.dataset.ntoggle);if(!n)return;n.active=!n.active;saveCfg();renderPromos();renderCustomer();toast(n.active?'เปิดประกาศแล้ว':'ปิดประกาศแล้ว');return}
   if(t.dataset.ndel){if(!confirm('ลบประกาศนี้?'))return;cfg.notices=notices().filter(x=>x.id!==t.dataset.ndel);saveCfg();dlg.close();renderPromos();renderCustomer();return}
   if(t.dataset.nmove){const [id,dd]=t.dataset.nmove.split('|'),a=notices(),k=a.findIndex(x=>x.id===id),m=k+(+dd);if(m<0||m>=a.length)return;[a[k],a[m]]=[a[m],a[k]];saveCfg();renderPromos();renderCustomer()}});
+/* ---------- phone notifications for customers (web push) ---------- */
+function pushIOSNeedsHome(){const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);return ios&&!(navigator.standalone||matchMedia('(display-mode: standalone)').matches)}
+function pushOK(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function pushMine(){try{return JSON.parse(localStorage.getItem('barber-push')||'null')}catch(_){return null}}
+function pushCardHTML(phone){if(!BACKEND()||user)return '';const pk=phoneKey(phone||'');if(pk.length<9)return '';
+  const me=pushMine();
+  if(pushOK()&&Notification.permission==='granted'&&me&&me.phone===pk)return `<p class="pushok">${ic('bell',15)} เปิดแจ้งเตือนบนมือถือแล้ว · แจ้งเมื่อช่างรับคิว ยืนยันการโอน และก่อนถึงคิว 1 ชม.</p>`;
+  if(!pushOK())return pushIOSNeedsHome()?`<div class="pushcard"><b>${ic('bell',18)} อยากได้แจ้งเตือนเด้งบนมือถือ?</b><small>บน iPhone/iPad: กดปุ่ม <b>แชร์</b> ในเบราว์เซอร์ → <b>เพิ่มไปยังหน้าจอโฮม</b> แล้วเปิดแอพจากไอคอน DI-CUT จากนั้นกดเปิดแจ้งเตือนที่หน้านี้</small></div>`:'';
+  if(Notification.permission==='denied')return `<div class="pushcard"><b>${ic('bell',18)} แจ้งเตือนถูกปิดไว้</b><small>เปิดได้ที่การตั้งค่าของเครื่อง → การแจ้งเตือน → DI-CUT (หรือเบราว์เซอร์ที่ใช้)</small></div>`;
+  return `<div class="pushcard"><b>${ic('bell',18)} รับแจ้งเตือนเด้งบนมือถือ</b><small>รู้ทันทีเมื่อช่างรับคิว ร้านยืนยันการโอน และเตือนก่อนถึงคิว 1 ชั่วโมง</small><button class="primary" data-pushon="${pk}">เปิดแจ้งเตือน</button></div>`}
+const b64u=s=>{const p='='.repeat((4-s.length%4)%4),r=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0))};
+async function pushEnable(pk,btn){try{if(btn)btn.disabled=true;
+    const perm=await Notification.requestPermission();if(perm!=='granted'){toast('ยังไม่ได้อนุญาตแจ้งเตือน');return}
+    const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+    const k=await api({a:'pushkey'});if(!k||!k.key)throw new Error('key');
+    let sub=await reg.pushManager.getSubscription();
+    if(sub&&sub.options&&sub.options.applicationServerKey){const a=new Uint8Array(sub.options.applicationServerKey),b=b64u(k.key);if(a.length!==b.length||a.some((x,i)=>x!==b[i])){await sub.unsubscribe();sub=null}}
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k.key)});
+    const r=await api({a:'pushsub',phone:pk,sub:sub.toJSON(),test:true});if(!r||!r.ok)throw new Error('sub');
+    try{localStorage.setItem('barber-push',JSON.stringify({phone:pk,at:Date.now()}))}catch(_){}
+    toast('เปิดแจ้งเตือนแล้ว ลองดูแจ้งเตือนทดสอบบนมือถือ');if(lastBooking)renderCustomer();renderMyOut()}
+  catch(e){toast('เปิดแจ้งเตือนไม่สำเร็จ ลองใหม่อีกครั้ง')}finally{if(btn&&btn.isConnected)btn.disabled=false}}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-pushon]');if(t)pushEnable(t.dataset.pushon,t)});
+try{const v=new URLSearchParams(location.search).get('v');if(v){history.replaceState(null,'',location.pathname);if(v==='mine'&&!user)setTimeout(()=>{try{setView('mine')}catch(_){}},400)}}catch(_){}
 window.__appReady=1;
 </script>
 </body>

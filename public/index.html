@@ -1746,6 +1746,8 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -3284,7 +3286,7 @@ function todayHTML(){
   const who=(b,extra='')=>{const inner=`${avatar(b.name,cphoto(b),'md')}<span class="jw"><b>${esc(b.name)}</b>${tag(b)}${payBadge(b)}<small>${esc(barber(b.barberId).name)} · ${esc(bName(b))}</small>${extra}</span>`;
     return canManage(b)?`<button class="jwho" data-bk="${b.id}" aria-label="รายละเอียดคิว ${esc(b.name)}">${inner}</button>`:`<div class="jwho">${inner}</div>`};
   const box=(cls,icon,title,items,body,empty)=>`<section class="jbox ${cls}"><header>${ic(icon,18)}<b>${title}</b><span class="jn">${items.length}</span></header>${items.length?items.map(body).join(''):`<p class="jempty">${empty}</p>`}</section>`;
-  let h=`<h2 class="sech">ลูกค้าวันนี้</h2><button class="ghost vshopbtn" data-vshop>${ic('tag',16)} ลูกค้าแสดงโค้ดโปร ใช้สิทธิ์หน้าร้าน</button>`;
+  let h=staffPushCardHTML()+`<h2 class="sech">ลูกค้าวันนี้</h2><button class="ghost vshopbtn" data-vshop>${ic('tag',16)} ลูกค้าแสดงโค้ดโปร ใช้สิทธิ์หน้าร้าน</button>`;
   const rv=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
   const cl=bookings.filter(b=>b.status==='claim'&&canManage(b)).sort((a,b)=>(b.pay&&b.pay.sentAt||0)-(a.pay&&a.pay.sentAt||0));
   if(cl.length)h+=box('j-pay','lock','ลูกค้าหน้าร้านส่งสลิป ขอรับแต้ม',cl,b=>`<div class="jrow">${who(b,`<small>ยอด ${baht((b.pay||{}).amount||0)} ฿ · ตัดหน้าร้าน</small>`)}<button class="jbtn start" data-slipcheck="${b.id}">ตรวจ / ยืนยัน</button></div>`,'');
@@ -4746,7 +4748,27 @@ async function pushEnable(pk,btn){try{if(btn)btn.disabled=true;
     toast('เปิดแจ้งเตือนแล้ว ลองดูแจ้งเตือนทดสอบบนมือถือ');if(lastBooking)renderCustomer();renderMyOut()}
   catch(e){toast('เปิดแจ้งเตือนไม่สำเร็จ ลองใหม่อีกครั้ง')}finally{if(btn&&btn.isConnected)btn.disabled=false}}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-pushon]');if(t)pushEnable(t.dataset.pushon,t)});
-try{const v=new URLSearchParams(location.search).get('v');if(v){history.replaceState(null,'',location.pathname);if(v==='mine'&&!user)setTimeout(()=>{try{setView('mine')}catch(_){}},400)}}catch(_){}
+// shop side: owner / admin / barber turns on notifications for their own phone
+function staffSid(){return !user?'':user.role==='owner'?(user.admin||'owner'):(user.id||'')}
+function staffPushCardHTML(){if(!BACKEND()||!user)return '';const sid=staffSid();if(!sid)return '';
+  let me=null;try{me=JSON.parse(localStorage.getItem('barber-push-staff')||'null')}catch(_){}
+  if(pushOK()&&Notification.permission==='granted'&&me&&me.sid===sid)return '';
+  if(!pushOK())return pushIOSNeedsHome()?`<div class="pushcard"><b>${ic('bell',18)} ให้คิวใหม่เด้งบนมือถือ</b><small>บน iPhone/iPad: กด <b>แชร์</b> → <b>เพิ่มไปยังหน้าจอโฮม</b> แล้วเปิดแอพจากไอคอน DI-CUT ล็อกอินแล้วกดเปิดแจ้งเตือนที่นี่</small></div>`:'';
+  if(Notification.permission==='denied')return `<div class="pushcard"><b>${ic('bell',18)} แจ้งเตือนถูกปิดไว้</b><small>เปิดได้ที่การตั้งค่าเครื่อง → การแจ้งเตือน</small></div>`;
+  return `<div class="pushcard"><b>${ic('bell',18)} ให้คิวใหม่เด้งบนมือถือเครื่องนี้</b><small>${user.role==='owner'?'แจ้งทุกคิวใหม่ ลูกค้าแนบสลิป ยกเลิกคิว และขอรับแต้ม':'แจ้งเมื่อมีคิวใหม่ของคุณ ถึงเวลาคิว สลิป และลูกค้าขอรับแต้ม'}</small><button class="primary" data-pushstaff>เปิดแจ้งเตือน</button></div>`}
+async function pushEnableStaff(btn){const sid=staffSid();if(!sid)return;try{if(btn)btn.disabled=true;
+    const perm=await Notification.requestPermission();if(perm!=='granted'){toast('ยังไม่ได้อนุญาตแจ้งเตือน');return}
+    const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+    const k=await api({a:'pushkey'});if(!k||!k.key)throw new Error('key');
+    let sub=await reg.pushManager.getSubscription();
+    if(sub&&sub.options&&sub.options.applicationServerKey){const a=new Uint8Array(sub.options.applicationServerKey),b=b64u(k.key);if(a.length!==b.length||a.some((x,i)=>x!==b[i])){await sub.unsubscribe();sub=null}}
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k.key)});
+    const r=await api({a:'pushsubstaff',key:L().key,staffId:sid,sub:sub.toJSON(),test:true});if(!r||!r.ok)throw new Error(r&&r.why||'sub');
+    try{localStorage.setItem('barber-push-staff',JSON.stringify({sid,at:Date.now()}))}catch(_){}
+    toast('เปิดแจ้งเตือนแล้ว ลองดูแจ้งเตือนทดสอบบนมือถือ');renderAdmin()}
+  catch(e){toast('เปิดแจ้งเตือนไม่สำเร็จ ลองใหม่อีกครั้ง')}finally{if(btn&&btn.isConnected)btn.disabled=false}}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-pushstaff]');if(t)pushEnableStaff(t)});
+try{const v=new URLSearchParams(location.search).get('v');if(v){history.replaceState(null,'',location.pathname);if(v==='mine'&&!user)setTimeout(()=>{try{setView('mine')}catch(_){}},400);if(v==='today'&&user)setTimeout(()=>{try{setView('today')}catch(_){}},400)}}catch(_){}
 window.__appReady=1;
 </script>
 </body>

@@ -388,4 +388,19 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   n = pushes.length; await core.tick(); await core.tick();
   ok(pushes.slice(n).filter(p => /1 ชั่วโมง/.test(p.msg.title)).length === 1, 'reminder about an hour before, sent once');
 }
+{ // phone notifications for owner and barbers
+  const sub = ep => ({ endpoint: 'https://push.example/' + ep, keys: { p256dh: 'BPk', auth: 'au' } });
+  await post({ a: 'config', key: KEY, cfg: Object.assign({}, cfg, { notify: {}, barbers: [{ id: 'b1', name: 'ช่างเอ' }, { id: 'b2', name: 'ช่างบอส' }] }) });
+  ok((await post({ a: 'pushsubstaff', staffId: 'b1', sub: sub('s1') })).ok === false, 'staff subscribe needs the staff key');
+  ok((await post({ a: 'pushsubstaff', key: KEY, staffId: 'nobody', sub: sub('s0') })).ok === false, 'unknown staff refused');
+  await post({ a: 'pushsubstaff', key: KEY, staffId: 'b1', sub: sub('s-b1') });
+  await post({ a: 'pushsubstaff', key: KEY, staffId: 'b2', sub: sub('s-b2') });
+  await post({ a: 'pushsubstaff', key: KEY, staffId: 'owner', sub: sub('s-own') });
+  let n = pushes.length;
+  await post({ a: 'create', booking: { id: 'SP1', date: core.todayKey(), start: core.nowMin() + 700, dur: 30, barberId: 'b1', serviceId: 'cut', services: ['cut'], name: 'สต๊าฟ', phone: '0865550099' } });
+  const got = pushes.slice(n).filter(p => /คิวใหม่/.test(p.msg.title)).map(p => p.ep.split('/').pop()).sort();
+  ok(got.join() === 's-b1,s-own', "new booking pops on that barber's and the owner's phone, not other barbers");
+  n = pushes.length; await post({ a: 'cancel', id: 'SP1', phone: '0865550099' });
+  ok(pushes.slice(n).some(p => /ยกเลิก/.test(p.msg.title) && /s-b1/.test(p.ep)), 'customer cancel pops on the barber phone');
+}
 console.log('\n' + pass + ' checks passed');

@@ -1748,6 +1748,8 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -4301,7 +4303,7 @@ function lineStatHTML(){const l=L();
 function lineGroupHTML(){
   const l=L(), g=l.group||{}, m=l.notifyTo||'group';
   const opt=(v,t,sub)=>`<label class="ltog"><input type="radio" name="lnto" data-lnto="${v}" ${m===v?'checked':''}><span><b>${t}</b><small>${sub}</small></span></label>`;
-  return `<h4 class="lh">ตรวจสถานะ LINE</h4><div class="ldiag"><button class="primary" id="lDiag">${ic('search',16)} ตรวจสถานะ LINE ตอนนี้</button><div id="lDiagOut" aria-live="polite"></div></div>
+  return `<h4 class="lh">ตรวจสถานะ LINE</h4><div class="ldiag"><button class="primary" id="lDiag">${ic('search',16)} ตรวจสถานะ LINE ตอนนี้</button><div id="lDiagOut" aria-live="polite"></div></div><div class="ldiag" style="margin-top:10px"><button class="ghost" id="lResend" style="width:100%">${ic('send',16)} ส่งรายการคิวที่จองไว้เข้า LINE อีกครั้ง</button><p class="hint" style="margin-top:6px">ใช้ตอนต้นเดือนหลังโควตา LINE กลับมา หรือแจ้งเตือนไม่เข้า ส่งเป็นข้อความสรุป 1 ข้อความ (ประหยัดโควตา)</p><div id="lResendOut" aria-live="polite"></div></div>
   <h4 class="lh">ส่งเข้ากลุ่ม LINE</h4>
     <div class="lgroup ${g.linked?'on':''}">${g.linked?`<p><b>${ic('check',16)} ผูกกลุ่ม LINE แล้ว</b><small>คิวใหม่ ถึงคิว และลูกค้ามาช้า จะแจ้งเข้ากลุ่มนี้</small></p><div class="uplrow"><button class="ghost" data-lgroup="test">ทดสอบส่งเข้ากลุ่ม</button><button class="ghost gdel" data-lgroup="unlink">ยกเลิกกลุ่ม</button></div>`
       :`<ol class="lgsteps"><li>เปิด LINE OA ของร้านใน manager.line.biz &gt; ตั้งค่า &gt; ตั้งค่าบัญชี &gt; <b>อนุญาตให้เข้าร่วมกลุ่ม</b></li><li>เชิญบัญชี LINE OA เข้ากลุ่มช่างที่ต้องการ</li><li>พิมพ์ในกลุ่ม: <code>ผูกกลุ่ม ${esc(g.code||'······')}</code> <button class="linkbtn" data-lcopy="ผูกกลุ่ม ${esc(g.code||'')}">คัดลอก</button></li></ol><button class="linkbtn" data-lgroup="refresh">เช็กสถานะอีกครั้ง</button>`}</div>
@@ -4769,6 +4771,11 @@ async function pushEnableStaff(btn){const sid=staffSid();if(!sid)return;try{if(b
   catch(e){toast('เปิดแจ้งเตือนไม่สำเร็จ ลองใหม่อีกครั้ง')}finally{if(btn&&btn.isConnected)btn.disabled=false}}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-pushstaff]');if(t)pushEnableStaff(t)});
 try{const v=new URLSearchParams(location.search).get('v');if(v){history.replaceState(null,'',location.pathname);if(v==='mine'&&!user)setTimeout(()=>{try{setView('mine')}catch(_){}},400);if(v==='today'&&user)setTimeout(()=>{try{setView('today')}catch(_){}},400)}}catch(_){}
+document.addEventListener('click',async e=>{const t=e.target.closest('#lResend');if(!t||!isOwner())return;const o=document.getElementById('lResendOut');
+  t.disabled=true;if(o)o.innerHTML='<p class="hint">กำลังส่ง…</p>';
+  try{const r=await api({a:'lineresend',key:L().key});
+    if(o)o.innerHTML=r&&r.ok?`<p class="okmsg">ส่งแล้ว ${r.count} คิว ${r.sent&&r.sent.to==='group'?'เข้ากลุ่ม LINE':'ถึงเจ้าของร้าน'}</p>`:`<p class="err">ส่งไม่สำเร็จ${r&&r.sent&&r.sent.error?' · '+esc(/LINE \d+/.test(r.sent.error)?(lineErrTH({status:+(/LINE (\d+)/.exec(r.sent.error)[1]),error:r.sent.error})||r.sent.error):r.sent.error):''}</p>`}
+  catch(_){if(o)o.innerHTML='<p class="err">เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง</p>'}finally{t.disabled=false}});
 window.__appReady=1;
 </script>
 </body>

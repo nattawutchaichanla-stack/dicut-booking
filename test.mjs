@@ -403,4 +403,10 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   n = pushes.length; await post({ a: 'cancel', id: 'SP1', phone: '0865550099' });
   ok(pushes.slice(n).some(p => /ยกเลิก/.test(p.msg.title) && /s-b1/.test(p.ep)), 'customer cancel pops on the barber phone');
 }
+{ // resend a summary of upcoming queues to LINE (new month, quota back)
+  ok((await post({ a: 'lineresend' })).ok === false, 'resend needs the staff key');
+  const n = sent.length; const r = await post({ a: 'lineresend', key: KEY });
+  const m = sent.slice(n).find(x => x.kind === 'push' && /รายการคิวที่จองไว้/.test((x.messages[0] || {}).text || ''));
+  ok(r.ok && r.count > 0 && m && m.messages.length >= 1 && /•/.test(m.messages[0].text), 'one summary message with every upcoming queue');
+}
 console.log('\n' + pass + ' checks passed');

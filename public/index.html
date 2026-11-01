@@ -1750,6 +1750,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -4616,7 +4617,7 @@ function vLocal(b){const S=vStore(),all=Object.values(S);
   if(b.a==='vcheck'){if(!b.key&&phoneKey(b.phone||'')!==v.phone)return{ok:false,why:'not_yours'};return{ok:true,voucher:vPub(v)}}
   if(b.a==='vuse'){if(v.usedAt)return{ok:false,why:'used',voucher:vPub(v)};Object.assign(v,{usedAt:Date.now(),usedVia:'shop',usedBy:b.by||''});vSave(S);return{ok:true,voucher:vPub(v)}}
   return{ok:false}}
-async function vApi(b){if(BACKEND()){try{return await api(b)}catch(_){return{ok:false,why:'net'}}}return vLocal(b)}
+async function vApi(b){if(backendOn()){try{return await api(b)}catch(_){return{ok:false,why:'net'}}}return vLocal(b)}
 const V_WHY={phone:'ใส่เบอร์โทรให้ครบ 10 หลัก',inactive:'โปรนี้ปิดหรือหมดเขตแล้ว',full:'สิทธิ์เต็มแล้ว ขอบคุณที่สนใจ',unknown:'ไม่พบโค้ดนี้ ตรวจตัวอักษรอีกครั้ง',not_yours:'โค้ดนี้เป็นของเบอร์อื่น ใช้ได้เฉพาะเจ้าของโค้ด',used:'โค้ดนี้ใช้ไปแล้ว',net:'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง',need_phone:'ใส่เบอร์โทรด้านล่างก่อน แล้วกดใช้โค้ดอีกครั้ง'};
 // booking: check the typed code belongs to this phone and is still unused
 async function vApply(raw){const code=vNorm(raw);sel.code=code;
@@ -4731,7 +4732,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||
 function pushIOSNeedsHome(){const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);return ios&&!(navigator.standalone||matchMedia('(display-mode: standalone)').matches)}
 function pushOK(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
 function pushMine(){try{return JSON.parse(localStorage.getItem('barber-push')||'null')}catch(_){return null}}
-function pushCardHTML(phone){if(!BACKEND()||user)return '';const pk=phoneKey(phone||'');if(pk.length<9)return '';
+function backendOn(){try{return !!BACKEND()}catch(_){return false}} // safe during startup (BACKEND is defined further down)
+function pushCardHTML(phone){if(!backendOn()||user)return '';const pk=phoneKey(phone||'');if(pk.length<9)return '';
   const me=pushMine();
   if(pushOK()&&Notification.permission==='granted'&&me&&me.phone===pk)return `<p class="pushok">${ic('bell',15)} เปิดแจ้งเตือนบนมือถือแล้ว · แจ้งเมื่อช่างรับคิว ยืนยันการโอน และก่อนถึงคิว 1 ชม.</p>`;
   if(!pushOK())return pushIOSNeedsHome()?`<div class="pushcard"><b>${ic('bell',18)} อยากได้แจ้งเตือนเด้งบนมือถือ?</b><small>บน iPhone/iPad: กดปุ่ม <b>แชร์</b> ในเบราว์เซอร์ → <b>เพิ่มไปยังหน้าจอโฮม</b> แล้วเปิดแอพจากไอคอน DI-CUT จากนั้นกดเปิดแจ้งเตือนที่หน้านี้</small></div>`:'';
@@ -4752,7 +4754,7 @@ async function pushEnable(pk,btn){try{if(btn)btn.disabled=true;
 document.addEventListener('click',e=>{const t=e.target.closest('[data-pushon]');if(t)pushEnable(t.dataset.pushon,t)});
 // shop side: owner / admin / barber turns on notifications for their own phone
 function staffSid(){return !user?'':user.role==='owner'?(user.admin||'owner'):(user.id||'')}
-function staffPushCardHTML(){if(!BACKEND()||!user)return '';const sid=staffSid();if(!sid)return '';
+function staffPushCardHTML(){if(!backendOn()||!user)return '';const sid=staffSid();if(!sid)return '';
   let me=null;try{me=JSON.parse(localStorage.getItem('barber-push-staff')||'null')}catch(_){}
   if(pushOK()&&Notification.permission==='granted'&&me&&me.sid===sid)return '';
   if(!pushOK())return pushIOSNeedsHome()?`<div class="pushcard"><b>${ic('bell',18)} ให้คิวใหม่เด้งบนมือถือ</b><small>บน iPhone/iPad: กด <b>แชร์</b> → <b>เพิ่มไปยังหน้าจอโฮม</b> แล้วเปิดแอพจากไอคอน DI-CUT ล็อกอินแล้วกดเปิดแจ้งเตือนที่นี่</small></div>`:'';

@@ -1732,7 +1732,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .payhead .advoff{display:inline-flex!important;flex-direction:row;align-self:flex-start;width:fit-content}
 
 /* packages */
-.ad.ad-pkg:not(.has-img),.addet-hero.ad-pkg{background:linear-gradient(135deg,#0d3aa3,#1f5fe0 55%,#F2D676 140%)}
+.ad.ad-pkg:not(.has-img),.addet-hero.ad-pkg:not(.has-img){background:linear-gradient(135deg,#0d3aa3,#1f5fe0 55%,#F2D676 140%)}
 .ad.ad-pkg .ad-kicker{display:inline-flex;align-items:center;gap:5px}
 .pklist{display:grid;gap:8px}
 .pkrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -1745,6 +1745,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .jrow.pkpend{align-items:center;gap:10px}.jrow.pkpend .slipthumb{width:48px;height:64px;object-fit:cover;border-radius:8px}
 .pkact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 </style>
+
 
 
 
@@ -4862,8 +4863,8 @@ function pkgSlideHTML(k,preview){const img=okImg(k.img);
   return `<article class="ad ad-pkg ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''} ${preview?'':`data-addetail="k:${k.id}" tabindex="0" role="button" aria-label="แพคเกจ ${esc(k.title)}"`}><div class="ad-body"><span class="ad-kicker">${ic('ticket',13)} แพคเกจเหมา</span>
     <span class="ad-val">${baht(+k.price||0)} ฿</span><h3>${esc(k.title||'ชื่อแพคเกจ')}</h3><p>${esc(k.desc||('ใช้ได้ '+pkUses(k)+' ครั้ง · '+pkSvcTxt(k)))}</p>${+k.months>0?`<small>ใช้ได้ ${+k.months} เดือนหลังร้านยืนยัน</small>`:''}
     <button class="ad-cta" ${preview?'tabindex="-1"':`data-pkbuy="${k.id}"`}>ซื้อแพคเกจ</button></div><span class="ad-more" aria-hidden="true">ดูรายละเอียด ›</span></article>`}
-function openPkgDetail(id){const k=pkgs().find(x=>x.id===id);if(!k)return;const w=pkWorth(k);
-  showSheet(`<div class="addet-hero ad-pkg"><span class="ad-kicker">${ic('ticket',13)} แพคเกจเหมา</span><span class="ad-val">${baht(+k.price||0)} ฿</span><b>${esc(k.title)}</b></div>
+function openPkgDetail(id){const k=pkgs().find(x=>x.id===id);if(!k)return;const w=pkWorth(k),img=okImg(k.img);
+  showSheet(`<div class="addet-hero ad-pkg ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''}><span class="ad-kicker">${ic('ticket',13)} แพคเกจเหมา</span><span class="ad-val">${baht(+k.price||0)} ฿</span><b>${esc(k.title)}</b></div>
     ${k.desc?`<p class="bio">${esc(k.desc)}</p>`:''}
     <p class="psub">รายละเอียด</p><ul class="addet-list"><li>ใช้ได้ ${pkUses(k)} ครั้ง${+k.free>0?` (ตัด ${+k.cuts} ฟรี ${+k.free})`:''}</li><li>ใช้กับ: ${esc(pkSvcTxt(k))}</li>
     ${w>+k.price?`<li>ปกติ ${baht(w)} ฿ ประหยัด ${baht(w-(+k.price||0))} ฿</li>`:''}<li>${+k.months>0?'อายุ '+(+k.months)+' เดือน นับจากวันที่ร้านยืนยัน':'ไม่มีวันหมดอายุ'}</li>
@@ -4932,25 +4933,31 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
 // owner: create / edit packages
 function pkgAdminHTML(){const L0=pkgs();
   return `<h2 class="sech">แพคเกจเหมา</h2><section class="step"><p class="hint" style="margin-bottom:10px">เช่น ตัด 6 ฟรี 1 ราคา 900 ฿ · ลูกค้าซื้อในแอพ (โอน+แนบสลิป แล้วร้านกดยืนยัน) หรือขายที่ร้านในโปรไฟล์ลูกค้า</p><div class="plist">`
-    +(L0.map(k=>`<div class="prow ${k.active!==false?'':'off'}"><div class="pinfo"><span class="pval">${baht(+k.price||0)} ฿</span><b>${esc(k.title)}</b><small>${pkUses(k)} ครั้ง · ${esc(pkSvcTxt(k))} · ${+k.months>0?'อายุ '+(+k.months)+' เดือน':'ไม่หมดอายุ'}</small></div>
+    +(L0.map(k=>`<div class="prow ${k.active!==false?'':'off'}">${k.img?`<span class="pthumb" style="background-image:url('${k.img}')"></span>`:''}<div class="pinfo"><span class="pval">${baht(+k.price||0)} ฿</span><b>${esc(k.title)}</b><small>${pkUses(k)} ครั้ง · ${esc(pkSvcTxt(k))} · ${+k.months>0?'อายุ '+(+k.months)+' เดือน':'ไม่หมดอายุ'}</small></div>
       <div class="pact"><button class="ghost" data-kgtoggle="${k.id}">${k.active!==false?'ปิดขาย':'เปิดขาย'}</button><button class="ghost" data-kgedit="${k.id}">แก้ไข</button></div></div>`).join('')||'<p class="hint">ยังไม่มีแพคเกจ</p>')
     +`</div><button class="primary" data-kgedit="new" style="margin-top:12px">${ic('plus',18)}สร้างแพคเกจ</button></section>`}
-function openPkgForm(id){if(!isOwner())return;const k=id==='new'?{id:'',title:'ตัด 6 ฟรี 1',cuts:6,free:1,price:900,services:['cut'].filter(x=>cfg.services.some(s=>s.id===x)),months:6,desc:'',active:true}:pkgs().find(x=>x.id===id);if(!k)return;
+var kgImg;
+document.addEventListener('change',async e=>{if(e.target.id!=='kgFile'||!e.target.files[0])return;
+  try{kgImg=await fileToBanner(e.target.files[0]);const pv=document.getElementById('kgPrev');pv.style.backgroundImage=`url('${kgImg}')`;pv.textContent='';toast('ใส่รูปแล้ว กดบันทึกเพื่อใช้')}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
+function openPkgForm(id){if(!isOwner())return;kgImg=undefined;const k=id==='new'?{id:'',title:'ตัด 6 ฟรี 1',cuts:6,free:1,price:900,services:['cut'].filter(x=>cfg.services.some(s=>s.id===x)),months:6,desc:'',active:true}:pkgs().find(x=>x.id===id);if(!k)return;
   showSheet(`<h3>${id==='new'?'สร้างแพคเกจ':'แก้ไขแพคเกจ'}</h3><div class="form kgform" style="margin-top:8px">
     <label>ชื่อแพคเกจ<input id="kgTitle" value="${esc(k.title)}" maxlength="40" placeholder="เช่น ตัด 6 ฟรี 1"></label>
     <div class="two"><label>จำนวนครั้งที่จ่าย<input id="kgCuts" type="number" min="1" max="50" value="${+k.cuts||1}"></label><label>แถมฟรี (ครั้ง)<input id="kgFree" type="number" min="0" max="20" value="${+k.free||0}"></label></div>
     <div class="two"><label>ราคาแพคเกจ (฿)<input id="kgPrice" type="number" min="1" step="10" value="${+k.price||0}"></label><label>อายุ (เดือน, 0 = ไม่หมดอายุ)<input id="kgMonths" type="number" min="0" max="36" value="${+k.months||0}"></label></div>
     <fieldset><legend>ใช้กับบริการ (ไม่เลือก = ทุกบริการ)</legend>${cfg.services.map(x=>`<label class="ckl"><input type="checkbox" name="kgsvc" value="${x.id}" ${(k.services||[]).includes(x.id)?'checked':''}>${esc(x.name)} · ${baht(x.price)} ฿</label>`).join('')}</fieldset>
     <label>ข้อความสั้น (ไม่บังคับ)<input id="kgDesc" value="${esc(k.desc||'')}" maxlength="90" placeholder="เช่น คุ้มกว่า ตัดได้ทั้งครอบครัว"></label>
+    <div class="adimg"><span>รูปแพคเกจ (ไม่บังคับ แนวนอน 2:1 ขึ้นในแบนเนอร์)</span><div class="adprev" id="kgPrev" ${k.img?`style="background-image:url('${k.img}')"`:''}>${k.img?'':'ยังไม่มีรูป ใช้แบนเนอร์สีน้ำเงินแทน'}</div><div class="uplrow"><label class="upl">${k.img?'เปลี่ยนรูป':'อัปโหลดรูป'}<input type="file" accept="image/*" id="kgFile"></label>${k.img?'<button class="ghost" id="kgRm" type="button">ลบรูป</button>':''}</div></div>
     <p class="err" id="kgErr" hidden></p><button class="primary" data-kgsave="${id}">บันทึกแพคเกจ</button>
     ${id!=='new'?`<button class="ghost" data-kgdel="${id}" style="color:var(--danger)">ลบแพคเกจ</button>`:''}<button class="ghost" data-close>ยกเลิก</button></div>`)}
 function savePkg(id){const g=x=>document.getElementById(x),err=m=>{const e=g('kgErr');e.textContent=m;e.hidden=false};
   const d={title:g('kgTitle').value.trim(),cuts:Math.round(+g('kgCuts').value),free:Math.max(0,Math.round(+g('kgFree').value)||0),price:Math.round(+g('kgPrice').value),months:Math.max(0,Math.round(+g('kgMonths').value)||0),desc:g('kgDesc').value.trim(),services:[...document.querySelectorAll('input[name=kgsvc]:checked')].map(i=>i.value)};
   if(!d.title)return err('ใส่ชื่อแพคเกจ');if(!(d.cuts>=1))return err('จำนวนครั้งต้องอย่างน้อย 1');if(!(d.price>0))return err('ใส่ราคาแพคเกจ');
+  if(kgImg!==undefined)d.img=kgImg;
   if(id==='new')pkgs().push({id:uid('k'),active:true,...d});else Object.assign(pkgs().find(x=>x.id===id),d);
   saveCfg();dlg.close();renderPromos();renderCustomer();toast('บันทึกแพคเกจแล้ว')}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||!isOwner())return;
   if(t.dataset.kgedit){openPkgForm(t.dataset.kgedit);return}
+  if(t.id==='kgRm'){kgImg='';const pv=document.getElementById('kgPrev');pv.style.backgroundImage='';pv.textContent='ยังไม่มีรูป ใช้แบนเนอร์สีน้ำเงินแทน';return}
   if(t.dataset.kgsave){savePkg(t.dataset.kgsave);return}
   if(t.dataset.kgtoggle){const k=pkgs().find(x=>x.id===t.dataset.kgtoggle);if(!k)return;k.active=k.active===false;saveCfg();renderPromos();renderCustomer();toast(k.active?'เปิดขายแพคเกจแล้ว':'ปิดขายแพคเกจแล้ว');return}
   if(t.dataset.kgdel){if(!confirm('ลบแพคเกจนี้? ลูกค้าที่ซื้อไปแล้วยังใช้ได้ตามเดิม'))return;cfg.packages=pkgs().filter(x=>x.id!==t.dataset.kgdel);saveCfg();dlg.close();renderPromos();renderCustomer()}});

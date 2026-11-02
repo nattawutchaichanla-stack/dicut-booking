@@ -1744,7 +1744,12 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .ckl.pkuse span{display:grid;gap:2px}.ckl.pkuse small{color:var(--muted)}.ckl.pkuse input{margin-top:3px;width:20px;height:20px;flex:none}
 .jrow.pkpend{align-items:center;gap:10px}.jrow.pkpend .slipthumb{width:48px;height:64px;object-fit:cover;border-radius:8px}
 .pkact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+
+.pkterms{margin:6px 0 4px 18px;display:grid;gap:5px;font-size:.88rem;line-height:1.5;color:var(--ink)}
+.pktermsbox{margin:12px 0 4px;padding:10px 14px;border-radius:14px;background:var(--chip);border:1px solid var(--line)}
+.pktermsbox summary{cursor:pointer;font-weight:600}
 </style>
+
 
 
 
@@ -4855,6 +4860,17 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='crNa
 function stampTH(ts){try{const d=new Date(+ts);return d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})+' เวลา '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})+' น.'}catch(_){return ''}}
 /* ---------- prepaid packages (e.g. ตัด 6 ฟรี 1 ราคา 900 ฿) ---------- */
 function pkgs(){return Array.isArray(cfg.packages)?cfg.packages:(cfg.packages=[])}
+function pkTermsDefault(k){const m=+k.months||0;return [
+  'แพคเกจผูกกับเบอร์โทรที่ซื้อ ใช้ได้เฉพาะเจ้าของเบอร์ โอนหรือแบ่งให้ผู้อื่นไม่ได้',
+  'ใช้ได้กับบริการ: '+pkSvcTxt(k)+' เท่านั้น ถ้าเพิ่มบริการอื่นหรือทรงที่ราคาสูงกว่า จ่ายส่วนต่างตามราคาปกติ',
+  m>0?'ใช้ได้ภายใน '+m+' เดือน นับจากวันที่ร้านยืนยัน ครั้งที่เหลือเมื่อหมดอายุถือว่าสละสิทธิ์':'ไม่มีวันหมดอายุ',
+  'ใช้ได้ครั้งละ 1 คิว ต่อการตัด 1 ครั้ง',
+  'จองผ่านแอพแล้วยกเลิกได้ตามเวลาที่กำหนด สิทธิ์จะคืนเข้าแพคเกจ ถ้าไม่มาตามนัดโดยไม่แจ้ง หัก 1 ครั้ง',
+  'ใช้ร่วมกับโปรโมชั่นหรือส่วนลดอื่นไม่ได้ และครั้งที่ใช้แพคเกจไม่นับแต้มสะสม',
+  'ซื้อแล้วไม่คืนเงิน และแลกเป็นเงินสดไม่ได้',
+  'ร้านขอสงวนสิทธิ์ปรับเงื่อนไขสำหรับการขายครั้งต่อไป โดยไม่กระทบแพคเกจที่ซื้อไปแล้ว'].join('\n')}
+function pkTerms(k){return (k.terms&&k.terms.trim())||pkTermsDefault(k)}
+const pkTermsHTML=k=>`<ol class="pkterms">${pkTerms(k).split(/\n+/).map(l=>l.replace(/^\s*\d+[.)]\s*/,'').trim()).filter(Boolean).map(l=>`<li>${esc(l)}</li>`).join('')}</ol>`;
 function livePkgs(){return backendOn()?pkgs().filter(k=>k.active!==false):[]}
 function pkUses(k){return (+k.cuts||0)+(+k.free||0)}
 function pkSvcTxt(k){return k.services&&k.services.length?k.services.map(id=>svc(id).name).join(', '):'ทุกบริการ'}
@@ -4868,7 +4884,8 @@ function openPkgDetail(id){const k=pkgs().find(x=>x.id===id);if(!k)return;const 
     ${k.desc?`<p class="bio">${esc(k.desc)}</p>`:''}
     <p class="psub">รายละเอียด</p><ul class="addet-list"><li>ใช้ได้ ${pkUses(k)} ครั้ง${+k.free>0?` (ตัด ${+k.cuts} ฟรี ${+k.free})`:''}</li><li>ใช้กับ: ${esc(pkSvcTxt(k))}</li>
     ${w>+k.price?`<li>ปกติ ${baht(w)} ฿ ประหยัด ${baht(w-(+k.price||0))} ฿</li>`:''}<li>${+k.months>0?'อายุ '+(+k.months)+' เดือน นับจากวันที่ร้านยืนยัน':'ไม่มีวันหมดอายุ'}</li>
-    <li>จองในแอพ ระบบหักแพคเกจให้อัตโนมัติ ไม่ต้องจ่ายเพิ่ม · มาที่ร้านบอกช่างได้เลย</li><li>ซื้อแล้วไม่คืนเงิน ใช้ได้เฉพาะเบอร์ที่ซื้อ</li></ul>
+    <li>จองในแอพ ระบบหักแพคเกจให้อัตโนมัติ ไม่ต้องจ่ายเพิ่ม · มาที่ร้านบอกช่างได้เลย</li></ul>
+    <p class="psub">เงื่อนไขการใช้แพคเกจ</p>${pkTermsHTML(k)}
     <div class="actions"><button class="okb" data-pkbuy="${k.id}" style="grid-column:1/-1">ซื้อแพคเกจ ${baht(+k.price||0)} ฿</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
 // customer buys in the app: transfer + slip -> shop confirms
 var pkDraft=null;
@@ -4879,18 +4896,20 @@ function renderPkBuy(){const d=pkDraft;if(!d)return;const k=pkgs().find(x=>x.id=
     <p class="hint">แพคเกจผูกกับเบอร์นี้ ใช้จองหรือบอกช่างที่ร้านได้เลย</p>
     ${shopQRCard(+k.price||0)}
     <label class="upl clslip">${d.slip?'เปลี่ยนรูปสลิป':ic('image',18)+' แนบสลิปโอน '+baht(+k.price||0)+' ฿'}<input type="file" accept="image/*" id="pbSlip"></label>
-    ${d.slip?`<img src="${esc(d.slip)}" class="slipthumb" alt="สลิปที่แนบ">`:''}<p class="hint">ซื้อแล้วไม่คืนเงิน · ร้านตรวจสลิปแล้วแพคเกจพร้อมใช้ทันที</p><p class="err" id="pbErr" hidden></p></div>
+    ${d.slip?`<img src="${esc(d.slip)}" class="slipthumb" alt="สลิปที่แนบ">`:''}
+    <details class="pktermsbox" open><summary>เงื่อนไขการใช้แพคเกจ</summary>${pkTermsHTML(k)}</details>
+    <label class="ckl norefund"><input type="checkbox" id="pbAgree" ${d.agree?'checked':''}> <span><b>ฉันอ่านและยอมรับเงื่อนไขแพคเกจ</b><small>รวมถึงซื้อแล้วไม่คืนเงิน · ร้านตรวจสลิปแล้วแพคเกจพร้อมใช้ทันที</small></span></label><p class="err" id="pbErr" hidden></p></div>
     <div class="actions"><button class="okb" id="pbGo" style="grid-column:1/-1" ${d.slip?'':'aria-disabled="true"'}>ส่งสลิปซื้อแพคเกจ</button><button data-close style="grid-column:1/-1">ยกเลิก</button></div>`)}
-var PK_WHY={phone:'ใส่เบอร์โทรให้ครบ',name:'ใส่ชื่อเล่น',slip:'แนบสลิปก่อน',inactive:'แพคเกจนี้ปิดแล้ว',unknown:'ไม่พบแพคเกจ',empty:'แพคเกจใช้ครบหรือหมดอายุแล้ว',done:'รายการนี้ยืนยันไปแล้ว',net:'เชื่อมต่อไม่ได้ ลองใหม่'};
+var PK_WHY={terms:'กรุณาติ๊กยอมรับเงื่อนไขแพคเกจก่อน',phone:'ใส่เบอร์โทรให้ครบ',name:'ใส่ชื่อเล่น',slip:'แนบสลิปก่อน',inactive:'แพคเกจนี้ปิดแล้ว',unknown:'ไม่พบแพคเกจ',empty:'แพคเกจใช้ครบหรือหมดอายุแล้ว',done:'รายการนี้ยืนยันไปแล้ว',net:'เชื่อมต่อไม่ได้ ลองใหม่'};
 document.addEventListener('change',async e=>{if(e.target.id!=='pbSlip'||!pkDraft||!e.target.files[0])return;
-  try{pkDraft.name=document.getElementById('pbName').value;pkDraft.phone=document.getElementById('pbPhone').value;pkDraft.slip=await fileToSlip(e.target.files[0]);renderPkBuy()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
+  try{pkDraft.name=document.getElementById('pbName').value;pkDraft.phone=document.getElementById('pbPhone').value;pkDraft.agree=document.getElementById('pbAgree').checked;pkDraft.slip=await fileToSlip(e.target.files[0]);renderPkBuy()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
 async function pkApi(b){try{return await api(b)}catch(_){return{ok:false,why:'net'}}}
 document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.pkbuy){e.stopPropagation();openPkBuy(t.dataset.pkbuy);return}
   if(t.id==='pbGo'&&pkDraft){const d=pkDraft,f=m=>{const x=document.getElementById('pbErr');x.textContent=m;x.hidden=false};
     d.name=document.getElementById('pbName').value.trim();d.phone=document.getElementById('pbPhone').value.trim();
-    if(!d.name)return f(PK_WHY.name);if(phoneKey(d.phone).length<9)return f(PK_WHY.phone);if(!d.slip)return f(PK_WHY.slip);
-    t.disabled=true;const r=await pkApi({a:'pkbuy',pkgId:d.id,name:d.name,phone:phoneKey(d.phone),slip:d.slip});t.disabled=false;
+    d.agree=document.getElementById('pbAgree').checked;if(!d.name)return f(PK_WHY.name);if(phoneKey(d.phone).length<9)return f(PK_WHY.phone);if(!d.slip)return f(PK_WHY.slip);if(!d.agree)return f(PK_WHY.terms);
+    t.disabled=true;const kk=pkgs().find(x=>x.id===d.id)||{};const r=await pkApi({a:'pkbuy',pkgId:d.id,name:d.name,phone:phoneKey(d.phone),slip:d.slip,agree:true,terms:pkTerms(kk)});t.disabled=false;
     if(!r||!r.ok)return f(PK_WHY[r&&r.why]||'ส่งไม่สำเร็จ ลองใหม่อีกครั้ง');
     pkDraft=null;sel.pkVk=null;
     showSheet(`<h3>ส่งสลิปแล้ว 🎉</h3><p class="psub">${esc(r.pkg.title)} · ${baht(r.pkg.price)} ฿</p><div class="vbig sm"><b>${esc(r.pkg.id)}</b><small>รอร้านตรวจสลิป แล้วแพคเกจจะพร้อมใช้ ${r.pkg.uses} ครั้ง</small></div>
@@ -4926,8 +4945,8 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
   if(t.dataset.pkok||t.dataset.pkno){const [ph,id]=(t.dataset.pkok||t.dataset.pkno).split('|');if(t.dataset.pkno&&!confirm('แจ้งว่าสลิปไม่ถูกต้อง?'))return;t.disabled=true;
     const r=await pkApi({a:'pkconfirm',key:L().key,phone:ph,id,ok:!!t.dataset.pkok,by});toast(r&&r.ok?(t.dataset.pkok?'ยืนยันแล้ว แพคเกจพร้อมใช้':'แจ้งลูกค้าแล้ว'):PK_WHY[r&&r.why]||'ไม่สำเร็จ');pkPendLoad(true);return}
   if(t.dataset.pksell){const [k,pid]=t.dataset.pksell.split('|'),p=pkgs().find(x=>x.id===pid),c=customers[k]||{};if(!p)return;
-    if(!confirm(`ขาย ${p.title} ${baht(+p.price||0)} ฿ ให้ ${c.name||k}?\nรับเงินแล้ว (เงินสดหรือโอน)`))return;t.disabled=true;
-    const r=await pkApi({a:'pksell',key:L().key,phone:k,name:c.name||'',pkgId:pid,by});t.disabled=false;toast(r&&r.ok?'ขายแพคเกจแล้ว ใช้ได้ '+r.pkg.uses+' ครั้ง':PK_WHY[r&&r.why]||'ไม่สำเร็จ');cuPkLoad(k);return}
+    if(!confirm(`ขาย ${p.title} ${baht(+p.price||0)} ฿ ให้ ${c.name||k}?\nรับเงินแล้ว (เงินสดหรือโอน) และแจ้งเงื่อนไขให้ลูกค้าทราบแล้ว:\n\n${pkTerms(p).split(/\n+/).map((l,i)=>(i+1)+'. '+l).join('\n')}`))return;t.disabled=true;
+    const r=await pkApi({a:'pksell',key:L().key,phone:k,name:c.name||'',pkgId:pid,by,terms:pkTerms(p)});t.disabled=false;toast(r&&r.ok?'ขายแพคเกจแล้ว ใช้ได้ '+r.pkg.uses+' ครั้ง':PK_WHY[r&&r.why]||'ไม่สำเร็จ');cuPkLoad(k);return}
   if(t.dataset.pkredeem){const [ph,id]=t.dataset.pkredeem.split('|');if(!confirm('หักแพคเกจ 1 ครั้ง (ลูกค้าตัดที่ร้าน)?'))return;t.disabled=true;
     const r=await pkApi({a:'pkredeem',key:L().key,phone:ph,id,by});toast(r&&r.ok?'หักแล้ว เหลือ '+r.pkg.left+' ครั้ง':PK_WHY[r&&r.why]||'ไม่สำเร็จ');cuPkLoad(phoneKey(ph));return}});
 // owner: create / edit packages
@@ -4946,17 +4965,20 @@ function openPkgForm(id){if(!isOwner())return;kgImg=undefined;const k=id==='new'
     <div class="two"><label>ราคาแพคเกจ (฿)<input id="kgPrice" type="number" min="1" step="10" value="${+k.price||0}"></label><label>อายุ (เดือน, 0 = ไม่หมดอายุ)<input id="kgMonths" type="number" min="0" max="36" value="${+k.months||0}"></label></div>
     <fieldset><legend>ใช้กับบริการ (ไม่เลือก = ทุกบริการ)</legend>${cfg.services.map(x=>`<label class="ckl"><input type="checkbox" name="kgsvc" value="${x.id}" ${(k.services||[]).includes(x.id)?'checked':''}>${esc(x.name)} · ${baht(x.price)} ฿</label>`).join('')}</fieldset>
     <label>ข้อความสั้น (ไม่บังคับ)<input id="kgDesc" value="${esc(k.desc||'')}" maxlength="90" placeholder="เช่น คุ้มกว่า ตัดได้ทั้งครอบครัว"></label>
+    <label>เงื่อนไขการใช้ (1 บรรทัด = 1 ข้อ ลูกค้าต้องกดยอมรับก่อนซื้อ)<textarea id="kgTerms" rows="9" maxlength="2500">${esc(pkTerms(k))}</textarea></label>
+    <button class="ghost" type="button" id="kgTermsReset" style="justify-self:start">ใช้เงื่อนไขมาตรฐาน (อัปเดตตามจำนวนเดือน/บริการ)</button>
     <div class="adimg"><span>รูปแพคเกจ (ไม่บังคับ แนวนอน 2:1 ขึ้นในแบนเนอร์)</span><div class="adprev" id="kgPrev" ${k.img?`style="background-image:url('${k.img}')"`:''}>${k.img?'':'ยังไม่มีรูป ใช้แบนเนอร์สีน้ำเงินแทน'}</div><div class="uplrow"><label class="upl">${k.img?'เปลี่ยนรูป':'อัปโหลดรูป'}<input type="file" accept="image/*" id="kgFile"></label>${k.img?'<button class="ghost" id="kgRm" type="button">ลบรูป</button>':''}</div></div>
     <p class="err" id="kgErr" hidden></p><button class="primary" data-kgsave="${id}">บันทึกแพคเกจ</button>
     ${id!=='new'?`<button class="ghost" data-kgdel="${id}" style="color:var(--danger)">ลบแพคเกจ</button>`:''}<button class="ghost" data-close>ยกเลิก</button></div>`)}
 function savePkg(id){const g=x=>document.getElementById(x),err=m=>{const e=g('kgErr');e.textContent=m;e.hidden=false};
-  const d={title:g('kgTitle').value.trim(),cuts:Math.round(+g('kgCuts').value),free:Math.max(0,Math.round(+g('kgFree').value)||0),price:Math.round(+g('kgPrice').value),months:Math.max(0,Math.round(+g('kgMonths').value)||0),desc:g('kgDesc').value.trim(),services:[...document.querySelectorAll('input[name=kgsvc]:checked')].map(i=>i.value)};
+  const d={title:g('kgTitle').value.trim(),cuts:Math.round(+g('kgCuts').value),free:Math.max(0,Math.round(+g('kgFree').value)||0),price:Math.round(+g('kgPrice').value),months:Math.max(0,Math.round(+g('kgMonths').value)||0),desc:g('kgDesc').value.trim(),terms:g('kgTerms').value.trim(),services:[...document.querySelectorAll('input[name=kgsvc]:checked')].map(i=>i.value)};
   if(!d.title)return err('ใส่ชื่อแพคเกจ');if(!(d.cuts>=1))return err('จำนวนครั้งต้องอย่างน้อย 1');if(!(d.price>0))return err('ใส่ราคาแพคเกจ');
   if(kgImg!==undefined)d.img=kgImg;
   if(id==='new')pkgs().push({id:uid('k'),active:true,...d});else Object.assign(pkgs().find(x=>x.id===id),d);
   saveCfg();dlg.close();renderPromos();renderCustomer();toast('บันทึกแพคเกจแล้ว')}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||!isOwner())return;
   if(t.dataset.kgedit){openPkgForm(t.dataset.kgedit);return}
+  if(t.id==='kgTermsReset'){const g=x=>document.getElementById(x);const tmp={months:+g('kgMonths').value||0,services:[...document.querySelectorAll('input[name=kgsvc]:checked')].map(i=>i.value)};g('kgTerms').value=pkTermsDefault(tmp);return}
   if(t.id==='kgRm'){kgImg='';const pv=document.getElementById('kgPrev');pv.style.backgroundImage='';pv.textContent='ยังไม่มีรูป ใช้แบนเนอร์สีน้ำเงินแทน';return}
   if(t.dataset.kgsave){savePkg(t.dataset.kgsave);return}
   if(t.dataset.kgtoggle){const k=pkgs().find(x=>x.id===t.dataset.kgtoggle);if(!k)return;k.active=k.active===false;saveCfg();renderPromos();renderCustomer();toast(k.active?'เปิดขายแพคเกจแล้ว':'ปิดขายแพคเกจแล้ว');return}

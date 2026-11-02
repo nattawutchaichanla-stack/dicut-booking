@@ -419,4 +419,8 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   ok(r3.ok === false && r3.name === 'ลูกค้าหน้าร้าน', 'staff sees who owns a taken phone');
   ok(!('name' in (await post({ a: 'join', name: 'คนอื่น', phone: '0812345670' }))), 'public join never reveals the owner name');
 }
+{ // advance booking: non-refundable -> releasing a late customer gives no credit
+  await post({ a: 'create', key: KEY, booking: { id: 'NR1', date: core.todayKey(), start: 1, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ไม่คืน', phone: '0861234560', noRefund: true, prepayOff: 3, pay: { status: 'paid', amount: 147 } } });
+  const b = await db.getBooking('NR1'); ok(b.noRefund && b.prepayOff === 3, 'advance booking keeps the 2% discount and the no-refund flag');
+}
 console.log('\n' + pass + ' checks passed');

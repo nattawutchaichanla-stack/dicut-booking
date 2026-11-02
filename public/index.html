@@ -1724,7 +1724,16 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .regok{display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding:12px 14px;border-radius:14px;background:rgba(46,160,90,.1);color:var(--ok)}
 .regok div{display:grid;gap:2px}.regok b{color:var(--ink)}.regok span{font-size:.9rem;color:var(--muted)}
 .regline{display:flex;align-items:center;gap:6px;margin:10px 0 0;font-size:.88rem;color:var(--muted)}
+
+.advoff{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:3px 10px;border-radius:999px;background:rgba(242,214,118,.45);color:var(--ink);font-weight:600}
+.ckl.norefund{display:flex;align-items:flex-start;gap:10px;margin:12px 0 4px;padding:12px 14px;border-radius:14px;border:1.5px solid rgba(180,83,9,.35);background:rgba(254,243,199,.55)}
+.ckl.norefund span{display:grid;gap:2px}.ckl.norefund small{color:var(--muted)}
+.ckl.norefund input{margin-top:3px;width:20px;height:20px;flex:none}
+.payhead .advoff{display:inline-flex!important;flex-direction:row;align-self:flex-start;width:fit-content}
 </style>
+
+
+
 
 
 
@@ -1975,6 +1984,7 @@ if(!cfg.payment.v5){if(!cfg.payment.qrAccount)cfg.payment.qrAccount=SHOP_QR.qrAc
 if(!cfg.payment.v8){(cfg.promos||[]).forEach(p=>{if(p.id==='p1'&&/Happy Hour/.test(p.title||''))p.active=false});cfg.payment.v8=true} // owner asked: no discount for booking early-morning slots (sample promo, can be switched back on)
 if(!cfg.payment.v9){(cfg.promos||[]).forEach(p=>{if(['p1','p2','p3'].includes(p.id)&&/Happy Hour|พุธเพิร์ม|นักเรียน/.test(p.title||''))p.active=false});cfg.payment.v9=true} // owner asked: switch off all sample promos
 if(!cfg.payment.v10){(cfg.promos||[]).forEach(p=>p.active=false);cfg.payment.v10=true} // owner asked: no time-slot discounts at all -> every promo off once (owner can switch one back on)
+if(!cfg.payment.v11){Object.assign(cfg.payment,{mode:'before',payLater:false,amountType:'full',prepayPct:2,prepayOff:0,prepayStack:true,noRefund:true,v11:true})} // owner asked: booking ahead = transfer first only, 2% off, non-refundable
 }
 normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
@@ -2596,6 +2606,7 @@ document.addEventListener('change',async e=>{if(e.target.id!=='qrFile'||!e.targe
     saveCfg();renderPromos();toast(payload?'อ่าน QR ร้านแล้ว':'บันทึกรูป QR แล้ว')}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้')}});
 document.addEventListener('change',async e=>{
   if(e.target.id==='selCash'){sel.cashPaid=e.target.checked;renderCustomer();return}
+  if(e.target.id==='selNoRefund'){sel.ackNoRefund=e.target.checked;const er=document.getElementById('err');if(er&&e.target.checked)er.hidden=true;return}
   if(e.target.id!=='selSlip'||!e.target.files[0])return;
   try{sel.slip=await fileToSlip(e.target.files[0]);sel.slipAmt=selDeposit();renderCustomer();toast('แนบสลิปแล้ว กดยืนยันการจองได้เลย');
     document.getElementById('confirm')?.scrollIntoView({block:'nearest'})}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
@@ -2654,8 +2665,10 @@ const selName=()=>sel.services.map(id=>svc(id).name).join(' + ');
 const payChoice=()=>payCfg().mode==='before'&&payCfg().payLater!==false;
 const payingNow=()=>payCfg().mode==='before'&&(!payChoice()||sel.payNow);
 const dealAmt=()=>{const dl=selDeal();return dl?dl.amt:0};
-function prepayDiscFor(now){const P=payCfg();if(P.mode!=='before'||!now||!(P.prepayOff>0))return 0;const dl=selDeal();
-  if(dl&&dl.kind==='loy')return 0; if(dl&&!P.prepayStack)return 0; return Math.min(P.prepayOff,Math.max(0,selPrice()-dealAmt()))}
+function prepayDiscFor(now){const P=payCfg();if(P.mode!=='before'||!now||!(P.prepayOff>0||P.prepayPct>0))return 0;const dl=selDeal();
+  if(dl&&dl.kind==='loy')return 0; if(dl&&!P.prepayStack)return 0; const base=Math.max(0,selPrice()-dealAmt());
+  return Math.min(base,P.prepayPct>0?Math.round(base*P.prepayPct/100):P.prepayOff)}
+function prepayLabel(){const P=payCfg();return P.prepayPct>0?'ส่วนลดจองล่วงหน้า '+P.prepayPct+'%':'ส่วนลดโอนก่อน'}
 const prepayDisc=()=>prepayDiscFor(payingNow());
 const selNet=()=>Math.max(0,selPrice()-dealAmt()-prepayDisc());
 const selDeposit=()=>{if(payCfg().mode==='off'||(payCfg().mode==='before'&&!payingNow()))return 0;const net=selNet();return isFull()?net:Math.min(payCfg().amount,net)};
@@ -2783,14 +2796,14 @@ function loyBoxInner(){
   return loyCardHTML(st);
 }
 function lateNoteHTML(start,prepaid){const m=lateMin();if(!(m>0))return '';
-  return `<div class="latenote">${ic('clock',18)}<span><b>กรุณามาถึงร้านภายใน ${fmt(start+m)} น.</b><small>ถ้าเลยเวลานัดเกิน ${m} นาที ร้านขออนุญาตให้ลูกค้าท่านอื่นก่อน${prepaid?' · คิวที่โอนแล้ว ยอดเก็บเป็นเครดิตใช้ครั้งถัดไป':''}${cfg.phone?' · มาช้าโทรแจ้ง '+esc(cfg.phone):''}</small></span></div>`}
+  return `<div class="latenote">${ic('clock',18)}<span><b>กรุณามาถึงร้านภายใน ${fmt(start+m)} น.</b><small>ถ้าเลยเวลานัดเกิน ${m} นาที ร้านขออนุญาตให้ลูกค้าท่านอื่นก่อน${prepaid?(payCfg().noRefund?' · ยอดที่โอนแล้วไม่คืนเงิน':' · คิวที่โอนแล้ว ยอดเก็บเป็นเครดิตใช้ครั้งถัดไป'):''}${cfg.phone?' · มาช้าโทรแจ้ง '+esc(cfg.phone):''}</small></span></div>`}
 function payChoiceHTML(){const P=payCfg();if(!payChoice())return '';
-  const off=prepayDiscFor(true), dl=selDeal(), noStack=P.prepayOff>0&&dl&&(dl.kind==='loy'||!P.prepayStack);
+  const off=prepayDiscFor(true), dl=selDeal(), noStack=(P.prepayOff>0||P.prepayPct>0)&&dl&&(dl.kind==='loy'||!P.prepayStack);
   const nowNet=Math.max(0,selPrice()-dealAmt()-off), laterNet=Math.max(0,selPrice()-dealAmt());
   return `<h3 class="wt" style="margin-top:16px">เลือกวิธีจ่าย</h3><div class="paychoice" role="radiogroup" aria-label="วิธีจ่าย">
     <button role="radio" data-paynow="1" aria-checked="${sel.payNow}"><span class="pc-h">${ic('lock',18)}<b>โอนเลย</b>${off?`<em>ลด ${baht(off)} ฿</em>`:''}</span><span class="pc-p">${off?`<s>${baht(laterNet)}</s> `:''}${baht(nowNet)} ฿</span><small>ล็อกคิวทันที ถึงร้านตัดได้เลย</small></button>
     <button role="radio" data-paynow="0" aria-checked="${!sel.payNow}"><span class="pc-h">${ic('scissors',18)}<b>จ่ายที่ร้าน</b></span><span class="pc-p">${baht(laterNet)} ฿</span><small>จองได้เลย ไม่ต้องโอน</small></button>
-  </div>${noStack?`<p class="hint" style="margin-top:6px">ส่วนลดโอนก่อนใช้ร่วมกับ${dl.kind==='loy'?'สิทธิ์ตัดฟรี':'โปรอื่น'}ไม่ได้</p>`:''}`}
+  </div>${noStack?`<p class="hint" style="margin-top:6px">${prepayLabel()}ใช้ร่วมกับ${dl.kind==='loy'?'สิทธิ์ตัดฟรี':'โปรอื่น'}ไม่ได้</p>`:''}`}
 function depositStepHTML(){
   return payChoiceHTML()+depositInner()+(sel.time!==null?lateNoteHTML(sel.time,needSlip()):'');
 }
@@ -2800,7 +2813,7 @@ function depositInner(){
   if(P.mode==='off'||amt<=0)return `<p class="hint" style="margin-top:12px">${amt<=0&&P.mode!=='off'?'คิวนี้ไม่ต้องชำระล่วงหน้า ':''}ชำระที่ร้าน</p>`;
   if(P.mode==='optional')return `<div class="paynote" style="margin-top:12px">${ic('lock',16)}<span>หลังจองสแกนจ่าย ${baht(amt)} ฿ เพื่อล็อกคิวได้</span></div>`;
   const has=sel.slip&&sel.slipAmt===amt, useShop=P.qrSource==='shop';
-  let h=`<div class="paystep ${has?'done':''}"><div class="payhead"><b>${ic('lock',18)} ชำระ ${baht(amt)} ฿ แล้วแนบสลิปเพื่อจอง</b><small>ต้องแนบสลิปก่อน ถึงจะกดยืนยันการจองได้ · ${restLine(Math.max(0,selNet()-amt))}${sel.services.some(id=>svc(id).from)?' · บริการราคาเริ่มต้น ถ้าช่างประเมินเพิ่ม จ่ายส่วนต่างที่ร้าน':''}</small></div>`;
+  let h=`<div class="paystep ${has?'done':''}"><div class="payhead"><b>${ic('lock',18)} ชำระ ${baht(amt)} ฿ แล้วแนบสลิปเพื่อจอง</b><small>ต้องแนบสลิปก่อน ถึงจะกดยืนยันการจองได้ · ${restLine(Math.max(0,selNet()-amt))}${sel.services.some(id=>svc(id).from)?' · บริการราคาเริ่มต้น ถ้าช่างประเมินเพิ่ม จ่ายส่วนต่างที่ร้าน':''}</small>${prepayDisc()>0?`<small class="advoff">${ic('tag',13)} ${prepayLabel()} -${baht(prepayDisc())} ฿ แล้ว</small>`:''}</div>${P.noRefund?`<label class="ckl norefund"><input type="checkbox" id="selNoRefund" ${sel.ackNoRefund?'checked':''}> <span><b>รับทราบ: ชำระแล้วไม่สามารถคืนเงินได้</b><small>ถ้ายกเลิกหรือไม่มาตามนัด ร้านไม่คืนเงินทุกกรณี</small></span></label>`:''}`;
   if(has)h+=`<div class="slipok"><img src="${esc(sel.slip)}" alt="สลิปที่แนบ" class="slipthumb"><div><b>${ic('check',16)} แนบสลิปแล้ว</b><small>ร้านจะตรวจสลิปแล้วล็อกคิวให้</small><label class="linkbtn upl-inline">เปลี่ยนสลิป<input type="file" accept="image/*" id="selSlip"></label></div></div>`;
   else{
     h+=useShop?shopQRCard(amt):`<div class="qrwrap">${qrSVG(ppPayload(P.ppId,amt))}<div class="ppinfo"><span class="pplogo">PromptPay</span><b>${esc(P.ppName)}</b><small>${esc(maskPP(P.ppId))}</small><b class="ppamt">${baht(amt)} ฿</b></div></div>`;
@@ -2814,7 +2827,7 @@ function stepConfirm(){
   const d=selDur(), b=sel.barber==='any'?null:barber(sel.barber);
   return `<h3 class="wt">ตรวจสอบและยืนยัน</h3>
   <div class="tk mini-tk"><div class="tkh">${b?avatar(b.name,b.photo,'md'):anyAv('md',20)}<div><b>${b?esc(b.name):'ร้านจัดช่างให้'}</b><small>${sel.quick?'<span class="qtag">คิวด่วน</span> ':''}${dayLabel(sel.date)} · ${fmt(sel.time)}–${fmt(sel.time+d)}</small></div></div>
-    <div class="tkl">${sel.services.map(id=>`<div><span>${esc(svc(id).name)}</span><span>${priceTag(svc(id))}</span></div>`).join('')}${sel.services.some(id=>svc(id).from)?'<p class="snote" style="margin:4px 0 0">ราคาสุดท้ายขึ้นกับทรงและความยาก ช่างจะแจ้งก่อนเริ่มบริการ</p>':''}${(()=>{const dl=selDeal(),pd=prepayDisc(),off=dealAmt()+pd;return (dl?`<div class="disc"><span>${esc(dl.title)}</span><span>-${dl.amt} ฿</span></div>`:'')+(pd?`<div class="disc"><span>ส่วนลดโอนก่อน</span><span>-${pd} ฿</span></div>`:'')+(off?`<div class="tot"><span>รวม ${d} นาที</span><span><s>${baht(selPrice())}</s> ${baht(selNet())} ฿</span></div>`:`<div class="tot"><span>รวม ${d} นาที</span><span>${baht(selPrice())} ฿</span></div>`)})()}</div></div>
+    <div class="tkl">${sel.services.map(id=>`<div><span>${esc(svc(id).name)}</span><span>${priceTag(svc(id))}</span></div>`).join('')}${sel.services.some(id=>svc(id).from)?'<p class="snote" style="margin:4px 0 0">ราคาสุดท้ายขึ้นกับทรงและความยาก ช่างจะแจ้งก่อนเริ่มบริการ</p>':''}${(()=>{const dl=selDeal(),pd=prepayDisc(),off=dealAmt()+pd;return (dl?`<div class="disc"><span>${esc(dl.title)}</span><span>-${dl.amt} ฿</span></div>`:'')+(pd?`<div class="disc"><span>${prepayLabel()}</span><span>-${pd} ฿</span></div>`:'')+(off?`<div class="tot"><span>รวม ${d} นาที</span><span><s>${baht(selPrice())}</s> ${baht(selNet())} ฿</span></div>`:`<div class="tot"><span>รวม ${d} นาที</span><span>${baht(selPrice())} ฿</span></div>`)})()}</div></div>
   <div class="codebox"><input id="fCode" value="${esc(sel.code)}" placeholder="มีโค้ดรับสิทธิ์ไหม เช่น DCAB12CD" autocapitalize="characters" aria-label="โค้ดรับสิทธิ์"><button class="ghost" id="applyCode">ใช้โค้ด</button></div>
   <div id="vMsg">${vMsgHTML()}</div><div id="vChips" class="vchips">${vChipsHTML()}</div>
   <div class="form" style="margin-top:14px">
@@ -2902,7 +2915,8 @@ function payAdminHTML(){const P=payCfg();
     <label>ยอดที่ให้ลูกค้าจ่าย<select id="payType"><option value="full" ${P.amountType==='full'?'selected':''}>จ่ายเต็มจำนวน (ตามราคาบริการ)</option><option value="deposit" ${P.amountType==='deposit'?'selected':''}>จ่ายมัดจำ ตามยอดที่ตั้ง</option></select></label>
     <label>การชำระก่อนจอง<select id="payMode"><option value="off" ${P.mode==='off'?'selected':''}>ไม่ต้องจ่ายก่อน (จ่ายที่ร้าน)</option><option value="before" ${P.mode==='before'?'selected':''}>รับโอนก่อนจอง (ต้องแนบสลิปเมื่อเลือกโอน)</option><option value="optional" ${P.mode==='optional'?'selected':''}>ไม่บังคับ ลูกค้าเลือกจ่ายหลังจองได้</option></select></label>
     ${P.mode==='before'?`<label class="ckl"><input type="checkbox" id="payLater" ${P.payLater!==false?'checked':''}> ให้ลูกค้าเลือก "จ่ายที่ร้าน" ได้ (ไม่ต้องโอนก่อน)</label>
-    ${P.payLater!==false?`<div class="two"><label>ส่วนลดเมื่อโอนก่อน (฿)<input id="prepayOff" type="number" min="0" step="5" value="${P.prepayOff||0}"></label><label class="ckl" style="align-self:end"><input type="checkbox" id="prepayStack" ${P.prepayStack?'checked':''}> ใช้ร่วมกับโปรอื่นได้</label></div><p class="hint">ส่วนลดโอนก่อนไม่ใช้ร่วมกับสิทธิ์ตัดฟรี · ใส่ 0 ถ้าไม่ให้ส่วนลด</p>`:''}`:''}
+    ${P.mode==='before'?`<div class="two"><label>ส่วนลดจองล่วงหน้า (%)<input id="prepayPct" type="number" min="0" max="50" step="1" value="${P.prepayPct||0}"></label><label class="ckl" style="align-self:end"><input type="checkbox" id="noRefund" ${P.noRefund?'checked':''}> โอนแล้วไม่คืนเงิน</label></div><p class="hint">ลูกค้าที่โอนตอนจองได้ลดตามเปอร์เซ็นต์นี้ ใส่ 0 ถ้าไม่ให้ส่วนลด · ติ๊ก "ไม่คืนเงิน" ลูกค้าต้องกดรับทราบก่อนจอง</p>`:''}
+    ${P.payLater!==false&&!(P.prepayPct>0)?`<div class="two"><label>ส่วนลดเมื่อโอนก่อน (฿)<input id="prepayOff" type="number" min="0" step="5" value="${P.prepayOff||0}"></label><label class="ckl" style="align-self:end"><input type="checkbox" id="prepayStack" ${P.prepayStack?'checked':''}> ใช้ร่วมกับโปรอื่นได้</label></div><p class="hint">ส่วนลดโอนก่อนไม่ใช้ร่วมกับสิทธิ์ตัดฟรี · ใส่ 0 ถ้าไม่ให้ส่วนลด</p>`:''}`:''}
     <label>QR ที่ให้ลูกค้าสแกน<select id="paySrc"><option value="shop" ${P.qrSource==='shop'?'selected':''}>QR รับเงินของร้าน (K SHOP / Thai QR) ลูกค้ากรอกยอดเอง</option><option value="promptpay" ${P.qrSource==='promptpay'?'selected':''}>พร้อมเพย์ สร้าง QR พร้อมยอดเงินอัตโนมัติ</option></select></label>
     ${P.qrSource==='shop'?`<div class="two"><label>ชื่อบน QR<input id="qrLabel" maxlength="50" value="${esc(P.qrLabel||'')}"></label><label>ชื่อบัญชี<input id="qrAccount" maxlength="50" value="${esc(P.qrAccount||'')}"></label></div>
       ${P.amountType==='deposit'?`<label>ยอดมัดจำ (฿)<input id="payAmt" type="number" min="1" step="10" value="${P.amount}" style="max-width:140px"></label>`:''}
@@ -3020,7 +3034,7 @@ function releasedHTML(b){if(!b.released)return '';
 function cancelBlock(b){
   if(b.status==='cancelled')return `<p class="cxmsg">คิวนี้ยกเลิกแล้ว${b.cancelledBy==='customer'?' โดยลูกค้า':b.cancelledBy==='timeout'?' เพราะไม่ได้ชำระเงินในเวลาที่กำหนด':' โดยร้าน'}</p>`;
   if(b.status!=='confirmed')return '';
-  if(canSelfCancel(b))return `<div class="cxbox"><span>ยกเลิกเองได้ถึง <b>${cancelDeadline(b)}</b><small>ก่อนถึงคิว ${cancelMin()} นาที${isLocked(b)?' · เรื่องคืนเงิน ติดต่อร้าน '+esc(cfg.phone||''):''}</small></span><button class="ghost cxbtn" data-selfcancel="${b.id}">ยกเลิกการจอง</button></div>`;
+  if(canSelfCancel(b))return `<div class="cxbox"><span>ยกเลิกเองได้ถึง <b>${cancelDeadline(b)}</b><small>ก่อนถึงคิว ${cancelMin()} นาที${b.noRefund&&b.pay?' · ยอดที่โอนแล้วไม่คืนเงิน':isLocked(b)?' · เรื่องคืนเงิน ติดต่อร้าน '+esc(cfg.phone||''):''}</small></span><button class="ghost cxbtn" data-selfcancel="${b.id}">ยกเลิกการจอง</button></div>`;
   return `<div class="cxbox late"><span>เลยเวลายกเลิกเองแล้ว<small>ต้องยกเลิกก่อนถึงคิว ${cancelMin()} นาที ถ้ามาไม่ได้ โทรแจ้งร้านโดยตรง</small></span></div>`;
 }
 function bookingCardHTML(b){const br=barber(b.barberId);
@@ -3037,7 +3051,7 @@ function openMyBooking(msg=''){
 function showMyBooking(b){showSheet(`<h3>การจองของคุณ</h3>${bookingCardHTML(b)}${payBlock(b)}${cancelBlock(b)}<div class="actions"><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
 function askSelfCancel(id){const b=bookings.find(x=>x.id===id);if(!b)return;
   if(!canSelfCancel(b)){showMyBooking(b);return}
-  showSheet(`<h3>ยกเลิกคิวนี้?</h3><p class="meta">ยกเลิกแล้วคิวจะเปิดให้คนอื่นจองทันที และกู้คืนไม่ได้</p>${bookingCardHTML(b)}
+  showSheet(`<h3>ยกเลิกคิวนี้?</h3><p class="meta">ยกเลิกแล้วคิวจะเปิดให้คนอื่นจองทันที และกู้คืนไม่ได้</p>${b.noRefund&&b.pay?`<p class="err" style="margin:8px 0">ยอดที่โอนแล้ว ${baht(b.pay.amount||0)} ฿ ไม่คืนเงินตามเงื่อนไขการจองล่วงหน้า</p>`:''}${bookingCardHTML(b)}
     <div class="actions"><button class="cxb" data-selfcancelok="${b.id}" style="grid-column:1/-1">ยืนยันยกเลิกการจอง</button><button data-close style="grid-column:1/-1">ไม่ยกเลิก</button></div>`)}
 function doSelfCancel(id){const b=bookings.find(x=>x.id===id);if(!b)return;
   if(!canSelfCancel(b)){showMyBooking(b);toast('เลยเวลายกเลิกเองแล้ว');return}
@@ -3058,7 +3072,7 @@ function ticketHTML(){
   const b=bookings.find(x=>x.id===lastBooking.id)||lastBooking, br=barber(b.barberId);
   return `<section class="step ticket ${b.status==='cancelled'?'cxd':''}" aria-live="polite"><div class="tk-top ${G('ticket')?'has-img':''}" ${G('ticket')?`style="${gbg('ticket')}"`:''}><p>${b.status==='cancelled'?'ยกเลิกการจองแล้ว':'จองสำเร็จ'}</p><div class="code">${b.id}</div><p>แจ้งรหัสนี้กับช่างเมื่อถึงร้าน</p></div><div class="tk-cut" aria-hidden="true"></div>
     <div class="tk-body"><div class="tkh">${avatar(br.name,br.photo,'md')}<div><b>${esc(br.name)}</b><small>${esc(b.name)}</small></div></div>
-    <div class="tkl"><div><span>วัน</span><span>${dayLabel(b.date)} ${b.date!==today()&&b.date!==dkey(addDays(1))?'':thaiDate(b.date)}</span></div><div><span>เวลา</span><span>${fmt(b.start)}–${fmt(b.start+b.dur)}</span></div><div><span>บริการ</span><span>${esc(bName(b))}</span></div>${b.discount?`<div class="disc"><span>${esc(b.promoTitle||'โปรโมชั่น')}</span><span>-${b.discount} ฿</span></div>`:''}${b.prepayOff?`<div class="disc"><span>ส่วนลดโอนก่อน</span><span>-${b.prepayOff} ฿</span></div>`:''}<div class="tot"><span>ราคารวม</span><span>${baht(bPrice(b))} ฿</span></div></div>
+    <div class="tkl"><div><span>วัน</span><span>${dayLabel(b.date)} ${b.date!==today()&&b.date!==dkey(addDays(1))?'':thaiDate(b.date)}</span></div><div><span>เวลา</span><span>${fmt(b.start)}–${fmt(b.start+b.dur)}</span></div><div><span>บริการ</span><span>${esc(bName(b))}</span></div>${b.discount?`<div class="disc"><span>${esc(b.promoTitle||'โปรโมชั่น')}</span><span>-${b.discount} ฿</span></div>`:''}${b.prepayOff?`<div class="disc"><span>${prepayLabel()}</span><span>-${b.prepayOff} ฿</span></div>`:''}<div class="tot"><span>ราคารวม</span><span>${baht(bPrice(b))} ฿</span></div></div>
     ${b.status==='confirmed'?lateNoteHTML(b.start,!!b.pay):''}${releasedHTML(b)}
     ${(()=>{const st=loyState(b.phone);if(!st||b.status==='cancelled')return '';return b.loyaltyRedeem?`<p class="loyline">${ic('scissors',16)} ใช้สิทธิ์ตัดฟรีกับคิวนี้แล้ว</p>`:!loyEligible(b)?loyNoteHTML(bIds(b)):loyEligible(b)?`<p class="loyline">${ic('scissors',16)} ตัดเสร็จได้ 1 แต้ม · ตอนนี้ ${st.stamps}/${st.need}${st.rewards?` · มีสิทธิ์ตัดฟรี ${st.rewards} ครั้ง`:''}</p>`:''})()}
     ${payBlock(b)}
@@ -3641,7 +3655,7 @@ function openBooking(id){
     ${b.doneAt!=null?`<div class="row"><span>เสร็จจริง</span><b>${fmt(b.doneAt)}</b></div>`:''}
     ${b.note?`<div class="row"><span>หมายเหตุ</span><b>${esc(b.note)}</b></div>`:''}<div class="row"><span>ช่าง</span><b>${esc(barber(b.barberId).name)}</b></div>
     ${b.phone?`<div class="row"><span>เบอร์โทร</span><b><a href="tel:${esc(b.phone)}" style="color:inherit">${esc(b.phone)}</a></b></div>`:`<div class="row"><span>ประเภท</span><b>walk-in</b></div>`}
-    ${(()=>{const st=loyState(b.phone);return st?`<div class="row"><span>แต้มสะสม</span><b>${st.stamps}/${st.need}${st.rewards?' · ตัดฟรีได้ '+st.rewards+' ครั้ง':''}</b></div>`:''})()}${b.discount?`<div class="row"><span>โปร</span><b>${esc(b.promoTitle||'')} -${b.discount} ฿</b></div>`:''}${b.prepayOff?`<div class="row"><span>ส่วนลดโอนก่อน</span><b>-${b.prepayOff} ฿</b></div>`:''}${b.refUse?`<div class="row"><span>ส่วนลดชวนเพื่อน</span><b>-${b.discount||0} ฿</b></div>`:''}${b.refBy?`<div class="row"><span>ชวนมาโดย</span><b>${esc((customers[phoneKey(b.refBy)]||{}).name||'')} ${esc(b.refBy)}</b></div>`:''}${b.payAtShop&&!b.pay?`<div class="row"><span>วิธีจ่าย</span><b>จ่ายที่ร้าน</b></div>`:''}${creditOf(b.phone)>0&&!b.credit?`<div class="row"><span>เครดิตลูกค้า</span><b>${baht(creditOf(b.phone))} ฿ <button class="linkbtn" data-usecredit="${esc(b.phone)}">หักแล้ว</button></b></div>`:''}${b.released?`<div class="row"><span>ปล่อยคิว</span><b>เลยเวลา ${lateMin()} นาที${b.credit?' · เครดิต '+baht(b.credit)+' ฿':''}</b></div>`:''}${b.pay?`<div class="row"><span>ชำระล่วงหน้า</span><b>${b.pay.status==='paid'?'ล็อกแล้ว · '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}</b></div>`:''}<div class="row"><span>ราคา</span><b>${baht(bPrice(b))} ฿</b></div>
+    ${(()=>{const st=loyState(b.phone);return st?`<div class="row"><span>แต้มสะสม</span><b>${st.stamps}/${st.need}${st.rewards?' · ตัดฟรีได้ '+st.rewards+' ครั้ง':''}</b></div>`:''})()}${b.discount?`<div class="row"><span>โปร</span><b>${esc(b.promoTitle||'')} -${b.discount} ฿</b></div>`:''}${b.prepayOff?`<div class="row"><span>${prepayLabel()}</span><b>-${b.prepayOff} ฿</b></div>`:''}${b.refUse?`<div class="row"><span>ส่วนลดชวนเพื่อน</span><b>-${b.discount||0} ฿</b></div>`:''}${b.refBy?`<div class="row"><span>ชวนมาโดย</span><b>${esc((customers[phoneKey(b.refBy)]||{}).name||'')} ${esc(b.refBy)}</b></div>`:''}${b.payAtShop&&!b.pay?`<div class="row"><span>วิธีจ่าย</span><b>จ่ายที่ร้าน</b></div>`:''}${creditOf(b.phone)>0&&!b.credit?`<div class="row"><span>เครดิตลูกค้า</span><b>${baht(creditOf(b.phone))} ฿ <button class="linkbtn" data-usecredit="${esc(b.phone)}">หักแล้ว</button></b></div>`:''}${b.released?`<div class="row"><span>ปล่อยคิว</span><b>เลยเวลา ${lateMin()} นาที${b.credit?' · เครดิต '+baht(b.credit)+' ฿':''}</b></div>`:''}${b.pay?`<div class="row"><span>ชำระล่วงหน้า</span><b>${b.pay.status==='paid'?'ล็อกแล้ว · '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}</b></div>`:''}<div class="row"><span>ราคา</span><b>${baht(bPrice(b))} ฿</b></div>
     <div class="actions">${b.pay&&b.pay.status==='paid'&&b.pay.slip?`<button data-slipcheck="${b.id}" style="grid-column:1/-1">${ic('image',16)} ดูสลิป / บันทึกสลิป</button>`:''}${b.pay&&b.pay.status!=='paid'&&b.status==='confirmed'?`<button data-slipcheck="${b.id}" style="grid-column:1/-1">${b.pay.status==='review'?'ตรวจสลิป':'บันทึกว่ารับเงินแล้ว'}</button>`:''}${acts}${customers[phoneKey(b.phone)]?`<button data-cprof="${phoneKey(b.phone)}" style="grid-column:1/-1">ดูโปรไฟล์ลูกค้า</button>`:''}<button data-close style="grid-column:1/-1">ปิด</button></div>`;
   dlg.dataset.id=id; dlg.showModal();
 }
@@ -3726,7 +3740,7 @@ function renderMyOut(){expireHolds();
     <div class="hsum"><div><b>${past.length}</b><small>ครั้งที่ตัด</small></div><div><b>${baht(spent)} ฿</b><small>ยอดรวม</small></div><div><b class="ok">${baht(saved)} ฿</b><small>ประหยัดจากโปร ${promoN} ครั้ง</small></div></div>
     <ul class="hrows">${past.map(b=>{const off=(b.discount||0)+(b.prepayOff||0);
       return `<li><span class="hd"><b>${fromKey(b.date).getDate()}</b><small>${thaiDate(b.date).split(' ').slice(2).join(' ')} ${yr(b.date)}</small></span>
-        <span class="hmeta"><b>${esc(bName(b))}</b><small>${esc(barber(b.barberId).name)} · ${fmt(b.start)}${b.loyaltyRedeem?' · ตัดฟรีจากแต้ม':''}</small>${b.promoTitle&&!b.loyaltyRedeem?`<em class="ptag">${esc(b.promoTitle)} -${baht(b.discount)} ฿</em>`:''}${b.prepayOff?`<em class="ptag">โอนก่อน -${baht(b.prepayOff)} ฿</em>`:''}</span>
+        <span class="hmeta"><b>${esc(bName(b))}</b><small>${esc(barber(b.barberId).name)} · ${fmt(b.start)}${b.loyaltyRedeem?' · ตัดฟรีจากแต้ม':''}</small>${b.promoTitle&&!b.loyaltyRedeem?`<em class="ptag">${esc(b.promoTitle)} -${baht(b.discount)} ฿</em>`:''}${b.prepayOff?`<em class="ptag">จองล่วงหน้า -${baht(b.prepayOff)} ฿</em>`:''}</span>
         <span class="hp">${off?`<s>${baht(bFull(b))}</s>`:''}<b>${baht(bPrice(b))} ฿</b></span></li>`}).join('')}</ul>`
     :'<p class="hint">ยังไม่มีประวัติการตัด</p>'}</section>`}
   o.innerHTML=pushCardHTML(phone||k)+`<div id="myV"></div>`+h;myVLoad(phone||k);
@@ -3850,8 +3864,8 @@ function confirmDone(id){
 }
 function releaseQueue(id){const b=bookings.find(x=>x.id===id);if(!b||!canManage(b))return;
   const paid=isLocked(b);
-  if(!confirm(`ปล่อยคิว ${b.name} (นัด ${fmt(b.start)}) ให้ลูกค้าท่านอื่น?\nลูกค้าเลยเวลามา ${nowMin()-b.start} นาที${paid?`\nลูกค้าโอนแล้ว ${baht(b.pay.amount)} ฿ จะเก็บเป็นเครดิตให้ครั้งถัดไป`:''}`))return;
-  b.status='noshow';b.released=Date.now();if(paid)b.credit=b.pay.amount;save();if(dlg.open)dlg.close();renderAdmin();
+  if(!confirm(`ปล่อยคิว ${b.name} (นัด ${fmt(b.start)}) ให้ลูกค้าท่านอื่น?\nลูกค้าเลยเวลามา ${nowMin()-b.start} นาที${paid&&b.noRefund?`\nลูกค้าโอนแล้ว ${baht(b.pay.amount)} ฿ (จองล่วงหน้า ไม่คืนเงิน)`:paid?`\nลูกค้าโอนแล้ว ${baht(b.pay.amount)} ฿ จะเก็บเป็นเครดิตให้ครั้งถัดไป`:''}`))return;
+  b.status='noshow';b.released=Date.now();if(paid&&!b.noRefund)b.credit=b.pay.amount;save();if(dlg.open)dlg.close();renderAdmin();
   toast('ปล่อยคิวแล้ว ช่วงนี้ว่างให้ลูกค้าคนอื่นจองได้')}
 function setStatus(b,v){
   if(!canManage(b)){toast('เฉพาะช่างเจ้าของคิวหรือเจ้าของร้าน');return false}
@@ -3881,7 +3895,9 @@ dlg.addEventListener('click',e=>{
 app.addEventListener('input',e=>{if(e.target.id==='cuSearch'){cuQuery=e.target.value;renderCuList();return}if(e.target.id==='fName')sel.name=e.target.value;if(e.target.id==='fNote')sel.note=e.target.value;if(e.target.id==='fRef'){sel.ref=e.target.value;sel.refRes=null;clearTimeout(refT);const n=phoneKey(sel.ref).length;if(n>=10)refT=setTimeout(runRefCheck,350);else renderRefBox()}if(e.target.id==='fPhone'){clearTimeout(refBalT);refBalT=setTimeout(()=>{ensureRefBal();renderRefBox()},500);if(sel.ref){sel.refRes=null;clearTimeout(refT);refT=setTimeout(runRefCheck,600)}const was=loyState(sel.phone)?.rewards>0;sel.phone=e.target.value;const now=loyState(sel.phone)?.rewards>0;const lb=document.getElementById('loyBox');if(lb)lb.innerHTML=loyBoxHTML();if(was!==now){const p=e.target.selectionStart;renderCustomer();const f=document.getElementById('fPhone');f.focus();f.setSelectionRange(p,p)}}});
 app.addEventListener('change',e=>{
   const t=e.target;
-  if(isOwner()&&['payMode','payId','payName','payAmt','payHold','paySrc','qrLabel','qrAccount','payType','payLater','prepayOff','prepayStack'].includes(t.id)){const P=payCfg();
+  if(isOwner()&&['payMode','payId','payName','payAmt','payHold','paySrc','qrLabel','qrAccount','payType','payLater','prepayOff','prepayStack','prepayPct','noRefund'].includes(t.id)){const P=payCfg();
+    if(t.id==='prepayPct'){const n=Math.round(+t.value);if(!(n>=0&&n<=50)){toast('ใส่ 0–50%');t.value=P.prepayPct||0;return}P.prepayPct=n}
+    if(t.id==='noRefund')P.noRefund=t.checked;
     if(t.id==='payLater')P.payLater=t.checked;
     if(t.id==='prepayStack')P.prepayStack=t.checked;
     if(t.id==='prepayOff'){const n=Math.round(+t.value);if(!(n>=0&&n<=1000)){toast('ใส่ 0–1000 บาท');t.value=P.prepayOff||0;return}P.prepayOff=n}
@@ -3953,13 +3969,14 @@ app.addEventListener('click',e=>{
     const err=document.getElementById('err'),phone=sel.phone.replace(/\D/g,'');
     if(!sel.name.trim()){err.textContent='ใส่ชื่อเล่นเพื่อให้ช่างเรียกได้ถูกคน';err.hidden=false;document.getElementById('fName').focus();return}
     if(phone.length<9){err.textContent='เบอร์โทรต้องมีอย่างน้อย 9 หลัก';err.hidden=false;document.getElementById('fPhone').focus();return}
+    if(needSlip()&&payCfg().noRefund&&!sel.ackNoRefund&&!user){err.textContent='กรุณาติ๊ก "รับทราบ: ชำระแล้วไม่สามารถคืนเงินได้" ก่อนจอง';err.hidden=false;document.getElementById('selNoRefund')?.closest('label')?.scrollIntoView({behavior:'smooth',block:'center'});return}
     if(!slipOK()){err.textContent=sel.slip?'ยอดชำระเปลี่ยน กรุณาแนบสลิปใหม่':'กรุณาโอนเงินแล้วแนบสลิปก่อนกดจอง';err.hidden=false;document.querySelector('.paystep')?.scrollIntoView({behavior:'smooth',block:'center'});return}
     const d=selDur(),bid=freeBarber(sel.barber,sel.date,sel.time,d,sel.quick?0:15);
     if(!bid){toast('เวลานี้เพิ่งมีคนจองไป เลือกเวลาใหม่ได้เลย');sel.time=null;sel.quick=false;sel.step=3;renderCustomer();return}
     const dl=selDeal();
     const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='refuse'?{promoTitle:dl.title,discount:dl.amt,refUse:true}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt,voucher:sel.voucher.code})):{})};
     if(refOK())b.refBy=phoneKey(sel.ref);
-    const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(payChoice()&&!sel.payNow)b.payAtShop=true;
+    const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(needSlip()&&payCfg().noRefund)b.noRefund=true; if(payChoice()&&!sel.payNow)b.payAtShop=true;
     if(needSlip())b.pay=sel.cashPaid&&user&&!sel.slip?{status:'paid',amount:selDeposit(),paidAt:Date.now(),cash:true}:{status:'review',amount:selDeposit(),slip:sel.slip,sentAt:Date.now()};
     else{const pp=newPay(b);if(pp)b.pay=pp}
     if(b.voucher&&!BACKEND())vLocalMark(b.voucher,b.id);
@@ -4200,7 +4217,7 @@ function lineAct(act,bid,staff){ // same rules as the backend's onPostback_
   }else if(act==='noshow'||act==='release'){
     if(b.status!=='confirmed')return say(`คิว ${b.name} สถานะ "${STATUS[b.status]}" แล้ว`);
     b.status='noshow';b.lastAction=Object.assign({act},by);
-    if(act==='release'){b.released=Date.now();if(isLocked(b))b.credit=b.pay.amount}save();
+    if(act==='release'){b.released=Date.now();if(isLocked(b)&&!b.noRefund)b.credit=b.pay.amount}save();
     say(`${act==='release'?'🔓 ปล่อยคิว ':'บันทึกว่าไม่มา: '}${b.name} (${fmt(b.start)}) แล้ว ช่วงนี้ลูกค้าคนอื่นจองได้${b.credit?`\nลูกค้าโอนแล้ว ${baht(b.credit)} ฿ เก็บเป็นเครดิตให้`:''}`);next();
   }else if(act==='paid'){
     if(me.role!=='owner')return say('เฉพาะเจ้าของร้าน');

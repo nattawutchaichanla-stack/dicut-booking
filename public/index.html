@@ -1730,7 +1730,24 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .ckl.norefund span{display:grid;gap:2px}.ckl.norefund small{color:var(--muted)}
 .ckl.norefund input{margin-top:3px;width:20px;height:20px;flex:none}
 .payhead .advoff{display:inline-flex!important;flex-direction:row;align-self:flex-start;width:fit-content}
+
+/* packages */
+.ad.ad-pkg:not(.has-img),.addet-hero.ad-pkg{background:linear-gradient(135deg,#0d3aa3,#1f5fe0 55%,#F2D676 140%)}
+.ad.ad-pkg .ad-kicker{display:inline-flex;align-items:center;gap:5px}
+.pklist{display:grid;gap:8px}
+.pkrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.pkrow:last-of-type{border-bottom:0}.pkrow>div{flex:1;display:grid;gap:3px}.pkrow small{color:var(--muted)}
+.pkrow.off{opacity:.6}
+.pkbar{display:block;height:6px;border-radius:99px;background:var(--off);overflow:hidden}.pkbar i{display:block;height:100%;background:linear-gradient(90deg,#1f5fe0,#F2D676)}
+.pksell{display:grid;gap:6px;margin-top:8px}
+.ckl.pkuse{display:flex;align-items:flex-start;gap:10px;margin:4px 0 10px;padding:12px 14px;border-radius:14px;border:1.5px solid rgba(31,95,224,.35);background:rgba(31,95,224,.07)}
+.ckl.pkuse span{display:grid;gap:2px}.ckl.pkuse small{color:var(--muted)}.ckl.pkuse input{margin-top:3px;width:20px;height:20px;flex:none}
+.jrow.pkpend{align-items:center;gap:10px}.jrow.pkpend .slipthumb{width:48px;height:64px;object-fit:cover;border-radius:8px}
+.pkact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 </style>
+
+
+
 
 
 
@@ -2036,7 +2053,7 @@ const loyEligible=b=>bIds(b).some(id=>loy().services.includes(id));
 function loyState(phone){
   const k=phoneKey(phone); if(k.length<9||!loy().active)return null;
   const mine=bookings.filter(b=>phoneKey(b.phone)===k);
-  const earned=mine.filter(b=>b.status==='done'&&!b.loyaltyRedeem&&loyEligible(b)).length;
+  const earned=mine.filter(b=>b.status==='done'&&!b.loyaltyRedeem&&!b.pkgUse&&loyEligible(b)).length;
   const used=mine.filter(b=>b.loyaltyRedeem&&['confirmed','inprogress','done'].includes(b.status)).length;
   const bal=Math.max(0,earned-used*loy().need);
   return{earned,used,rewards:Math.floor(bal/loy().need),stamps:bal%loy().need,need:loy().need};
@@ -2697,7 +2714,7 @@ function renderCustomer(){
   const d=selDur();
   h+=`<div class="wbar ${sel.step===1&&!sel.services.length?'idle':''}"><div class="wsum">${sel.services.length?`<b>${esc(selName())}</b><small>${d} นาที · ${(()=>{const off=sel.time!==null?dealAmt()+prepayDisc():0;return off?`<s>${baht(selPrice())}</s> <span class="net">${baht(selNet())} ฿</span>`:baht(selPrice())+' ฿'})()}${sel.time!==null?' · '+dayLabel(sel.date)+' '+fmt(sel.time):''}</small>`:'<small>ยังไม่ได้เลือกบริการ</small>'}</div>`;
   if(sel.step>1)h+=`<button class="ghost" id="wBack">ย้อนกลับ</button>`;
-  h+=sel.step<4?`<button class="primary" id="wNext" ${canGo(sel.step+1)?'':'disabled'}>ถัดไป</button>`:`<button class="primary" id="confirm" ${slipOK()?'':'aria-disabled="true"'}>${slipOK()?(needSlip()?'ยืนยันการจอง':payChoice()?'จองเลย จ่ายที่ร้าน':'ยืนยันการจอง'):'แนบสลิปก่อนจอง'}</button>`;
+  h+=sel.step<4?`<button class="primary" id="wNext" ${canGo(sel.step+1)?'':'disabled'}>ถัดไป</button>`:`<button class="primary" id="confirm" ${slipOK()?'':'aria-disabled="true"'}>${slipOK()?(needSlip()?'ยืนยันการจอง':(selDeal()||{}).kind==='pkg'?'จองเลย ใช้แพคเกจ':payChoice()?'จองเลย จ่ายที่ร้าน':'ยืนยันการจอง'):'แนบสลิปก่อนจอง'}</button>`;
   secBook.innerHTML=h+`</div></section>`;
   adBind();if(typeof VIEW_TITLE!=='undefined')renderNotch();
 }
@@ -2738,7 +2755,8 @@ function stepTime(){
   return h;
 }
 
-function selDeal(){ // loyalty reward wins over promos (no stacking)
+function selDeal(){ // package first, then loyalty reward, then promos (no stacking)
+  const pk=pkUsable();if(pk&&sel.usePkg!==false)return{kind:'pkg',title:'แพคเกจ '+pk.title,amt:selPrice(),pkg:pk};
   const st=loyState(sel.phone);
   if(st&&st.rewards>0&&sel.useLoy){const a=loyAmount(sel.services);if(a>0)return{kind:'loy',title:'ตัด '+st.need+' ฟรี 1',amt:a,st}}
   const rf=refDeal(); if(rf)return rf; // inviter's reward comes before time promos
@@ -2799,7 +2817,7 @@ function loyBoxInner(){
 }
 function lateNoteHTML(start,prepaid){const m=lateMin();if(!(m>0))return '';
   return `<div class="latenote">${ic('clock',18)}<span><b>กรุณามาถึงร้านภายใน ${fmt(start+m)} น.</b><small>ถ้าเลยเวลานัดเกิน ${m} นาที ร้านขออนุญาตให้ลูกค้าท่านอื่นก่อน${prepaid?(payCfg().noRefund?' · ยอดที่โอนแล้วไม่คืนเงิน':' · คิวที่โอนแล้ว ยอดเก็บเป็นเครดิตใช้ครั้งถัดไป'):''}${cfg.phone?' · มาช้าโทรแจ้ง '+esc(cfg.phone):''}</small></span></div>`}
-function payChoiceHTML(){const P=payCfg();if(!payChoice())return '';
+function payChoiceHTML(){const P=payCfg();if(!payChoice()||dealAmt()>=selPrice())return '';
   const off=prepayDiscFor(true), dl=selDeal(), noStack=(P.prepayOff>0||P.prepayPct>0)&&dl&&(dl.kind==='loy'||!P.prepayStack);
   const nowNet=Math.max(0,selPrice()-dealAmt()-off), laterNet=Math.max(0,selPrice()-dealAmt());
   return `<h3 class="wt" style="margin-top:16px">เลือกวิธีจ่าย</h3><div class="paychoice" role="radiogroup" aria-label="วิธีจ่าย">
@@ -2835,7 +2853,7 @@ function stepConfirm(){
   <div class="form" style="margin-top:14px">
     <label>ชื่อเล่น<input id="fName" autocomplete="name" value="${esc(sel.name)}" placeholder="เช่น ต้น"></label>
     <label>เบอร์โทร<input id="fPhone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(sel.phone)}" placeholder="08x-xxx-xxxx"></label>
-    <div id="loyBox">${loyBoxHTML()}</div>
+    <div id="pkBox">${pkBoxHTML()}</div><div id="loyBox">${loyBoxHTML()}</div>
     ${refFieldHTML()}
     <label>อยากได้ทรงแบบไหน (ไม่บังคับ)<textarea id="fNote" rows="2" maxlength="200" placeholder="เช่น รองทรงสูง ข้างเฟด">${esc(sel.note)}</textarea></label>
     </div>${depositStepHTML()}<p class="err" id="err" hidden></p>`;
@@ -2864,12 +2882,14 @@ function promoSlideHTML(p,preview){
 function adSlides(){
   const out=[];
   liveNotices().forEach(n=>out.push(noticeSlideHTML(n)));
+  livePkgs().forEach(k=>out.push(pkgSlideHTML(k)));
   if(loy().active)out.push(loySlideHTML(loy(),sel.phone));
   livePromos().forEach(p=>out.push(promoSlideHTML(p)));
   return out;
 }
 function openAdDetail(key){
   if(String(key).startsWith('n:'))return openNotice(key.slice(2));
+  if(String(key).startsWith('k:'))return openPkgDetail(key.slice(2));
   let h;
   if(key==='loy'){const L=loy(),img=okImg(L.img);
     h=`<div class="addet-hero ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''}><span class="ad-kicker">โปรประจำร้าน</span><b>ตัด ${L.need} ครั้ง ฟรี 1</b></div>
@@ -2958,7 +2978,7 @@ function loyAdminHTML(){
 function renderPromos(){
   if(!isOwner()){secPromos.innerHTML='';return}
   const used=id=>bookings.filter(b=>b.promoId===id&&b.status!=='cancelled');
-  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+noticeAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
+  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+pkgAdminHTML()+noticeAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
   h+=cfg.promos.map(p=>{const u=used(p.id),tot=u.reduce((a,b)=>a+(b.discount||0),0);
     return `<div class="prow ${p.active?'':'off'}">${p.img?`<span class="pthumb" style="background-image:url('${p.img}')"></span>`:''}<div class="pinfo"><span class="pval">${promoLabel(p)}</span><b>${esc(p.title)}</b><small>${esc(promoCond(p))} · ${+p.limit>0?'จำกัด '+(+p.limit)+' สิทธิ์':'ไม่จำกัดสิทธิ์'}</small><small>ใช้แล้ว ${u.length} คิว · ลดไปรวม ${tot.toLocaleString()} ฿</small></div>
       <div class="pact"><button class="icon-btn" data-pmove="${p.id}|-1" aria-label="เลื่อนขึ้น" ${cfg.promos.indexOf(p)===0?'disabled':''}>↑</button><button class="icon-btn" data-pmove="${p.id}|1" aria-label="เลื่อนลง" ${cfg.promos.indexOf(p)===cfg.promos.length-1?'disabled':''}>↓</button><button class="ghost" data-ptoggle="${p.id}">${p.active?'ปิดโปร':'เปิดโปร'}</button><button class="ghost" data-pedit="${p.id}">แก้ไข</button></div></div>`}).join('')||'<p class="hint">ยังไม่มีโปรโมชั่น</p>';
@@ -3112,7 +3132,7 @@ function renderTimeline(){const live=adminDate===today();secTimeline.innerHTML=`
 function renderSettings(){if(!isOwner()){secSettings.innerHTML='';return}secSettings.innerHTML=`<details class="step" id="setDet" ${settingsOpen?'open':''}><summary>ตั้งเวลาทำงาน ช่าง และบริการ</summary>${settingsHTML()}</details>`}
 let settingsOpen=false;
 function renderOthers(){renderLive();if(!walkOpen)renderToday();renderTimeline();renderCustomer()}
-function renderAdmin(){expireHolds();renderCustomers();renderPromos();renderSum();renderLive();if(!walkOpen||!secToday.contains(document.activeElement))renderToday();renderTimeline();renderSettings();renderGfx();renderLineAdmin();renderCustomer();renderNotch();renderTabs();if(view==='home')renderHome();if(typeof slipWatch==='function')slipWatch()}
+function renderAdmin(){expireHolds();renderCustomers();renderPromos();renderSum();renderLive();if(!walkOpen||!secToday.contains(document.activeElement))renderToday();renderTimeline();renderSettings();renderGfx();renderLineAdmin();renderCustomer();renderNotch();renderTabs();if(view==='home')renderHome();if(typeof slipWatch==='function')slipWatch();try{pkPendLoad()}catch(_){}}
 /* ---------- date picker (ark-ui DatePicker style, extended) ---------- */
 const TH_DOW=['อา','จ','อ','พ','พฤ','ศ','ส'], TH_MON_S=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 let dp={open:false,view:'day',y:0,m:0,mode:'single',rs:'',re:'',barber:'all',focus:''};
@@ -3311,7 +3331,7 @@ function todayHTML(){
   const who=(b,extra='')=>{const inner=`${avatar(b.name,cphoto(b),'md')}<span class="jw"><b>${esc(b.name)}</b>${tag(b)}${payBadge(b)}<small>${esc(barber(b.barberId).name)} · ${esc(bName(b))}</small>${extra}</span>`;
     return canManage(b)?`<button class="jwho" data-bk="${b.id}" aria-label="รายละเอียดคิว ${esc(b.name)}">${inner}</button>`:`<div class="jwho">${inner}</div>`};
   const box=(cls,icon,title,items,body,empty)=>`<section class="jbox ${cls}"><header>${ic(icon,18)}<b>${title}</b><span class="jn">${items.length}</span></header>${items.length?items.map(body).join(''):`<p class="jempty">${empty}</p>`}</section>`;
-  let h=staffPushCardHTML()+`<h2 class="sech">ลูกค้าวันนี้</h2><button class="ghost vshopbtn" data-vshop>${ic('tag',16)} ลูกค้าแสดงโค้ดโปร ใช้สิทธิ์หน้าร้าน</button>`;
+  let h=staffPushCardHTML()+`<div id="pkPend"></div><h2 class="sech">ลูกค้าวันนี้</h2><button class="ghost vshopbtn" data-vshop>${ic('tag',16)} ลูกค้าแสดงโค้ดโปร ใช้สิทธิ์หน้าร้าน</button>`;
   const rv=bookings.filter(b=>b.status==='confirmed'&&b.pay&&b.pay.status==='review'&&canManage(b)).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
   const cl=bookings.filter(b=>b.status==='claim'&&canManage(b)).sort((a,b)=>(b.pay&&b.pay.sentAt||0)-(a.pay&&a.pay.sentAt||0));
   if(cl.length)h+=box('j-pay','lock','ลูกค้าหน้าร้านส่งสลิป ขอรับแต้ม',cl,b=>`<div class="jrow">${who(b,`<small>ยอด ${baht((b.pay||{}).amount||0)} ฿ · ตัดหน้าร้าน</small>`)}<button class="jbtn start" data-slipcheck="${b.id}">ตรวจ / ยืนยัน</button></div>`,'');
@@ -3545,6 +3565,7 @@ function openCustomer(k,edit=false){
   if(!edit){
     h+=`<div class="pstats"><div><b>${done.length}</b>มาแล้ว (ครั้ง)</div><div><b>${spent.toLocaleString()}</b>ยอดรวม ฿</div><div><b>${fav?esc(barber(fav[0]).name):'–'}</b>ช่างประจำ</div></div>`;
     if(up)h+=`<p class="okbanner" style="margin:12px 0 0">คิวถัดไป ${thaiDate(up.date)} ${fmt(up.start)} · ${esc(bName(up))} กับ${esc(barber(up.barberId).name)}</p>`;
+    h+=`<div id="cuPk" data-k="${k}"></div>`;setTimeout(()=>cuPkLoad(k),0);
     if(c.createdAt)h+=`<p class="regline">${ic('user',14)} สมาชิกตั้งแต่ ${stampTH(c.createdAt)}${c.regBy?' · สมัครโดย '+esc(c.regBy):''}</p>`;
     h+=loyCardHTML(loyState(c.phone));
     if(isOwner())h+=`<button class="ghost" data-addpt="${k}" style="width:100%;margin-top:10px">${ic('plus',16)} เพิ่มแต้ม (แนบสลิป)</button>`;
@@ -3745,7 +3766,7 @@ function renderMyOut(){expireHolds();
         <span class="hmeta"><b>${esc(bName(b))}</b><small>${esc(barber(b.barberId).name)} · ${fmt(b.start)}${b.loyaltyRedeem?' · ตัดฟรีจากแต้ม':''}</small>${b.promoTitle&&!b.loyaltyRedeem?`<em class="ptag">${esc(b.promoTitle)} -${baht(b.discount)} ฿</em>`:''}${b.prepayOff?`<em class="ptag">จองล่วงหน้า -${baht(b.prepayOff)} ฿</em>`:''}</span>
         <span class="hp">${off?`<s>${baht(bFull(b))}</s>`:''}<b>${baht(bPrice(b))} ฿</b></span></li>`}).join('')}</ul>`
     :'<p class="hint">ยังไม่มีประวัติการตัด</p>'}</section>`}
-  o.innerHTML=pushCardHTML(phone||k)+`<div id="myV"></div>`+h;myVLoad(phone||k);
+  o.innerHTML=pushCardHTML(phone||k)+`<div id="myPk"></div><div id="myV"></div>`+h;myVLoad(phone||k);myPkLoad(phone||k);
 }
 document.addEventListener('change',async e=>{if(!myLookup)return;const c=customers[myLookup.k];if(!c)return;
   if(e.target.id==='myNote'){c.note=e.target.value.trim();saveCu();toast('บันทึกแล้ว ช่างจะเห็นข้อมูลนี้')}
@@ -3976,7 +3997,7 @@ app.addEventListener('click',e=>{
     const d=selDur(),bid=freeBarber(sel.barber,sel.date,sel.time,d,sel.quick?0:15);
     if(!bid){toast('เวลานี้เพิ่งมีคนจองไป เลือกเวลาใหม่ได้เลย');sel.time=null;sel.quick=false;sel.step=3;renderCustomer();return}
     const dl=selDeal();
-    const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='refuse'?{promoTitle:dl.title,discount:dl.amt,refUse:true}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt,voucher:sel.voucher.code})):{})};
+    const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='refuse'?{promoTitle:dl.title,discount:dl.amt,refUse:true}:dl.kind==='pkg'?{pkgUse:dl.pkg.id,pkgTitle:dl.pkg.title,promoTitle:dl.title,discount:dl.amt}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt,voucher:sel.voucher.code})):{})};
     if(refOK())b.refBy=phoneKey(sel.ref);
     const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(needSlip()&&payCfg().noRefund)b.noRefund=true; if(payChoice()&&!sel.payNow)b.payAtShop=true;
     if(needSlip())b.pay=sel.cashPaid&&user&&!sel.slip?{status:'paid',amount:selDeposit(),paidAt:Date.now(),cash:true}:{status:'review',amount:selDeposit(),slip:sel.slip,sentAt:Date.now()};
@@ -4234,7 +4255,7 @@ function lineQueueMsg(staff){lineAdd(staff,{dir:'out',text:'คิว'},true);li
 const LC={blue:'#0B3A9E',green:'#14975A',orange:'#C2610C',red:'#DC2F2F',gray:'#5F6B85'};
 function lbtn(label,act,bid,staff,color,ghost){return `<button class="lbtn ${ghost?'ghost':''}" style="${ghost?'':'--c:'+color}" data-lact="${act}" data-lid="${bid}" data-lstaff="${staff}">${esc(label)}</button>`}
 function lrow(k,v,bold){return `<div class="lrow"><span>${k}</span><b class="${bold?'':'n'}">${v}</b></div>`}
-function lpay(b){return !b.pay?(b.payAtShop?'จ่ายที่ร้าน':'-'):b.pay.status==='paid'?'🔒 โอนแล้ว '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}
+function lpay(b){return !b.pay?(b.pkgUse?'🎟 ใช้แพคเกจ':b.payAtShop?'จ่ายที่ร้าน':'-'):b.pay.status==='paid'?'🔒 โอนแล้ว '+baht(b.pay.amount)+' ฿':b.pay.status==='review'?'รอตรวจสลิป':'ยังไม่ชำระ'}
 function lrows(b){return lrow('ลูกค้า',esc(b.name||'-')+(b.phone?' · '+esc(b.phone):''),1)+lrow('บริการ',esc(bName(b)))+lrow('เวลา',(b.date===today()?'วันนี้ ':thaiDate(b.date)+' ')+fmt(b.start)+'–'+fmt(b.start+b.dur))+lrow('ราคา',baht(bPrice(b))+' ฿'+(b.discount?' ('+esc(b.promoTitle||'โปร')+')':''))+lrow('ชำระ',lpay(b))+(b.note?lrow('ทรง',esc(b.note)):'')}
 function lcard(color,head,sub,body,btns,note){return `<div class="lcard"><div class="lhead" style="background:${color}"><b>${head}</b><small>${sub}</small></div><div class="lbody">${body}${note?`<p class="lnote">${note}</p>`:''}</div>${btns?`<div class="lfoot">${btns}</div>`:''}</div>`}
 function lmsgHTML(m){
@@ -4831,6 +4852,108 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||
   if(t.id==='crGo'){cuRegGo(t)}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='crName'||e.target.id==='crPhone')){e.preventDefault();if(e.target.id==='crName')document.getElementById('crPhone').focus();else document.getElementById('crGo')?.click()}});
 function stampTH(ts){try{const d=new Date(+ts);return d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})+' เวลา '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})+' น.'}catch(_){return ''}}
+/* ---------- prepaid packages (e.g. ตัด 6 ฟรี 1 ราคา 900 ฿) ---------- */
+function pkgs(){return Array.isArray(cfg.packages)?cfg.packages:(cfg.packages=[])}
+function livePkgs(){return backendOn()?pkgs().filter(k=>k.active!==false):[]}
+function pkUses(k){return (+k.cuts||0)+(+k.free||0)}
+function pkSvcTxt(k){return k.services&&k.services.length?k.services.map(id=>svc(id).name).join(', '):'ทุกบริการ'}
+function pkWorth(k){const ids=k.services&&k.services.length?k.services:[(cfg.services[0]||{}).id];const p=Math.max(...ids.map(id=>svc(id).price||0));return p*pkUses(k)}
+function pkgSlideHTML(k,preview){const img=okImg(k.img);
+  return `<article class="ad ad-pkg ${img?'has-img':''}" ${img?`style="--img:url('${img}')"`:''} ${preview?'':`data-addetail="k:${k.id}" tabindex="0" role="button" aria-label="แพคเกจ ${esc(k.title)}"`}><div class="ad-body"><span class="ad-kicker">${ic('ticket',13)} แพคเกจเหมา</span>
+    <span class="ad-val">${baht(+k.price||0)} ฿</span><h3>${esc(k.title||'ชื่อแพคเกจ')}</h3><p>${esc(k.desc||('ใช้ได้ '+pkUses(k)+' ครั้ง · '+pkSvcTxt(k)))}</p>${+k.months>0?`<small>ใช้ได้ ${+k.months} เดือนหลังร้านยืนยัน</small>`:''}
+    <button class="ad-cta" ${preview?'tabindex="-1"':`data-pkbuy="${k.id}"`}>ซื้อแพคเกจ</button></div><span class="ad-more" aria-hidden="true">ดูรายละเอียด ›</span></article>`}
+function openPkgDetail(id){const k=pkgs().find(x=>x.id===id);if(!k)return;const w=pkWorth(k);
+  showSheet(`<div class="addet-hero ad-pkg"><span class="ad-kicker">${ic('ticket',13)} แพคเกจเหมา</span><span class="ad-val">${baht(+k.price||0)} ฿</span><b>${esc(k.title)}</b></div>
+    ${k.desc?`<p class="bio">${esc(k.desc)}</p>`:''}
+    <p class="psub">รายละเอียด</p><ul class="addet-list"><li>ใช้ได้ ${pkUses(k)} ครั้ง${+k.free>0?` (ตัด ${+k.cuts} ฟรี ${+k.free})`:''}</li><li>ใช้กับ: ${esc(pkSvcTxt(k))}</li>
+    ${w>+k.price?`<li>ปกติ ${baht(w)} ฿ ประหยัด ${baht(w-(+k.price||0))} ฿</li>`:''}<li>${+k.months>0?'อายุ '+(+k.months)+' เดือน นับจากวันที่ร้านยืนยัน':'ไม่มีวันหมดอายุ'}</li>
+    <li>จองในแอพ ระบบหักแพคเกจให้อัตโนมัติ ไม่ต้องจ่ายเพิ่ม · มาที่ร้านบอกช่างได้เลย</li><li>ซื้อแล้วไม่คืนเงิน ใช้ได้เฉพาะเบอร์ที่ซื้อ</li></ul>
+    <div class="actions"><button class="okb" data-pkbuy="${k.id}" style="grid-column:1/-1">ซื้อแพคเกจ ${baht(+k.price||0)} ฿</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+// customer buys in the app: transfer + slip -> shop confirms
+var pkDraft=null;
+function openPkBuy(id){const k=pkgs().find(x=>x.id===id);if(!k)return;const me=custMe||{};pkDraft={id,name:me.name||sel.name||'',phone:me.phone||sel.phone||'',slip:''};renderPkBuy()}
+function renderPkBuy(){const d=pkDraft;if(!d)return;const k=pkgs().find(x=>x.id===d.id);if(!k)return;
+  showSheet(`<h3>ซื้อแพคเกจ ${esc(k.title)}</h3><p class="psub">${baht(+k.price||0)} ฿ · ใช้ได้ ${pkUses(k)} ครั้ง · ${esc(pkSvcTxt(k))}</p>
+    <div class="form"><div class="two"><label>ชื่อเล่น<input id="pbName" value="${esc(d.name)}"></label><label>เบอร์โทร<input id="pbPhone" type="tel" inputmode="tel" value="${esc(d.phone)}"></label></div>
+    <p class="hint">แพคเกจผูกกับเบอร์นี้ ใช้จองหรือบอกช่างที่ร้านได้เลย</p>
+    ${shopQRCard(+k.price||0)}
+    <label class="upl clslip">${d.slip?'เปลี่ยนรูปสลิป':ic('image',18)+' แนบสลิปโอน '+baht(+k.price||0)+' ฿'}<input type="file" accept="image/*" id="pbSlip"></label>
+    ${d.slip?`<img src="${esc(d.slip)}" class="slipthumb" alt="สลิปที่แนบ">`:''}<p class="hint">ซื้อแล้วไม่คืนเงิน · ร้านตรวจสลิปแล้วแพคเกจพร้อมใช้ทันที</p><p class="err" id="pbErr" hidden></p></div>
+    <div class="actions"><button class="okb" id="pbGo" style="grid-column:1/-1" ${d.slip?'':'aria-disabled="true"'}>ส่งสลิปซื้อแพคเกจ</button><button data-close style="grid-column:1/-1">ยกเลิก</button></div>`)}
+var PK_WHY={phone:'ใส่เบอร์โทรให้ครบ',name:'ใส่ชื่อเล่น',slip:'แนบสลิปก่อน',inactive:'แพคเกจนี้ปิดแล้ว',unknown:'ไม่พบแพคเกจ',empty:'แพคเกจใช้ครบหรือหมดอายุแล้ว',done:'รายการนี้ยืนยันไปแล้ว',net:'เชื่อมต่อไม่ได้ ลองใหม่'};
+document.addEventListener('change',async e=>{if(e.target.id!=='pbSlip'||!pkDraft||!e.target.files[0])return;
+  try{pkDraft.name=document.getElementById('pbName').value;pkDraft.phone=document.getElementById('pbPhone').value;pkDraft.slip=await fileToSlip(e.target.files[0]);renderPkBuy()}catch(_){toast('เปิดไฟล์รูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
+async function pkApi(b){try{return await api(b)}catch(_){return{ok:false,why:'net'}}}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.pkbuy){e.stopPropagation();openPkBuy(t.dataset.pkbuy);return}
+  if(t.id==='pbGo'&&pkDraft){const d=pkDraft,f=m=>{const x=document.getElementById('pbErr');x.textContent=m;x.hidden=false};
+    d.name=document.getElementById('pbName').value.trim();d.phone=document.getElementById('pbPhone').value.trim();
+    if(!d.name)return f(PK_WHY.name);if(phoneKey(d.phone).length<9)return f(PK_WHY.phone);if(!d.slip)return f(PK_WHY.slip);
+    t.disabled=true;const r=await pkApi({a:'pkbuy',pkgId:d.id,name:d.name,phone:phoneKey(d.phone),slip:d.slip});t.disabled=false;
+    if(!r||!r.ok)return f(PK_WHY[r&&r.why]||'ส่งไม่สำเร็จ ลองใหม่อีกครั้ง');
+    pkDraft=null;sel.pkVk=null;
+    showSheet(`<h3>ส่งสลิปแล้ว 🎉</h3><p class="psub">${esc(r.pkg.title)} · ${baht(r.pkg.price)} ฿</p><div class="vbig sm"><b>${esc(r.pkg.id)}</b><small>รอร้านตรวจสลิป แล้วแพคเกจจะพร้อมใช้ ${r.pkg.uses} ครั้ง</small></div>
+      <p class="hint">ดูสถานะได้ที่แท็บ "ของฉัน" · ถ้าเปิดแจ้งเตือนไว้ จะเด้งบอกเมื่อพร้อมใช้</p><div class="actions"><button data-view="mine" data-close style="grid-column:1/-1">ดูแพคเกจของฉัน</button><button data-close style="grid-column:1/-1">ปิด</button></div>`);
+    if(myLookup)renderMyOut();return}});
+// "ของฉัน": my packages
+function pkState(x){return x.status==='review'?['รอร้านยืนยัน','wait']:x.status==='rejected'?['สลิปไม่ผ่าน','cancelled']:x.left<=0?['ใช้ครบแล้ว','done']:x.expires&&x.expires<today()?['หมดอายุ','cancelled']:['พร้อมใช้','confirmed']}
+function pkRowHTML(x,staff){const [st,cls]=pkState(x);
+  return `<div class="pkrow ${x.live?'':'off'}"><div><b>${esc(x.title)}</b><small>เหลือ <b>${x.left}</b>/${x.uses} ครั้ง${x.expires?' · ใช้ได้ถึง '+thaiDate(x.expires):''}${staff&&x.via?' · '+(x.via==='shop'?'ขายที่ร้าน':'ซื้อในแอพ'):''}</small><span class="pkbar"><i style="width:${x.uses?Math.round(x.left/x.uses*100):0}%"></i></span></div>
+    <span class="chip ${cls}">${st}</span>${staff&&x.live?`<button class="ghost" data-pkredeem="${esc(x.phone)}|${esc(x.id)}">ใช้ 1 ครั้ง</button>`:''}</div>`}
+async function myPkLoad(phone){if(!backendOn())return;const pk=phoneKey(phone||'');if(pk.length<9)return;const r=await pkApi({a:'pklist',phone:pk});const el=document.getElementById('myPk');if(!el||!r||!r.pkgs||!r.pkgs.length)return;
+  el.innerHTML=`<h2 class="sech">แพคเกจของฉัน</h2><section class="step pklist">${r.pkgs.slice().reverse().map(x=>pkRowHTML(x)).join('')}<p class="hint" style="margin-top:8px">จองในแอพ ระบบหักแพคเกจให้เอง · มาที่ร้านบอกช่างได้เลย</p></section>`}
+// booking: use my package
+function pkUsable(){const v=sel.pkV;if(!v||v.k!==phoneKey(sel.phone||''))return null;
+  const ids=sel.services;if(!ids.length)return null;const d=sel.date||today();
+  return v.list.find(x=>x.live&&(!x.expires||x.expires>=d)&&(!x.services||!x.services.length||ids.every(id=>x.services.includes(id))))||null}
+function pkBoxHTML(){if(!backendOn())return '';const pk=phoneKey(sel.phone||'');if(pk.length<9)return '';
+  if(!sel.pkV||sel.pkV.k!==pk){if(sel.pkVk!==pk){sel.pkVk=pk;pkApi({a:'pklist',phone:pk}).then(r=>{if(phoneKey(sel.phone||'')!==pk)return;sel.pkV={k:pk,list:(r&&r.pkgs)||[]};renderCustomer()})}return ''}
+  const x=pkUsable();if(!x)return '';
+  return `<label class="ckl pkuse"><input type="checkbox" id="usePkg" ${sel.usePkg!==false?'checked':''}> <span><b>${ic('ticket',15)} ใช้แพคเกจ ${esc(x.title)}</b><small>เหลือ ${x.left} ครั้ง${x.expires?' · ถึง '+thaiDate(x.expires):''} · คิวนี้ไม่ต้องจ่ายเพิ่ม</small></span></label>`}
+document.addEventListener('change',e=>{if(e.target.id==='usePkg'){sel.usePkg=e.target.checked;renderCustomer()}});
+// staff: pending app purchases + profile sell/redeem
+var pkPendAt=0,pkPendList=[];
+async function pkPendLoad(force){if(!backendOn()||!user||!isOwner())return;const el=document.getElementById('pkPend');if(!el)return;
+  if(!force&&Date.now()-pkPendAt<20000){pkPendRender();return}pkPendAt=Date.now();
+  const r=await pkApi({a:'pkpending',key:L().key});pkPendList=(r&&r.pkgs)||[];pkPendRender()}
+function pkPendRender(){const el=document.getElementById('pkPend');if(!el)return;
+  el.innerHTML=pkPendList.length?`<section class="jbox j-pay"><header>${ic('ticket',18)}<b>ลูกค้าซื้อแพคเกจ รอยืนยันสลิป</b><span class="jn">${pkPendList.length}</span></header>${pkPendList.map(x=>`<div class="jrow pkpend">${x.slip?`<a href="${esc(x.slip)}" target="_blank" rel="noopener"><img src="${esc(x.slip)}" class="slipthumb" alt="สลิป"></a>`:''}<span class="jw"><b>${esc(x.name||x.phone)}</b><small>${esc(x.phone)} · ${esc(x.title)} · ${baht(x.price)} ฿</small><small>ส่งเมื่อ ${stampTH(x.boughtAt)}</small></span><span class="pkact"><button class="jbtn start" data-pkok="${esc(x.phone)}|${esc(x.id)}">ยืนยัน</button><button class="ghost" data-pkno="${esc(x.phone)}|${esc(x.id)}">สลิปไม่ถูก</button></span></div>`).join('')}</section>`:''}
+async function cuPkLoad(k){const el=document.querySelector(`#cuPk[data-k="${k}"]`);if(!el||!backendOn())return;const r=await pkApi({a:'pklist',phone:k});const list=(r&&r.pkgs)||[];
+  const can=pkgs().filter(x=>x.active!==false);
+  el.innerHTML=`<p class="psub">แพคเกจ</p>${list.length?`<div class="pklist">${list.slice().reverse().map(x=>pkRowHTML(x,true)).join('')}</div>`:'<p class="hint">ยังไม่มีแพคเกจ</p>'}${can.length?`<div class="pksell">${can.map(p=>`<button class="ghost" data-pksell="${k}|${p.id}">${ic('plus',14)} ขาย ${esc(p.title)} ${baht(+p.price||0)} ฿</button>`).join('')}</div>`:''}`}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t||!user)return;const by=user.name||(user.role==='owner'?'เจ้าของร้าน':(barber(user.id)||{}).name||'ช่าง');
+  if(t.dataset.pkok||t.dataset.pkno){const [ph,id]=(t.dataset.pkok||t.dataset.pkno).split('|');if(t.dataset.pkno&&!confirm('แจ้งว่าสลิปไม่ถูกต้อง?'))return;t.disabled=true;
+    const r=await pkApi({a:'pkconfirm',key:L().key,phone:ph,id,ok:!!t.dataset.pkok,by});toast(r&&r.ok?(t.dataset.pkok?'ยืนยันแล้ว แพคเกจพร้อมใช้':'แจ้งลูกค้าแล้ว'):PK_WHY[r&&r.why]||'ไม่สำเร็จ');pkPendLoad(true);return}
+  if(t.dataset.pksell){const [k,pid]=t.dataset.pksell.split('|'),p=pkgs().find(x=>x.id===pid),c=customers[k]||{};if(!p)return;
+    if(!confirm(`ขาย ${p.title} ${baht(+p.price||0)} ฿ ให้ ${c.name||k}?\nรับเงินแล้ว (เงินสดหรือโอน)`))return;t.disabled=true;
+    const r=await pkApi({a:'pksell',key:L().key,phone:k,name:c.name||'',pkgId:pid,by});t.disabled=false;toast(r&&r.ok?'ขายแพคเกจแล้ว ใช้ได้ '+r.pkg.uses+' ครั้ง':PK_WHY[r&&r.why]||'ไม่สำเร็จ');cuPkLoad(k);return}
+  if(t.dataset.pkredeem){const [ph,id]=t.dataset.pkredeem.split('|');if(!confirm('หักแพคเกจ 1 ครั้ง (ลูกค้าตัดที่ร้าน)?'))return;t.disabled=true;
+    const r=await pkApi({a:'pkredeem',key:L().key,phone:ph,id,by});toast(r&&r.ok?'หักแล้ว เหลือ '+r.pkg.left+' ครั้ง':PK_WHY[r&&r.why]||'ไม่สำเร็จ');cuPkLoad(phoneKey(ph));return}});
+// owner: create / edit packages
+function pkgAdminHTML(){const L0=pkgs();
+  return `<h2 class="sech">แพคเกจเหมา</h2><section class="step"><p class="hint" style="margin-bottom:10px">เช่น ตัด 6 ฟรี 1 ราคา 900 ฿ · ลูกค้าซื้อในแอพ (โอน+แนบสลิป แล้วร้านกดยืนยัน) หรือขายที่ร้านในโปรไฟล์ลูกค้า</p><div class="plist">`
+    +(L0.map(k=>`<div class="prow ${k.active!==false?'':'off'}"><div class="pinfo"><span class="pval">${baht(+k.price||0)} ฿</span><b>${esc(k.title)}</b><small>${pkUses(k)} ครั้ง · ${esc(pkSvcTxt(k))} · ${+k.months>0?'อายุ '+(+k.months)+' เดือน':'ไม่หมดอายุ'}</small></div>
+      <div class="pact"><button class="ghost" data-kgtoggle="${k.id}">${k.active!==false?'ปิดขาย':'เปิดขาย'}</button><button class="ghost" data-kgedit="${k.id}">แก้ไข</button></div></div>`).join('')||'<p class="hint">ยังไม่มีแพคเกจ</p>')
+    +`</div><button class="primary" data-kgedit="new" style="margin-top:12px">${ic('plus',18)}สร้างแพคเกจ</button></section>`}
+function openPkgForm(id){if(!isOwner())return;const k=id==='new'?{id:'',title:'ตัด 6 ฟรี 1',cuts:6,free:1,price:900,services:['cut'].filter(x=>cfg.services.some(s=>s.id===x)),months:6,desc:'',active:true}:pkgs().find(x=>x.id===id);if(!k)return;
+  showSheet(`<h3>${id==='new'?'สร้างแพคเกจ':'แก้ไขแพคเกจ'}</h3><div class="form kgform" style="margin-top:8px">
+    <label>ชื่อแพคเกจ<input id="kgTitle" value="${esc(k.title)}" maxlength="40" placeholder="เช่น ตัด 6 ฟรี 1"></label>
+    <div class="two"><label>จำนวนครั้งที่จ่าย<input id="kgCuts" type="number" min="1" max="50" value="${+k.cuts||1}"></label><label>แถมฟรี (ครั้ง)<input id="kgFree" type="number" min="0" max="20" value="${+k.free||0}"></label></div>
+    <div class="two"><label>ราคาแพคเกจ (฿)<input id="kgPrice" type="number" min="1" step="10" value="${+k.price||0}"></label><label>อายุ (เดือน, 0 = ไม่หมดอายุ)<input id="kgMonths" type="number" min="0" max="36" value="${+k.months||0}"></label></div>
+    <fieldset><legend>ใช้กับบริการ (ไม่เลือก = ทุกบริการ)</legend>${cfg.services.map(x=>`<label class="ckl"><input type="checkbox" name="kgsvc" value="${x.id}" ${(k.services||[]).includes(x.id)?'checked':''}>${esc(x.name)} · ${baht(x.price)} ฿</label>`).join('')}</fieldset>
+    <label>ข้อความสั้น (ไม่บังคับ)<input id="kgDesc" value="${esc(k.desc||'')}" maxlength="90" placeholder="เช่น คุ้มกว่า ตัดได้ทั้งครอบครัว"></label>
+    <p class="err" id="kgErr" hidden></p><button class="primary" data-kgsave="${id}">บันทึกแพคเกจ</button>
+    ${id!=='new'?`<button class="ghost" data-kgdel="${id}" style="color:var(--danger)">ลบแพคเกจ</button>`:''}<button class="ghost" data-close>ยกเลิก</button></div>`)}
+function savePkg(id){const g=x=>document.getElementById(x),err=m=>{const e=g('kgErr');e.textContent=m;e.hidden=false};
+  const d={title:g('kgTitle').value.trim(),cuts:Math.round(+g('kgCuts').value),free:Math.max(0,Math.round(+g('kgFree').value)||0),price:Math.round(+g('kgPrice').value),months:Math.max(0,Math.round(+g('kgMonths').value)||0),desc:g('kgDesc').value.trim(),services:[...document.querySelectorAll('input[name=kgsvc]:checked')].map(i=>i.value)};
+  if(!d.title)return err('ใส่ชื่อแพคเกจ');if(!(d.cuts>=1))return err('จำนวนครั้งต้องอย่างน้อย 1');if(!(d.price>0))return err('ใส่ราคาแพคเกจ');
+  if(id==='new')pkgs().push({id:uid('k'),active:true,...d});else Object.assign(pkgs().find(x=>x.id===id),d);
+  saveCfg();dlg.close();renderPromos();renderCustomer();toast('บันทึกแพคเกจแล้ว')}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||!isOwner())return;
+  if(t.dataset.kgedit){openPkgForm(t.dataset.kgedit);return}
+  if(t.dataset.kgsave){savePkg(t.dataset.kgsave);return}
+  if(t.dataset.kgtoggle){const k=pkgs().find(x=>x.id===t.dataset.kgtoggle);if(!k)return;k.active=k.active===false;saveCfg();renderPromos();renderCustomer();toast(k.active?'เปิดขายแพคเกจแล้ว':'ปิดขายแพคเกจแล้ว');return}
+  if(t.dataset.kgdel){if(!confirm('ลบแพคเกจนี้? ลูกค้าที่ซื้อไปแล้วยังใช้ได้ตามเดิม'))return;cfg.packages=pkgs().filter(x=>x.id!==t.dataset.kgdel);saveCfg();dlg.close();renderPromos();renderCustomer()}});
 window.__appReady=1;
 </script>
 </body>

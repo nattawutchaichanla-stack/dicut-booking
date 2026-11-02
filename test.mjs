@@ -423,4 +423,28 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   await post({ a: 'create', key: KEY, booking: { id: 'NR1', date: core.todayKey(), start: 1, dur: 30, barberId: 'b2', serviceId: 'cut', services: ['cut'], name: 'ไม่คืน', phone: '0861234560', noRefund: true, prepayOff: 3, pay: { status: 'paid', amount: 147 } } });
   const b = await db.getBooking('NR1'); ok(b.noRefund && b.prepayOff === 3, 'advance booking keeps the 2% discount and the no-refund flag');
 }
+{ // prepaid packages: cut 6 get 1 free for 900
+  await post({ a: 'appcfg', key: KEY, cfg: { shopName: 'DI-CUT', barbers: [{ id: 'b1', name: 'ช่างเอ' }], packages: [{ id: 'k7', title: 'ตัด 6 ฟรี 1', cuts: 6, free: 1, price: 900, services: ['cut'], months: 6, active: true }] } });
+  const ph = '0857770001', slip = 'data:image/png;base64,iVBORw0KGgo=';
+  ok((await post({ a: 'pkbuy', phone: ph, name: 'แพค', pkgId: 'k7' })).why === 'slip', 'buying in the app needs a slip');
+  const b1 = await post({ a: 'pkbuy', phone: ph, name: 'แพค', pkgId: 'k7', slip });
+  ok(b1.ok && b1.pkg.status === 'review' && b1.pkg.uses === 7 && b1.pkg.price === 900, 'bought in app: 7 cuts, waiting for the shop');
+  ok((await post({ a: 'pkpending', key: KEY })).pkgs.some(x => x.id === b1.pkg.id), 'shop sees it in the pending list');
+  const bk = (id, start) => ({ id, date: core.todayKey(), start, dur: 30, barberId: 'bpk', serviceId: 'cut', services: ['cut'], name: 'แพค', phone: ph, pkgUse: b1.pkg.id, discount: 150 });
+  ok((await post({ a: 'create', booking: bk('PKB0', 1300) })).ok === false, 'cannot book with a package before the shop confirms');
+  ok((await post({ a: 'pkconfirm', phone: ph, id: b1.pkg.id, ok: true })).ok === false, 'confirm needs the staff key');
+  const c = await post({ a: 'pkconfirm', key: KEY, phone: ph, id: b1.pkg.id, ok: true, by: 'เจ้าของร้าน' });
+  ok(c.ok && c.pkg.status === 'active' && c.pkg.expires > core.todayKey(), 'shop confirms: active with an expiry date');
+  ok(!(await post({ a: 'pkpending', key: KEY })).pkgs.some(x => x.id === b1.pkg.id), 'removed from pending');
+  const r = await post({ a: 'create', booking: bk('PKB1', 1300) });
+  ok(r.ok && r.booking.pkgTitle === 'ตัด 6 ฟรี 1', 'booking paid by package');
+  let L = (await post({ a: 'pklist', phone: ph })).pkgs[0]; ok(L.used === 1 && L.left === 6, 'one cut used, 6 left');
+  await post({ a: 'cancel', id: 'PKB1', phone: ph });
+  L = (await post({ a: 'pklist', phone: ph })).pkgs[0]; ok(L.used === 0, 'cancelled booking gives the cut back');
+  const rd = await post({ a: 'pkredeem', key: KEY, phone: ph, id: b1.pkg.id, by: 'ช่างเอ' });
+  ok(rd.ok && rd.pkg.left === 6, 'staff marks a walk-in cut used');
+  const s1 = await post({ a: 'pksell', key: KEY, phone: '0857770002', name: 'หน้าร้าน', pkgId: 'k7', by: 'ช่างเอ' });
+  ok(s1.ok && s1.pkg.status === 'active' && s1.pkg.via === 'shop', 'sold at the counter: active right away');
+  ok((await post({ a: 'create', booking: Object.assign(bk('PKB2', 1340), { services: ['beard'], serviceId: 'beard' }) })).ok === false, 'package limited to its services');
+}
 console.log('\n' + pass + ' checks passed');

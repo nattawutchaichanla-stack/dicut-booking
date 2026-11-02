@@ -409,4 +409,12 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const m = sent.slice(n).find(x => x.kind === 'push' && /รายการคิวที่จองไว้/.test((x.messages[0] || {}).text || ''));
   ok(r.ok && r.count > 0 && m && m.messages.length >= 1 && /•/.test(m.messages[0].text), 'one summary message with every upcoming queue');
 }
+{ // staff signs up a customer with just name + phone
+  const r1 = await post({ a: 'join', key: KEY, name: 'ลูกค้าหน้าร้าน', phone: '081-234-5670' });
+  ok(r1.ok && !r1.back && (await db.getMember('0812345670')).name === 'ลูกค้าหน้าร้าน', 'staff registers a new member');
+  ok((await post({ a: 'join', key: KEY, name: 'ลูกค้าหน้าร้าน', phone: '0812345670' })).back === true, 'same person again: already a member');
+  const r3 = await post({ a: 'join', key: KEY, name: 'คนอื่น', phone: '0812345670' });
+  ok(r3.ok === false && r3.name === 'ลูกค้าหน้าร้าน', 'staff sees who owns a taken phone');
+  ok(!('name' in (await post({ a: 'join', name: 'คนอื่น', phone: '0812345670' }))), 'public join never reveals the owner name');
+}
 console.log('\n' + pass + ' checks passed');

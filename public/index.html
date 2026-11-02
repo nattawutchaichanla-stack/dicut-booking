@@ -1751,6 +1751,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -3561,7 +3562,7 @@ function renderCustomers(){
   if(!user){secCustomers.innerHTML='';return}
   if(secCustomers.contains(document.activeElement))return renderCuList();
   const sb=(v,t)=>`<button data-cusort="${v}" aria-pressed="${cuSort===v}">${t}</button>`;
-  secCustomers.innerHTML=`<div id="cuSum" class="cusum"></div><section class="step"><div class="searchwrap">${ic('search',18)}<input id="cuSearch" class="search" type="search" placeholder="ค้นหาชื่อหรือเบอร์โทร" value="${esc(cuQuery)}"></div>
+  secCustomers.innerHTML=`<div id="cuSum" class="cusum"></div><button class="primary" data-cureg style="width:100%;margin:0 0 14px">${ic('plus',18)} สมัครสมาชิกให้ลูกค้า</button><section class="step"><div class="searchwrap">${ic('search',18)}<input id="cuSearch" class="search" type="search" placeholder="ค้นหาชื่อหรือเบอร์โทร" value="${esc(cuQuery)}"></div>
     <div class="cusort" role="group" aria-label="เรียงลำดับ">${sb('last','มาล่าสุด')}${sb('visits','มาบ่อยสุด')}${sb('new','สมัครใหม่')}${sb('spend','ยอดสูงสุด')}</div>
     <div id="cuList" class="culist"></div>${isOwner()?`<button class="primary" data-addpt="" style="width:100%;margin-top:12px">${ic('plus',16)} เพิ่มแต้มให้ลูกค้า (แนบสลิป)</button>`:''}${isOwner()?`<button class="ghost" id="cuCsv" style="width:100%;margin-top:12px">${ic('arrow-ur',16)} ดาวน์โหลดรายชื่อลูกค้า (Excel/CSV)</button>`:''}</section>`;
   renderCuList();cuPullServer();
@@ -4778,6 +4779,29 @@ document.addEventListener('click',async e=>{const t=e.target.closest('#lResend')
   try{const r=await api({a:'lineresend',key:L().key});
     if(o)o.innerHTML=r&&r.ok?`<p class="okmsg">ส่งแล้ว ${r.count} คิว ${r.sent&&r.sent.to==='group'?'เข้ากลุ่ม LINE':'ถึงเจ้าของร้าน'}</p>`:`<p class="err">ส่งไม่สำเร็จ${r&&r.sent&&r.sent.error?' · '+esc(/LINE \d+/.test(r.sent.error)?(lineErrTH({status:+(/LINE (\d+)/.exec(r.sent.error)[1]),error:r.sent.error})||r.sent.error):r.sent.error):''}</p>`}
   catch(_){if(o)o.innerHTML='<p class="err">เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง</p>'}finally{t.disabled=false}});
+/* ---------- staff signs up a customer: just nickname + phone ---------- */
+function openCuReg(){if(!user)return;
+  showSheet(`<h3>สมัครสมาชิกให้ลูกค้า</h3><p class="psub">กรอกแค่ชื่อเล่นกับเบอร์โทร ลูกค้าเริ่มสะสมแต้มได้เลย ใช้เบอร์นี้จองคิวและดูแต้มในแอพได้</p>
+    <div class="form"><label>ชื่อเล่นลูกค้า<input id="crName" maxlength="30" autocomplete="off" placeholder="เช่น ต้น"></label>
+    <label>เบอร์โทรลูกค้า<input id="crPhone" type="tel" inputmode="tel" autocomplete="off" placeholder="08x-xxx-xxxx"></label><p class="err" id="crErr" hidden></p><div id="crOut"></div></div>
+    <div class="actions"><button class="okb" id="crGo" style="grid-column:1/-1">สมัครสมาชิก</button><button data-close style="grid-column:1/-1">ปิด</button></div>`);
+  setTimeout(()=>document.getElementById('crName')?.focus(),60)}
+async function cuRegGo(btn){const g=x=>document.getElementById(x),err=m=>{const e=g('crErr');e.innerHTML=m;e.hidden=false};
+  const name=g('crName').value.trim(),phone=g('crPhone').value.trim(),k=phoneKey(phone);g('crErr').hidden=true;
+  if(!name)return err('ใส่ชื่อเล่นลูกค้า');if(k.length<9||k.length>10)return err('เบอร์โทรไม่ครบ');
+  btn.disabled=true;let r=null;
+  if(backendOn()){try{r=await api({a:'join',key:L().key,name,phone:k})}catch(_){r=null}}
+  btn.disabled=false;
+  if(r&&r.ok===false&&r.error==='phone_taken')return err(`เบอร์นี้เป็นสมาชิกอยู่แล้ว${r.name?' ชื่อ <b>'+esc(r.name)+'</b>':''} <button class="linkbtn" data-cprof="${k}">เปิดโปรไฟล์</button>`);
+  if(backendOn()&&(!r||r.ok===false))return err('สมัครไม่สำเร็จ ลองใหม่อีกครั้ง'+(r&&r.error?' ('+esc(r.error)+')':''));
+  upsertCustomer(name,phone);if(typeof cuPullServer==='function')try{cuPullServer()}catch(_){}
+  const back=r&&r.back;toast(back?name+' เป็นสมาชิกอยู่แล้ว':'สมัครสมาชิกให้ '+name+' แล้ว');
+  g('crOut').innerHTML=`<p class="okmsg">${back?'เป็นสมาชิกอยู่แล้ว':'สมัครแล้ว'} · ${esc(name)} ${esc(k)}</p>`;
+  g('crName').value='';g('crPhone').value='';g('crName').focus();if(view==='cust')renderCuList()}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||!user)return;
+  if(t.hasAttribute('data-cureg')){openCuReg();return}
+  if(t.id==='crGo'){cuRegGo(t)}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='crName'||e.target.id==='crPhone')){e.preventDefault();if(e.target.id==='crName')document.getElementById('crPhone').focus();else document.getElementById('crGo')?.click()}});
 window.__appReady=1;
 </script>
 </body>

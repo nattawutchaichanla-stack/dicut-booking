@@ -1766,6 +1766,7 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 
 
 
+
 <script id="guard">/* start-up guard: if the app fails to start on a phone, show why and offer a one-tap reset instead of a blank screen */
 (function(){var errs=[],shown=false;
 function show(){if(shown||window.__appReady&&!errs.length)return;if(window.__appReady)return;shown=true;
@@ -1985,6 +1986,7 @@ if(!cfg.payment.v8){(cfg.promos||[]).forEach(p=>{if(p.id==='p1'&&/Happy Hour/.te
 if(!cfg.payment.v9){(cfg.promos||[]).forEach(p=>{if(['p1','p2','p3'].includes(p.id)&&/Happy Hour|พุธเพิร์ม|นักเรียน/.test(p.title||''))p.active=false});cfg.payment.v9=true} // owner asked: switch off all sample promos
 if(!cfg.payment.v10){(cfg.promos||[]).forEach(p=>p.active=false);cfg.payment.v10=true} // owner asked: no time-slot discounts at all -> every promo off once (owner can switch one back on)
 if(!cfg.payment.v11){Object.assign(cfg.payment,{mode:'before',payLater:false,amountType:'full',prepayPct:2,prepayOff:0,prepayStack:true,noRefund:true,v11:true})} // owner asked: booking ahead = transfer first only, 2% off, non-refundable
+if(!cfg.payment.v12){cfg.payment.payLater=true;cfg.payment.v12=true} // owner asked: customers may still pay at the shop, at full price (2% only for transfer-ahead)
 }
 normPay();
 if(cfg.lateMin==null)cfg.lateMin=15;
@@ -2669,7 +2671,7 @@ function prepayDiscFor(now){const P=payCfg();if(P.mode!=='before'||!now||!(P.pre
   if(dl&&dl.kind==='loy')return 0; if(dl&&!P.prepayStack)return 0; const base=Math.max(0,selPrice()-dealAmt());
   return Math.min(base,P.prepayPct>0?Math.round(base*P.prepayPct/100):P.prepayOff)}
 function prepayLabel(){const P=payCfg();return P.prepayPct>0?'ส่วนลดจองล่วงหน้า '+P.prepayPct+'%':'ส่วนลดโอนก่อน'}
-const prepayDisc=()=>prepayDiscFor(payingNow());
+const prepayDisc=()=>sel.cashPaid?0:prepayDiscFor(payingNow()); // cash at the shop = full price
 const selNet=()=>Math.max(0,selPrice()-dealAmt()-prepayDisc());
 const selDeposit=()=>{if(payCfg().mode==='off'||(payCfg().mode==='before'&&!payingNow()))return 0;const net=selNet();return isFull()?net:Math.min(payCfg().amount,net)};
 const needSlip=()=>payCfg().mode==='before'&&selDeposit()>0;
@@ -2801,8 +2803,8 @@ function payChoiceHTML(){const P=payCfg();if(!payChoice())return '';
   const off=prepayDiscFor(true), dl=selDeal(), noStack=(P.prepayOff>0||P.prepayPct>0)&&dl&&(dl.kind==='loy'||!P.prepayStack);
   const nowNet=Math.max(0,selPrice()-dealAmt()-off), laterNet=Math.max(0,selPrice()-dealAmt());
   return `<h3 class="wt" style="margin-top:16px">เลือกวิธีจ่าย</h3><div class="paychoice" role="radiogroup" aria-label="วิธีจ่าย">
-    <button role="radio" data-paynow="1" aria-checked="${sel.payNow}"><span class="pc-h">${ic('lock',18)}<b>โอนเลย</b>${off?`<em>ลด ${baht(off)} ฿</em>`:''}</span><span class="pc-p">${off?`<s>${baht(laterNet)}</s> `:''}${baht(nowNet)} ฿</span><small>ล็อกคิวทันที ถึงร้านตัดได้เลย</small></button>
-    <button role="radio" data-paynow="0" aria-checked="${!sel.payNow}"><span class="pc-h">${ic('scissors',18)}<b>จ่ายที่ร้าน</b></span><span class="pc-p">${baht(laterNet)} ฿</span><small>จองได้เลย ไม่ต้องโอน</small></button>
+    <button role="radio" data-paynow="1" aria-checked="${sel.payNow}"><span class="pc-h">${ic('lock',18)}<b>โอนจองล่วงหน้า</b>${off?`<em>${P.prepayPct>0?'ลด '+P.prepayPct+'%':'ลด '+baht(off)+' ฿'}</em>`:''}</span><span class="pc-p">${off?`<s>${baht(laterNet)}</s> `:''}${baht(nowNet)} ฿</span><small>ล็อกคิวทันที ถึงร้านตัดได้เลย${P.noRefund?' · โอนแล้วไม่คืนเงิน':''}</small></button>
+    <button role="radio" data-paynow="0" aria-checked="${!sel.payNow}"><span class="pc-h">${ic('scissors',18)}<b>จ่ายที่ร้าน</b></span><span class="pc-p">${baht(laterNet)} ฿</span><small>ราคาเต็ม จองได้เลย ไม่ต้องโอน</small></button>
   </div>${noStack?`<p class="hint" style="margin-top:6px">${prepayLabel()}ใช้ร่วมกับ${dl.kind==='loy'?'สิทธิ์ตัดฟรี':'โปรอื่น'}ไม่ได้</p>`:''}`}
 function depositStepHTML(){
   return payChoiceHTML()+depositInner()+(sel.time!==null?lateNoteHTML(sel.time,needSlip()):'');

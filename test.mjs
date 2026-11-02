@@ -410,8 +410,10 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   ok(r.ok && r.count > 0 && m && m.messages.length >= 1 && /•/.test(m.messages[0].text), 'one summary message with every upcoming queue');
 }
 { // staff signs up a customer with just name + phone
-  const r1 = await post({ a: 'join', key: KEY, name: 'ลูกค้าหน้าร้าน', phone: '081-234-5670' });
+  const r1 = await post({ a: 'join', key: KEY, name: 'ลูกค้าหน้าร้าน', phone: '081-234-5670', by: 'ช่างเอ' });
+  ok(r1.by === 'ช่างเอ' && (await db.getKv('mby:0812345670')) === 'ช่างเอ', 'who signed the customer up is kept');
   ok(r1.ok && !r1.back && (await db.getMember('0812345670')).name === 'ลูกค้าหน้าร้าน', 'staff registers a new member');
+  ok(r1.since === clock && (await post({ a: 'join', key: KEY, name: 'ลูกค้าหน้าร้าน', phone: '0812345670' })).since === clock, 'join returns the signup date/time (kept on repeat)');
   ok((await post({ a: 'join', key: KEY, name: 'ลูกค้าหน้าร้าน', phone: '0812345670' })).back === true, 'same person again: already a member');
   const r3 = await post({ a: 'join', key: KEY, name: 'คนอื่น', phone: '0812345670' });
   ok(r3.ok === false && r3.name === 'ลูกค้าหน้าร้าน', 'staff sees who owns a taken phone');

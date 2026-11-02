@@ -1720,7 +1720,12 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .pushcard small{color:var(--muted);line-height:1.5}
 .pushcard .primary{margin-top:4px}
 .pushok{display:flex;align-items:center;gap:8px;margin:12px 0 0;color:var(--ok);font-size:.88rem}
+
+.regok{display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding:12px 14px;border-radius:14px;background:rgba(46,160,90,.1);color:var(--ok)}
+.regok div{display:grid;gap:2px}.regok b{color:var(--ink)}.regok span{font-size:.9rem;color:var(--muted)}
+.regline{display:flex;align-items:center;gap:6px;margin:10px 0 0;font-size:.88rem;color:var(--muted)}
 </style>
+
 
 
 
@@ -3524,6 +3529,7 @@ function openCustomer(k,edit=false){
   if(!edit){
     h+=`<div class="pstats"><div><b>${done.length}</b>มาแล้ว (ครั้ง)</div><div><b>${spent.toLocaleString()}</b>ยอดรวม ฿</div><div><b>${fav?esc(barber(fav[0]).name):'–'}</b>ช่างประจำ</div></div>`;
     if(up)h+=`<p class="okbanner" style="margin:12px 0 0">คิวถัดไป ${thaiDate(up.date)} ${fmt(up.start)} · ${esc(bName(up))} กับ${esc(barber(up.barberId).name)}</p>`;
+    if(c.createdAt)h+=`<p class="regline">${ic('user',14)} สมาชิกตั้งแต่ ${stampTH(c.createdAt)}${c.regBy?' · สมัครโดย '+esc(c.regBy):''}</p>`;
     h+=loyCardHTML(loyState(c.phone));
     if(isOwner())h+=`<button class="ghost" data-addpt="${k}" style="width:100%;margin-top:10px">${ic('plus',16)} เพิ่มแต้ม (แนบสลิป)</button>`;
     h+=`<p class="psub">ทรงที่ชอบ / หมายเหตุ</p><p class="bio">${c.note?esc(c.note):'<span class="hint">ยังไม่มีบันทึก</span>'}</p>`;
@@ -4790,18 +4796,22 @@ async function cuRegGo(btn){const g=x=>document.getElementById(x),err=m=>{const 
   const name=g('crName').value.trim(),phone=g('crPhone').value.trim(),k=phoneKey(phone);g('crErr').hidden=true;
   if(!name)return err('ใส่ชื่อเล่นลูกค้า');if(k.length<9||k.length>10)return err('เบอร์โทรไม่ครบ');
   btn.disabled=true;let r=null;
-  if(backendOn()){try{r=await api({a:'join',key:L().key,name,phone:k})}catch(_){r=null}}
+  const byName=user.name||(user.role==='owner'?'เจ้าของร้าน':(barber(user.id)||{}).name||'ช่าง');
+  if(backendOn()){try{r=await api({a:'join',key:L().key,name,phone:k,by:byName})}catch(_){r=null}}
   btn.disabled=false;
-  if(r&&r.ok===false&&r.error==='phone_taken')return err(`เบอร์นี้เป็นสมาชิกอยู่แล้ว${r.name?' ชื่อ <b>'+esc(r.name)+'</b>':''} <button class="linkbtn" data-cprof="${k}">เปิดโปรไฟล์</button>`);
+  if(r&&r.ok===false&&r.error==='phone_taken')return err(`เบอร์นี้เป็นสมาชิกอยู่แล้ว${r.name?' ชื่อ <b>'+esc(r.name)+'</b>':''}${r.since?' · สมัครเมื่อ '+stampTH(r.since):''} <button class="linkbtn" data-cprof="${k}">เปิดโปรไฟล์</button>`);
   if(backendOn()&&(!r||r.ok===false))return err('สมัครไม่สำเร็จ ลองใหม่อีกครั้ง'+(r&&r.error?' ('+esc(r.error)+')':''));
-  upsertCustomer(name,phone);if(typeof cuPullServer==='function')try{cuPullServer()}catch(_){}
-  const back=r&&r.back;toast(back?name+' เป็นสมาชิกอยู่แล้ว':'สมัครสมาชิกให้ '+name+' แล้ว');
-  g('crOut').innerHTML=`<p class="okmsg">${back?'เป็นสมาชิกอยู่แล้ว':'สมัครแล้ว'} · ${esc(name)} ${esc(k)}</p>`;
+  upsertCustomer(name,phone);const back=r&&r.back,since=(r&&r.since)||Date.now(),by=(r&&r.by)||(back?'':byName);
+  const c=customers[k];if(c){c.createdAt=since;if(by)c.regBy=by;saveCu()}
+  if(typeof cuPullServer==='function')try{cuPullServer()}catch(_){}
+  toast(back?name+' เป็นสมาชิกอยู่แล้ว':'สมัครสมาชิกให้ '+name+' แล้ว');
+  g('crOut').innerHTML=`<div class="regok">${ic('check',18)}<div><b>${back?'เป็นสมาชิกอยู่แล้ว':'สมัครสมาชิกเรียบร้อย'}</b><span>${esc(name)} · ${esc(k)}</span><span>${back?'สมัครเมื่อ':'วันที่'} ${stampTH(since)}${by?' · สมัครโดย '+esc(by):''}</span></div></div>`+g('crOut').innerHTML;
   g('crName').value='';g('crPhone').value='';g('crName').focus();if(view==='cust')renderCuList()}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||!user)return;
   if(t.hasAttribute('data-cureg')){openCuReg();return}
   if(t.id==='crGo'){cuRegGo(t)}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='crName'||e.target.id==='crPhone')){e.preventDefault();if(e.target.id==='crName')document.getElementById('crPhone').focus();else document.getElementById('crGo')?.click()}});
+function stampTH(ts){try{const d=new Date(+ts);return d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})+' เวลา '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})+' น.'}catch(_){return ''}}
 window.__appReady=1;
 </script>
 </body>

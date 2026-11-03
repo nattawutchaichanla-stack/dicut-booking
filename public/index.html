@@ -1749,7 +1749,14 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .pktermsbox{margin:12px 0 4px;padding:10px 14px;border-radius:14px;background:var(--chip);border:1px solid var(--line)}
 .pktermsbox summary{cursor:pointer;font-weight:600}
 .ppsvc{margin-top:10px}.ppsvc small.muted{color:var(--muted);font-size:.85em}
+
+.svcpay{margin-top:12px}
+.svcpay .sp-h,.svcpay .sp-r{display:grid;grid-template-columns:1fr 96px 110px;align-items:center;gap:6px;padding:6px 0}
+.svcpay .sp-h{font-size:.8rem;color:var(--muted);border-bottom:1px solid var(--line)}
+.svcpay .sp-h span:not(:first-child),.svcpay .sp-r label{text-align:center}
+.svcpay .sp-r{border-bottom:1px solid var(--line)}.svcpay .sp-r input{width:20px;height:20px}
 </style>
+
 
 
 
@@ -2689,8 +2696,12 @@ const STEPS=['บริการ','ช่าง','วันเวลา','ยื
 const selDur=()=>sel.services.reduce((a,id)=>a+svc(id).min,0);
 const selPrice=()=>sel.services.reduce((a,id)=>a+svc(id).price,0);
 const selName=()=>sel.services.map(id=>svc(id).name).join(' + ');
-const payChoice=()=>payCfg().mode==='before'&&payCfg().payLater!==false;
-const payingNow=()=>payCfg().mode==='before'&&(!payChoice()||sel.payNow);
+// per service: may it be paid by transfer ahead, and/or at the shop (owner sets this in "ชำระก่อนจอง")
+function svcPay(id){const m=(payCfg().svcPay||{})[id]||{};return{xfer:m.xfer!==false,shop:m.shop!==false}}
+function selCanXfer(){return sel.services.every(id=>svcPay(id).xfer)}
+function selCanShop(){return payCfg().payLater!==false&&sel.services.every(id=>svcPay(id).shop)}
+const payChoice=()=>payCfg().mode==='before'&&selCanShop()&&selCanXfer();
+const payingNow=()=>payCfg().mode==='before'&&selCanXfer()&&(!payChoice()||sel.payNow);
 const dealAmt=()=>{const dl=selDeal();return dl?dl.amt:0};
 function prepayDiscFor(now){const P=payCfg();if(P.mode!=='before'||!now||!(P.prepayOff>0||P.prepayPct>0))return 0;const dl=selDeal();
   if(dl&&(dl.kind==='loy'||dl.kind==='pkg'))return 0; if(dl&&!P.prepayStack)return 0;
@@ -2836,11 +2847,13 @@ function payChoiceHTML(){const P=payCfg();if(!payChoice()||dealAmt()>=selPrice()
     <button role="radio" data-paynow="0" aria-checked="${!sel.payNow}"><span class="pc-h">${ic('scissors',18)}<b>จ่ายที่ร้าน</b></span><span class="pc-p">${baht(laterNet)} ฿</span><small>ราคาเต็ม จองได้เลย ไม่ต้องโอน</small></button>
   </div>${noStack?`<p class="hint" style="margin-top:6px">${prepayLabel()}ใช้ร่วมกับ${dl.kind==='loy'?'สิทธิ์ตัดฟรี':'โปรอื่น'}ไม่ได้</p>`:''}`}
 function depositStepHTML(){
-  return payChoiceHTML()+depositInner()+(sel.time!==null?lateNoteHTML(sel.time,needSlip()):'');
+  const P=payCfg(),onlyX=P.mode==='before'&&sel.services.length&&selCanXfer()&&!selCanShop()&&P.payLater!==false;
+  return payChoiceHTML()+(onlyX?`<div class="paynote" style="margin-top:12px">${ic('lock',16)}<span>บริการนี้ต้องโอนก่อนจองเท่านั้น</span></div>`:'')+depositInner()+(sel.time!==null?lateNoteHTML(sel.time,needSlip()):'');
 }
 function depositInner(){
   const P=payCfg(), amt=selDeposit();
   if(payChoice()&&!sel.payNow)return `<div class="paynote" style="margin-top:12px">${ic('scissors',16)}<span>จ่ายที่ร้านหลังตัดเสร็จ เงินสดหรือสแกนก็ได้</span></div>`;
+  if(P.mode==='before'&&sel.services.length&&!selCanXfer())return `<div class="paynote" style="margin-top:12px">${ic('scissors',16)}<span>บริการนี้ชำระที่ร้านหลังทำเสร็จ ไม่ต้องโอนก่อน</span></div>`;
   if(P.mode==='off'||amt<=0)return `<p class="hint" style="margin-top:12px">${amt<=0&&P.mode!=='off'?'คิวนี้ไม่ต้องชำระล่วงหน้า ':''}ชำระที่ร้าน</p>`;
   if(P.mode==='optional')return `<div class="paynote" style="margin-top:12px">${ic('lock',16)}<span>หลังจองสแกนจ่าย ${baht(amt)} ฿ เพื่อล็อกคิวได้</span></div>`;
   const has=sel.slip&&sel.slipAmt===amt, useShop=P.qrSource==='shop';
@@ -2949,7 +2962,10 @@ function payAdminHTML(){const P=payCfg();
     <label>การชำระก่อนจอง<select id="payMode"><option value="off" ${P.mode==='off'?'selected':''}>ไม่ต้องจ่ายก่อน (จ่ายที่ร้าน)</option><option value="before" ${P.mode==='before'?'selected':''}>รับโอนก่อนจอง (ต้องแนบสลิปเมื่อเลือกโอน)</option><option value="optional" ${P.mode==='optional'?'selected':''}>ไม่บังคับ ลูกค้าเลือกจ่ายหลังจองได้</option></select></label>
     ${P.mode==='before'?`<label class="ckl"><input type="checkbox" id="payLater" ${P.payLater!==false?'checked':''}> ให้ลูกค้าเลือก "จ่ายที่ร้าน" ได้ (ไม่ต้องโอนก่อน)</label>
     ${P.mode==='before'?`<div class="two"><label>ส่วนลดจองล่วงหน้า (%)<input id="prepayPct" type="number" min="0" max="50" step="1" value="${P.prepayPct||0}"></label><label class="ckl" style="align-self:end"><input type="checkbox" id="noRefund" ${P.noRefund?'checked':''}> โอนแล้วไม่คืนเงิน</label></div><p class="hint">ลูกค้าที่โอนตอนจองได้ลดตามเปอร์เซ็นต์นี้ ใส่ 0 ถ้าไม่ให้ส่วนลด · ติ๊ก "ไม่คืนเงิน" ลูกค้าต้องกดรับทราบก่อนจอง</p>
-      ${P.prepayPct>0?`<fieldset class="ppsvc"><legend>ลด ${P.prepayPct}% เฉพาะบริการ (ไม่ติ๊กเลย = ทุกบริการ)</legend>${cfg.services.map(x=>`<label class="ckl"><input type="checkbox" data-ppsvc="${x.id}" ${(P.prepaySvcs||[]).includes(x.id)?'checked':''}>${esc(x.name)} · ${baht(x.price)} ฿${(!(P.prepaySvcs||[]).length||(P.prepaySvcs||[]).includes(x.id))&&x.price?` <small class="muted">→ โอน ${baht(x.price-Math.round(x.price*P.prepayPct/100))} ฿</small>`:''}</label>`).join('')}</fieldset>`:''}`:''}
+      ${P.prepayPct>0?`<fieldset class="ppsvc"><legend>ลด ${P.prepayPct}% เฉพาะบริการ (ไม่ติ๊กเลย = ทุกบริการ)</legend>${cfg.services.map(x=>`<label class="ckl"><input type="checkbox" data-ppsvc="${x.id}" ${(P.prepaySvcs||[]).includes(x.id)?'checked':''}>${esc(x.name)} · ${baht(x.price)} ฿${(!(P.prepaySvcs||[]).length||(P.prepaySvcs||[]).includes(x.id))&&x.price?` <small class="muted">→ โอน ${baht(x.price-Math.round(x.price*P.prepayPct/100))} ฿</small>`:''}</label>`).join('')}</fieldset>`:''}
+      <fieldset class="svcpay"><legend>วิธีชำระของแต่ละบริการ</legend><div class="sp-h"><span>บริการ</span><span>โอนก่อนได้</span><span>จ่ายที่ร้านได้</span></div>
+      ${cfg.services.map(x=>{const m=svcPay(x.id);return `<div class="sp-r"><span>${esc(x.name)} <small class="muted">${baht(x.price)} ฿</small></span><label><input type="checkbox" data-svcpay="${x.id}|xfer" ${m.xfer?'checked':''} aria-label="${esc(x.name)} โอนก่อนได้"></label><label><input type="checkbox" data-svcpay="${x.id}|shop" ${m.shop?'checked':''} ${P.payLater===false?'disabled':''} aria-label="${esc(x.name)} จ่ายที่ร้านได้"></label></div>`}).join('')}
+      <p class="hint" style="margin-top:6px">ติ๊กทั้งสองช่อง ลูกค้าเลือกเองได้ · ติ๊กแค่ "โอน" ต้องโอนก่อนจอง · ติ๊กแค่ "จ่ายที่ร้าน" จองได้เลยไม่ต้องโอน${P.payLater===false?' · ตอนนี้ปิด "ให้ลูกค้าเลือกจ่ายที่ร้าน" ไว้ทั้งร้าน':''}</p></fieldset>`:''}
     ${P.payLater!==false&&!(P.prepayPct>0)?`<div class="two"><label>ส่วนลดเมื่อโอนก่อน (฿)<input id="prepayOff" type="number" min="0" step="5" value="${P.prepayOff||0}"></label><label class="ckl" style="align-self:end"><input type="checkbox" id="prepayStack" ${P.prepayStack?'checked':''}> ใช้ร่วมกับโปรอื่นได้</label></div><p class="hint">ส่วนลดโอนก่อนไม่ใช้ร่วมกับสิทธิ์ตัดฟรี · ใส่ 0 ถ้าไม่ให้ส่วนลด</p>`:''}`:''}
     <label>QR ที่ให้ลูกค้าสแกน<select id="paySrc"><option value="shop" ${P.qrSource==='shop'?'selected':''}>QR รับเงินของร้าน (K SHOP / Thai QR) ลูกค้ากรอกยอดเอง</option><option value="promptpay" ${P.qrSource==='promptpay'?'selected':''}>พร้อมเพย์ สร้าง QR พร้อมยอดเงินอัตโนมัติ</option></select></label>
     ${P.qrSource==='shop'?`<div class="two"><label>ชื่อบน QR<input id="qrLabel" maxlength="50" value="${esc(P.qrLabel||'')}"></label><label>ชื่อบัญชี<input id="qrAccount" maxlength="50" value="${esc(P.qrAccount||'')}"></label></div>
@@ -4011,7 +4027,7 @@ app.addEventListener('click',e=>{
     const dl=selDeal();
     const b={id:code(),date:sel.date,start:sel.time,dur:d,barberId:bid,serviceId:sel.services[0],services:[...sel.services],name:sel.name.trim(),phone:sel.phone.trim(),note:sel.note.trim(),status:'confirmed',...(dl?(dl.kind==='loy'?{loyaltyRedeem:true,promoTitle:dl.title,discount:dl.amt}:(dl.kind==='refuse'?{promoTitle:dl.title,discount:dl.amt,refUse:true}:dl.kind==='pkg'?{pkgUse:dl.pkg.id,pkgTitle:dl.pkg.title,promoTitle:dl.title,discount:dl.amt}:{promoId:dl.p.id,promoTitle:dl.title,discount:dl.amt,voucher:sel.voucher.code})):{})};
     if(refOK())b.refBy=phoneKey(sel.ref);
-    const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(needSlip()&&payCfg().noRefund)b.noRefund=true; if(payChoice()&&!sel.payNow)b.payAtShop=true;
+    const pd=prepayDisc(); if(pd>0)b.prepayOff=pd; if(needSlip()&&payCfg().noRefund)b.noRefund=true; if((payChoice()&&!sel.payNow)||(payCfg().mode==='before'&&!selCanXfer()))b.payAtShop=true;
     if(needSlip())b.pay=sel.cashPaid&&user&&!sel.slip?{status:'paid',amount:selDeposit(),paidAt:Date.now(),cash:true}:{status:'review',amount:selDeposit(),slip:sel.slip,sentAt:Date.now()};
     else{const pp=newPay(b);if(pp)b.pay=pp}
     if(b.voucher&&!BACKEND())vLocalMark(b.voucher,b.id);
@@ -4992,6 +5008,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||
 document.addEventListener('change',e=>{const id=e.target.dataset&&e.target.dataset.ppsvc;if(!id||!isOwner())return;const P=payCfg();
   const set=new Set(P.prepaySvcs||[]);if(e.target.checked)set.add(id);else set.delete(id);P.prepaySvcs=cfg.services.map(x=>x.id).filter(x=>set.has(x));
   saveCfg();renderPromos();renderCustomer();toast(P.prepaySvcs.length?'ลด '+P.prepayPct+'% เฉพาะ '+P.prepaySvcs.length+' บริการ':'ลด '+P.prepayPct+'% ทุกบริการ')});
+document.addEventListener('change',e=>{const v=e.target.dataset&&e.target.dataset.svcpay;if(!v||!isOwner())return;const [id,k]=v.split('|'),P=payCfg();
+  P.svcPay=P.svcPay||{};const m=Object.assign({xfer:true,shop:true},P.svcPay[id]||{});m[k]=e.target.checked;
+  if(!m.xfer&&!m.shop){e.target.checked=true;toast('ต้องเลือกอย่างน้อย 1 วิธีชำระ');return}
+  P.svcPay[id]=m;saveCfg();renderPromos();renderCustomer();toast(svc(id).name+': '+(m.xfer&&m.shop?'โอนหรือจ่ายที่ร้านได้':m.xfer?'ต้องโอนก่อนเท่านั้น':'จ่ายที่ร้านเท่านั้น'))});
 window.__appReady=1;
 </script>
 </body>

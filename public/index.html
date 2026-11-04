@@ -1769,7 +1769,14 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .svc .ptag{color:#D92D20!important;background:rgba(239,68,68,.1)!important;border:1px solid rgba(239,68,68,.3)!important}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .svc .ptag{color:#FF8A80!important;background:rgba(255,99,99,.12)!important;border-color:rgba(255,120,120,.35)!important}}
 :root[data-theme="dark"] .svc .ptag{color:#FF8A80!important;background:rgba(255,99,99,.12)!important;border-color:rgba(255,120,120,.35)!important}
+/* phones: long view names ("ช่างว่างตอนนี้") must not push the big pill past the screen edge */
+@media (max-width:760px){.dk-pill span{max-width:6.2em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media (max-width:420px){.dk-pill{transform:scale(1.22)!important;margin:0 14px!important}.dk-pill:active{transform:scale(1.16)!important}.dk-pill span{max-width:5.6em}}
+@media (max-width:370px){.dk-pill span{max-width:4.6em}.dk-pill{margin:0 10px!important}}
 </style>
+
+
+
 
 
 
@@ -3741,7 +3748,7 @@ dlg.addEventListener('close',()=>dlg.classList.remove('wide'));
 app.addEventListener('toggle',e=>{if(e.target.id==='setDet')settingsOpen=e.target.open;if(e.target.id==='gfxDet')gfxOpen=e.target.open},true);
 /* ---------- views (one job per screen) ---------- */
 const TABS={
-  guest:[['home','หน้าแรก','home'],['book','จองคิว','calendar'],['live','ช่างว่าง','scissors'],['mine','โปรไฟล์','user']],
+  guest:[['book','จองคิว','calendar'],['home','หน้าแรก','home'],['live','ช่างว่าง','scissors'],['mine','โปรไฟล์','user']],
   staff:[['home','ภาพรวม','home'],['today','วันนี้','clock'],['queue','ตารางคิว','calendar'],['book','จองให้ลูกค้า','plus'],['cust','ลูกค้า','user']],
   owner:[['home','ภาพรวม','home'],['today','วันนี้','clock'],['queue','ตารางคิว','calendar'],['book','จองให้ลูกค้า','plus'],['cust','ลูกค้า','user'],['shop','ร้าน','tag']]};
 const tabsFor=()=>!user?TABS.guest:isOwner()?TABS.owner:TABS.staff;

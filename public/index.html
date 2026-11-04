@@ -1756,12 +1756,18 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .svcpay .sp-h span:not(:first-child),.svcpay .sp-r label{text-align:center}
 .svcpay .sp-r{border-bottom:1px solid var(--line)}.svcpay .sp-r input{width:20px;height:20px}
 
-/* promo price on service cards */
-.sprice.deal{display:grid;justify-items:end;gap:2px;text-align:right}
-.sprice.deal s{font-size:.82rem;opacity:.6;font-weight:500}
-.sprice.deal .dprice{display:inline-block;padding:3px 12px;border-radius:999px;font-size:1.25rem;font-weight:800;color:#0B2A5A;background:linear-gradient(180deg,#FFE27A,#F7C928);box-shadow:0 4px 10px -4px rgba(180,130,0,.7)}
-.sprice.deal .dlbl{font-size:.7rem;font-weight:600;color:var(--amber,#B45309);max-width:130px;line-height:1.2}
+
+/* transfer-ahead discount strip on service cards */
+.svc .xferbar{grid-column:1/-1;display:flex;align-items:center;gap:8px;min-width:0;margin-top:2px;padding:8px 12px;border-radius:12px;color:#fff;font-weight:700;font-size:.9rem;line-height:1.2;
+  background:linear-gradient(90deg,#D7263D,#EF4444);box-shadow:0 6px 14px -8px rgba(215,38,61,.9)}
+.svc .xferbar span{flex:1;min-width:0;font-size:.85rem;white-space:normal;word-break:keep-all}
+.svc .xferbar b{flex:none;padding:3px 10px;border-radius:999px;background:#fff;color:#C81E35;font-size:.95rem;font-weight:800;white-space:nowrap}
+.svc .xferbar svg{flex:none}
 </style>
+
+
+
+
 
 
 
@@ -5020,14 +5026,11 @@ document.addEventListener('change',e=>{const v=e.target.dataset&&e.target.datase
   P.svcPay=P.svcPay||{};const m=Object.assign({xfer:true,shop:true},P.svcPay[id]||{});m[k]=e.target.checked;
   if(!m.xfer&&!m.shop){e.target.checked=true;toast('ต้องเลือกอย่างน้อย 1 วิธีชำระ');return}
   P.svcPay[id]=m;saveCfg();renderPromos();renderCustomer();toast(svc(id).name+': '+(m.xfer&&m.shop?'โอนหรือจ่ายที่ร้านได้':m.xfer?'ต้องโอนก่อนเท่านั้น':'จ่ายที่ร้านเท่านั้น'))});
-/* service list: show the best promo price right on the card, big and highlighted */
-function svcDeal(x){const price=+x.price||0;if(!price)return null;let best=null;const take=(n,label)=>{n=Math.max(0,Math.round(n));if(n<price&&(!best||n<best.price))best={price:n,label}};
-  livePromos().forEach(p=>{if(p.services.length&&!p.services.includes(x.id))return;take(price-(p.type==='percent'?price*p.value/100:Math.min(p.value,price)),(p.title||'ราคาโปร')+' · กดรับโค้ดที่แบนเนอร์')});
-  const P=payCfg();if(P.mode==='before'&&P.prepayPct>0&&svcPay(x.id).xfer&&(!(P.prepaySvcs||[]).length||P.prepaySvcs.includes(x.id)))take(price-price*P.prepayPct/100,'โอนจองล่วงหน้า ลด '+P.prepayPct+'%');
-  return best}
-function svcPriceHTML(x){const d=svcDeal(x);
-  if(!d)return `<b class="sprice">${priceTag(x)}</b>`;
-  return `<span class="sprice deal">${x.from?'<small class="pfrom">เริ่มต้น</small>':''}<s>${baht(x.price)} ฿</s><b class="dprice">${baht(d.price)} ฿</b><small class="dlbl">${esc(d.label)}</small></span>`}
+/* service list: services that give a transfer-ahead discount get a red strip with the price after the discount */
+function svcXferDeal(x){const price=+x.price||0,P=payCfg();if(!price||P.mode!=='before'||!(P.prepayPct>0)||!svcPay(x.id).xfer)return null;
+  if((P.prepaySvcs||[]).length&&!P.prepaySvcs.includes(x.id))return null;const n=Math.round(price-price*P.prepayPct/100);return n<price?{price:n,pct:P.prepayPct}:null}
+function svcPriceHTML(x){const d=svcXferDeal(x);
+  return `<b class="sprice">${priceTag(x)}</b>`+(d?`<span class="xferbar">${ic('lock',14)}<span>โอนก่อน ลด ${d.pct}%</span><b>${baht(d.price)} ฿</b></span>`:'')}
 window.__appReady=1;
 </script>
 </body>

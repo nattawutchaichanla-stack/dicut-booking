@@ -1792,6 +1792,8 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .to-ba figure:last-child figcaption{background:#1f5fe0}
 .to-spin{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:tospin .8s linear infinite;vertical-align:-2px}
 @keyframes tospin{to{transform:rotate(360deg)}}
+.to-steps{margin:4px 0 0;padding-left:20px;display:grid;gap:4px;font-size:.9rem}
+.to-pr summary{cursor:pointer;color:var(--muted);font-size:.85rem}.to-pr textarea{width:100%;margin-top:6px;font:inherit;font-size:.85rem;border-radius:12px;padding:8px;border:1.5px solid var(--line);background:var(--chip);color:var(--ink)}
 </style>
 
 
@@ -5082,7 +5084,23 @@ function tryonDev(){try{let d=localStorage.getItem('barber-dev');if(!d){d='d'+Ma
 function tryonSlideHTML(){return `<article class="ad ad-tryon" data-tryon tabindex="0" role="button" aria-label="ลองทรงผมด้วย AI"><div class="ad-body"><span class="ad-kicker">${ic('zap',13)} ใหม่! ลองก่อนตัด</span><h3>ทรงนี้เข้ากับหน้าเราไหม?</h3><p>ถ่ายเซลฟี่ 1 รูป เลือกทรงที่อยากได้ AI ใส่ทรงให้ดูบนหน้าคุณเลย</p><button class="ad-cta" data-tryon>ลองทรงผมด้วย AI</button></div></article>`}
 var tryD=null;
 function openTryon(){tryD=tryD||{photo:'',style:'',styleName:'',custom:'',ref:'',result:'',busy:false,err:''};renderTryon()}
-function renderTryon(){const d=tryD;if(!d)return;
+var TRYON_TH=['ทรงเกาหลีแสกกลาง ซอฟต์เลเยอร์ หน้าม้าแบ่งสองข้าง ยาวปานกลาง มีวอลลุ่มธรรมชาติ','วูล์ฟคัทเกาหลี ด้านบนซอยเป็นชั้นมีวอลลุ่ม ด้านหลังยาวกว่าเล็กน้อย','ทูบล็อกเกาหลี ด้านข้างสั้นไล่ระดับ ด้านบนยาวมีเท็กซ์เจอร์ หน้าม้านุ่ม ๆ','คอมม่าแฮร์ หน้าม้าปัดข้างม้วนเข้าเหมือนเครื่องหมายจุลภาค ด้านข้างสั้นเรียบร้อย','อันเดอร์คัทเฟดสูง ด้านข้างสั้นมาก ด้านบนมีเท็กซ์เจอร์ปัดไปด้านหลัง','สกินเฟด ด้านบนเป็นเฟรนช์ครอปสั้น หน้าม้าตัดตรง','ดาวน์เพิร์มเกาหลี ด้านบนดัดลอนนุ่ม ด้านข้างแนบเรียบ','บัซคัท สั้นเท่ากันทั้งหัว'];
+function tryonGem(){return tryonCfg().mode!=='app'}
+function tryonGemPrompt(d){const i=tryonStyles().findIndex(x=>x[0]===d.styleName),st=i>=0&&TRYON_TH[i]?TRYON_TH[i]:d.styleName;
+  return 'แก้รูปที่แนบ เปลี่ยนแค่ทรงผมเท่านั้น หน้า ผิว สีผม เสื้อผ้า และพื้นหลังต้องเหมือนเดิมทุกอย่าง ให้ดูเหมือนรูปถ่ายจริง'+(st?' เป็นทรง: '+st:'')+(d.custom.trim()?' เพิ่มเติม: '+d.custom.trim():'')}
+function renderTryonGem(d){const st=tryonStyles(),pr=tryonGemPrompt(d);
+  showSheet(`<h3>ลองทรงผมด้วย AI (ฟรี)</h3><p class="psub">เลือกทรง กดปุ่มด้านล่าง แล้วแนบเซลฟี่ของคุณใน Gemini ของ Google</p>
+    ${d.gemNote?`<p class="hint">${esc(d.gemNote)}</p>`:''}
+    <div class="form toform">
+      <p class="psub" style="margin:2px 0">1. เลือกทรงที่อยากลอง</p>
+      <div class="to-styles">${st.map(([n],i)=>`<button type="button" class="to-chip" data-tostyle="${i}" aria-pressed="${d.styleName===n}">${esc(n)}</button>`).join('')}</div>
+      <label>พิมพ์บอกเพิ่ม (ไม่บังคับ)<input id="toCustom" value="${esc(d.custom)}" maxlength="120" placeholder="เช่น ข้างสั้นอีกนิด ด้านบนยาว"></label>
+      <p class="err" id="toErr" ${d.err?'':'hidden'}>${esc(d.err)}</p>
+      <ol class="to-steps"><li>กดปุ่มด้านล่าง ระบบจะคัดลอกคำสั่งทรงผมให้ แล้วเปิด Gemini</li><li>ใน Gemini กด <b>+</b> แนบเซลฟี่หน้าตรง (หรือถ่ายใหม่)</li><li>กดค้างช่องพิมพ์ เลือก <b>วาง</b> แล้วส่ง รอสักครู่จะได้รูปทรงใหม่</li></ol>
+      <details class="to-pr"><summary>ดูคำสั่งที่จะคัดลอก</summary><textarea readonly rows="4">${esc(pr)}</textarea></details>
+      <p class="hint">ใช้ฟรีด้วยบัญชี Google ของคุณ ร้านไม่เห็นและไม่เก็บรูปของคุณ ภาพเป็นการจำลองเพื่อดูไอเดีย</p></div>
+    <div class="actions"><button class="okb" data-togem style="grid-column:1/-1">${ic('zap',16)} คัดลอกคำสั่ง แล้วเปิด Gemini</button><button class="ghost" data-tobook style="grid-column:1/-1">${ic('calendar',16)} ชอบแล้ว จองคิวตัดทรงนี้</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+function renderTryon(){const d=tryD;if(!d)return;if(!d.result&&(tryonGem()||d.gem))return renderTryonGem(d);
   if(d.result){showSheet(`<h3>ทรงใหม่ของคุณ ✨</h3><p class="psub">${esc(d.styleName||'ทรงจากรูปตัวอย่าง')}</p>
       <div class="to-ba"><figure><img src="${esc(d.photo)}" alt="ก่อน"><figcaption>ก่อน</figcaption></figure><figure><img src="${esc(d.result)}" alt="หลัง"><figcaption>ทรงใหม่ (AI)</figcaption></figure></div>
       <p class="hint">${d.left!=null?'วันนี้ลองได้อีก '+d.left+' ครั้ง · ':''}ภาพนี้ AI จำลองให้ดูเป็นไอเดีย ผลจริงขึ้นกับสภาพผมและช่างประเมินหน้าร้าน</p>
@@ -5105,26 +5123,31 @@ document.addEventListener('change',async e=>{if(!tryD)return;const id=e.target.i
   try{const f=e.target.files[0],url=URL.createObjectURL(f),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});
     const sc=Math.min(1,1024/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
     const du=c.toDataURL('image/jpeg',.85);if(id==='toRef')tryD.ref=du;else tryD.photo=du;tryD.err='';renderTryon()}catch(_){toast('เปิดรูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
-document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryon],[data-tostyle],#toGo,[data-tobook],[data-tosave],[data-toagain]');if(!t)return;
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryon],[data-tostyle],#toGo,[data-tobook],[data-tosave],[data-toagain],[data-togem]');if(!t)return;
   if(t.hasAttribute('data-tryon')){e.stopPropagation();openTryon();return}
   if(!tryD)return;
   if(t.dataset.tostyle!=null){toKeep();if(t.dataset.tostyle==='ref'){tryD.styleName='';tryD.style='';tryD.wantRef=true}else{const s=tryonStyles()[+t.dataset.tostyle];tryD.styleName=s[0];tryD.style=s[1];tryD.wantRef=false;tryD.ref=''}tryD.err='';renderTryon();return}
   if(t.id==='toGo'){toKeep();const d=tryD;if(!d.photo){d.err=TO_WHY.photo;return renderTryon()}if(!d.style&&!d.ref&&!d.custom.trim()){d.err=TO_WHY.style;return renderTryon()}
     d.busy=true;d.err='';renderTryon();let r;
     try{r=await api({a:'tryon',photo:d.photo,ref:d.ref||'',style:[d.style,d.custom.trim()].filter(Boolean).join('. '),phone:String((custMe&&custMe.phone)||sel.phone||'').replace(/\D/g,''),dev:tryonDev(),key:user?L().key:undefined})}catch(_){r={ok:false,why:'net'}}
-    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else{d.err=TO_WHY[r&&r.why]||TO_WHY.fail;if(user&&r&&(r.status||r.msg))d.err+=' ['+(r.status||'')+(r.msg?' '+r.msg:'')+']'}renderTryon();return}
+    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else if(r&&/^(credit|nokey|auth)$/.test(r.why)){d.gem=true;d.err='';d.gemNote='ระบบในแอพยังไม่พร้อม ลองฟรีผ่าน Gemini ได้เลย'}else{d.err=TO_WHY[r&&r.why]||TO_WHY.fail;if(user&&r&&(r.status||r.msg))d.err+=' ['+(r.status||'')+(r.msg?' '+r.msg:'')+']'}renderTryon();return}
+  if(t.hasAttribute('data-togem')){toKeep();const d=tryD;if(!d.styleName&&!d.custom.trim()){d.err='เลือกทรงที่อยากลองก่อน หรือพิมพ์บอกทรงที่ต้องการ';return renderTryon()}
+    const pr=tryonGemPrompt(d);let ok=false;try{if(navigator.clipboard){navigator.clipboard.writeText(pr);ok=true}}catch(_){}
+    if(!ok){const ta=document.querySelector('.to-pr textarea');if(ta){ta.select();try{ok=document.execCommand('copy')}catch(_){}}}
+    window.open('https://gemini.google.com/app','_blank','noopener');toast(ok?'คัดลอกคำสั่งแล้ว แนบเซลฟี่แล้ววางใน Gemini ได้เลย':'เปิด Gemini แล้ว คัดลอกคำสั่งจาก "ดูคำสั่งที่จะคัดลอก" ได้');return}
   if(t.hasAttribute('data-toagain')){tryD.result='';tryD.err='';renderTryon();return}
   if(t.hasAttribute('data-tosave')){const a=document.createElement('a');a.href=tryD.result;a.download='DI-CUT-'+(tryD.styleName||'ทรงใหม่')+'.png';
     try{const blob=await (await fetch(tryD.result)).blob(),file=new File([blob],a.download,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'ทรงใหม่จาก DI-CUT'});return}}catch(_){}
     document.body.appendChild(a);a.click();a.remove();return}
-  if(t.hasAttribute('data-tobook')){const n=tryD.styleName||'ตามรูปที่ลองด้วย AI';sel.note=('อยากได้ทรง: '+n+(tryD.custom?' ('+tryD.custom+')':'')).slice(0,200);if(dlg.open)dlg.close();setView('book');renderCustomer();toast('ใส่ชื่อทรงไว้ในหมายเหตุแล้ว เลือกบริการและเวลาได้เลย');return}});
+  if(t.hasAttribute('data-tobook')){const n=tryD.styleName||(tryD.custom?'':'ตามรูปที่ลองด้วย AI');sel.note=('อยากได้ทรง: '+n+(tryD.custom?' ('+tryD.custom+')':'')).slice(0,200);if(dlg.open)dlg.close();setView('book');renderCustomer();toast('ใส่ชื่อทรงไว้ในหมายเหตุแล้ว เลือกบริการและเวลาได้เลย');return}});
 // owner settings
 function tryonAdminHTML(){const T=tryonCfg();
   return `<h2 class="sech">ลองทรงผมด้วย AI</h2><section class="step"><label class="ckl"><input type="checkbox" id="toOn" ${T.on!==false?'checked':''}> เปิดให้ลูกค้าลองทรงผมด้วย AI</label>
+    <label>วิธีสร้างภาพ<select id="toMode"><option value="gemini" ${T.mode!=='app'?'selected':''}>ฟรี: ส่งลูกค้าไปลองใน Gemini ของ Google</option><option value="app" ${T.mode==='app'?'selected':''}>ในแอพเลย (ต้องเติมเครดิต Vercel AI Gateway)</option></select></label>
     <div class="two" style="margin-top:8px"><label>ลองได้ต่อคน/วัน<input id="toPer" type="number" min="1" max="20" value="${+T.perDay||3}"></label><label>รวมทั้งร้าน/วัน<input id="toCap" type="number" min="1" max="500" value="${+T.daily||40}"></label></div>
     <label>คุณภาพภาพ<select id="toModel"><option value="fast" ${T.model!=='sharp'?'selected':''}>มาตรฐาน (ประมาณ 1.4 บาท/ภาพ)</option><option value="sharp" ${T.model==='sharp'?'selected':''}>คมกว่า (ประมาณ 2.4 บาท/ภาพ)</option></select></label>
     <p class="hint" id="toStat">ใช้ Vercel AI Gateway ของบัญชีร้าน ค่าใช้จ่ายจริงดูได้ที่ Vercel → AI Gateway</p></section>`}
-document.addEventListener('change',e=>{if(!['toOn','toPer','toCap','toModel'].includes(e.target.id)||!isOwner())return;const T=tryonCfg();
+document.addEventListener('change',e=>{if(!['toOn','toPer','toCap','toModel','toMode'].includes(e.target.id)||!isOwner())return;const T=tryonCfg();if(e.target.id==='toMode')T.mode=e.target.value;
   if(e.target.id==='toOn')T.on=e.target.checked;if(e.target.id==='toPer')T.perDay=Math.max(1,Math.min(20,Math.round(+e.target.value)||3));if(e.target.id==='toCap')T.daily=Math.max(1,Math.min(500,Math.round(+e.target.value)||40));if(e.target.id==='toModel')T.model=e.target.value;
   saveCfg();renderCustomer();toast('บันทึกแล้ว')});
 window.__appReady=1;

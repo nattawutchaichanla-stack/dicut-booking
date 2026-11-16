@@ -11,7 +11,7 @@ export default {
         try { const p = await core.photo(q); if (p) return new Response(p.bytes, { headers: { 'Content-Type': p.type, 'Cache-Control': 'public, max-age=86400' } }); } catch (e) {}
         return new Response('not found', { status: 404 });
       }
-      return guard(() => core.appGet(q));
+      return guard(() => core.appGet(q, { oidc: request.headers.get('x-vercel-oidc-token') || '' }));
     }
     if (request.method !== 'POST') return json({ ok: false, error: 'method' }, 405);
     let body; try { body = JSON.parse(await request.text() || '{}'); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }

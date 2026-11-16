@@ -5099,7 +5099,7 @@ function renderTryon(){const d=tryD;if(!d)return;
       <p class="err" id="toErr" ${d.err?'':'hidden'}>${esc(d.err)}</p>
       <p class="hint">รูปของคุณใช้สร้างภาพครั้งนี้เท่านั้น ร้านไม่เก็บไว้ · ลองได้วันละ ${+tryonCfg().perDay||3} ครั้ง</p></div>
     <div class="actions"><button class="okb" id="toGo" style="grid-column:1/-1" ${d.busy?'disabled':''}>${d.busy?'<span class="to-spin"></span> AI กำลังตัดผมให้… ประมาณ 20 วินาที':ic('zap',16)+' สร้างภาพทรงใหม่'}</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
-var TO_WHY={off:'ร้านปิดฟีเจอร์นี้ชั่วคราว',photo:'ใส่รูปหน้าตรงของคุณก่อน',style:'เลือกทรงที่อยากลอง หรืออัปโหลดรูปทรงตัวอย่าง',nokey:'ระบบ AI ยังไม่พร้อม แจ้งร้านได้เลย',credit:'เครดิต AI ของร้านหมด แจ้งร้านได้เลย',busy:'ตอนนี้มีคนใช้เยอะ ลองใหม่อีกครั้งในไม่กี่วินาที',limit:'วันนี้ลองครบแล้ว พรุ่งนี้มาลองใหม่ได้นะ',cap:'วันนี้ร้านใช้โควตา AI ครบแล้ว พรุ่งนี้ลองใหม่ได้',noimage:'AI สร้างภาพไม่สำเร็จ ลองรูปหน้าตรงที่ชัดขึ้น หรือเลือกทรงอื่น',fail:'สร้างภาพไม่สำเร็จ ลองใหม่อีกครั้ง',net:'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง'};
+var TO_WHY={off:'ร้านปิดฟีเจอร์นี้ชั่วคราว',photo:'ใส่รูปหน้าตรงของคุณก่อน',style:'เลือกทรงที่อยากลอง หรืออัปโหลดรูปทรงตัวอย่าง',nokey:'ระบบ AI ยังไม่พร้อม แจ้งร้านได้เลย',credit:'เครดิต AI ของร้านหมด แจ้งร้านได้เลย',busy:'ตอนนี้มีคนใช้เยอะ ลองใหม่อีกครั้งในไม่กี่วินาที',limit:'วันนี้ลองครบแล้ว พรุ่งนี้มาลองใหม่ได้นะ',cap:'วันนี้ร้านใช้โควตา AI ครบแล้ว พรุ่งนี้ลองใหม่ได้',auth:'ระบบ AI ยังเชื่อมกับบัญชีร้านไม่ได้ แจ้งร้านได้เลย',noimage:'AI สร้างภาพไม่สำเร็จ ลองรูปหน้าตรงที่ชัดขึ้น หรือเลือกทรงอื่น',fail:'สร้างภาพไม่สำเร็จ ลองใหม่อีกครั้ง',net:'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง'};
 function toKeep(){const c=document.getElementById('toCustom');if(c&&tryD)tryD.custom=c.value}
 document.addEventListener('change',async e=>{if(!tryD)return;const id=e.target.id;if(!['toCam','toPick','toRef'].includes(id)||!e.target.files[0])return;toKeep();
   try{const f=e.target.files[0],url=URL.createObjectURL(f),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});
@@ -5112,7 +5112,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryo
   if(t.id==='toGo'){toKeep();const d=tryD;if(!d.photo){d.err=TO_WHY.photo;return renderTryon()}if(!d.style&&!d.ref&&!d.custom.trim()){d.err=TO_WHY.style;return renderTryon()}
     d.busy=true;d.err='';renderTryon();let r;
     try{r=await api({a:'tryon',photo:d.photo,ref:d.ref||'',style:[d.style,d.custom.trim()].filter(Boolean).join('. '),phone:String((custMe&&custMe.phone)||sel.phone||'').replace(/\D/g,''),dev:tryonDev(),key:user?L().key:undefined})}catch(_){r={ok:false,why:'net'}}
-    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else d.err=TO_WHY[r&&r.why]||TO_WHY.fail;renderTryon();return}
+    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else{d.err=TO_WHY[r&&r.why]||TO_WHY.fail;if(user&&r&&(r.status||r.msg))d.err+=' ['+(r.status||'')+(r.msg?' '+r.msg:'')+']'}renderTryon();return}
   if(t.hasAttribute('data-toagain')){tryD.result='';tryD.err='';renderTryon();return}
   if(t.hasAttribute('data-tosave')){const a=document.createElement('a');a.href=tryD.result;a.download='DI-CUT-'+(tryD.styleName||'ทรงใหม่')+'.png';
     try{const blob=await (await fetch(tryD.result)).blob(),file=new File([blob],a.download,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'ทรงใหม่จาก DI-CUT'});return}}catch(_){}

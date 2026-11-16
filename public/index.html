@@ -1794,7 +1794,14 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 @keyframes tospin{to{transform:rotate(360deg)}}
 .to-stage{position:relative;width:fit-content;max-width:100%;margin:0 auto;border-radius:18px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:#000}
 .to-stage img{display:block;max-width:100%;max-height:52vh;width:auto;height:auto;pointer-events:none}
-.to-fitmsg{display:none;position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:2;padding:6px 14px;border-radius:999px;background:rgba(13,58,163,.9);color:#fff;font-size:.8rem;white-space:nowrap}
+.to-ring{position:absolute;pointer-events:none;border-radius:50%;border:3px dashed #ffd23f;box-shadow:0 0 18px rgba(255,210,63,.75),inset 0 0 18px rgba(255,210,63,.35);z-index:1}
+.to-ring[hidden]{display:none}
+.to-ring i{position:absolute;width:14px;height:14px;background:#ffd23f;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);animation:totw 1.6s ease-in-out infinite}
+.to-ring i:nth-child(1){left:-6%;top:18%}.to-ring i:nth-child(2){right:-8%;top:40%;animation-delay:.5s;width:10px;height:10px}.to-ring i:nth-child(3){left:4%;bottom:6%;animation-delay:1s;width:9px;height:9px}
+@keyframes totw{0%,100%{opacity:.25;transform:scale(.6)}50%{opacity:1;transform:scale(1.15)}}
+.to-ring b{position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);padding:3px 12px;border-radius:999px;background:#0d3aa3;color:#ffd23f;font-size:.72rem;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.to-hair{z-index:2}
+.to-fitmsg{z-index:3;display:none;position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:2;padding:6px 14px;border-radius:999px;background:rgba(13,58,163,.9);color:#fff;font-size:.8rem;white-space:nowrap}
 .to-stage.fitting .to-fitmsg{display:block}.to-stage.fitting .to-hair{opacity:.35}
 .to-hair{position:absolute;pointer-events:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}.to-hair svg,.to-hair img{display:block;width:100%;height:auto}
 .to-cols{display:flex;flex-wrap:wrap;gap:8px}.to-col{width:34px;height:34px;border-radius:50%;background:var(--c);border:2px solid var(--line);cursor:pointer}
@@ -5180,15 +5187,23 @@ async function detectFace(src){const fa=await loadFaceApi(),img=new Image();awai
   const det=await fa.detectSingleFace(img,new fa.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.35})).withFaceLandmarks(true);if(!det)return null;
   const P=det.landmarks.positions,avg=(a,b)=>{let x=0,y=0;for(let i=a;i<=b;i++){x+=P[i].x;y+=P[i].y}const n=b-a+1;return{x:x/n,y:y/n}};
   const eL=avg(36,41),eR=avg(42,47),br=avg(17,26);let top=1e9;for(let i=17;i<=26;i++)top=Math.min(top,P[i].y);
-  return{W:img.naturalWidth,H:img.naturalHeight,bx:br.x,by:top,fw:Math.hypot(P[16].x-P[0].x,P[16].y-P[0].y),ang:Math.atan2(eR.y-eL.y,eR.x-eL.x)}}
+  return{W:img.naturalWidth,H:img.naturalHeight,bx:br.x,by:top,cx:P[8].x,cy:P[8].y,fw:Math.hypot(P[16].x-P[0].x,P[16].y-P[0].y),ang:Math.atan2(eR.y-eL.y,eR.x-eL.x)}}
 var HAIR_ANCH={fl:.125,fr:.875,by:.677,ar:186/200};
 function fitHair(d){const f=d.face;if(!f)return null;const key=stKey(d.si||0),A=HAIR_PHOTO[key]||HAIR_ANCH,flip=d.hs&&d.hs.f;
   const hw=f.fw*(HAIR_PHOTO[key]?1.12:1.06)/(A.fr-A.fl),hh=hw*A.ar;let ax=((A.fl+A.fr)/2-.5)*hw*(HAIR_PHOTO[key]?.55:1),ay=(A.by-.5)*hh;if(flip)ax=-ax;
   const c=Math.cos(f.ang),sn=Math.sin(f.ang),cx=f.bx-(ax*c-ay*sn),cy=f.by-(ax*sn+ay*c);
   return{x:cx/f.W,y:cy/f.H,w:hw/f.W,r:f.ang*180/Math.PI,f:flip}}
 async function autoFit(){const d=tryD;if(!d||!d.photo)return;d.fitting=true;const src=d.photo;stkBusy(true);
-  try{const f=await detectFace(src);if(tryD!==d||d.photo!==src)return;d.face=f;if(f){d.hs=fitHair(d);stkApply();toast('จัดผมให้พอดีกับหัวแล้ว ปรับต่อเองได้')}else toast('หาหน้าในรูปไม่เจอ ลากผมไปวางเองได้เลย')}
+  try{const f=await detectFace(src);if(tryD!==d||d.photo!==src)return;d.face=f;if(f){d.hs=fitHair(d);stkBusy(false);stkApply();const he=document.querySelector('.to-hair');if(he)he.style.opacity='0';ringApply(true);setTimeout(()=>{if(tryD===d)hairDrop()},380)}else toast('หาหน้าในรูปไม่เจอ ลากผมไปวางเองได้เลย')}
   catch(_){toast('จัดอัตโนมัติไม่ได้ตอนนี้ ลากผมไปวางเองได้เลย')}finally{d.fitting=false;stkBusy(false)}}
+function ringGeo(f){if(!f||f.cy==null)return null;const fh=f.cy-f.by,top=f.by-fh*.42,h=(f.cy-top)*1.1,w=f.fw*1.08,mx=(f.bx+f.cx)/2;
+  return{x:mx/f.W,y:(top+f.cy)/2/f.H+.01,w:w/f.W,h:h/f.H,r:f.ang*180/Math.PI}}
+function ringApply(anim){const d=tryD,el=document.querySelector('.to-ring');if(!el)return;const g=d&&d.face&&ringGeo(d.face);if(!g){el.hidden=true;return}el.hidden=false;
+  el.style.left=g.x*100+'%';el.style.top=g.y*100+'%';el.style.width=g.w*100+'%';el.style.height=g.h*100+'%';el.style.transform='translate(-50%,-50%) rotate('+g.r+'deg)';
+  const lb=el.querySelector('b');if(lb)lb.textContent=d.styleName||'';
+  if(anim&&el.animate)el.animate([{opacity:0,transform:'translate(-50%,-50%) rotate('+g.r+'deg) scale(1.35)'},{opacity:1,transform:'translate(-50%,-50%) rotate('+g.r+'deg) scale(.96)',offset:.7},{opacity:1,transform:'translate(-50%,-50%) rotate('+g.r+'deg) scale(1)'}],{duration:650,easing:'ease-out'})}
+function hairDrop(){const el=document.querySelector('.to-hair');if(!el)return;el.style.opacity='';if(!el.animate)return;const t=el.style.transform;
+  el.animate([{opacity:0,transform:t+' translateY(-75%) scale(1.08)'},{opacity:1,transform:t+' translateY(4%)',offset:.72},{opacity:1,transform:t+' translateY(-1.5%)',offset:.88},{opacity:1,transform:t}],{duration:820,easing:'cubic-bezier(.3,.7,.4,1)'})}
 function stkBusy(on){const st=document.getElementById('toStage');if(st)st.classList.toggle('fitting',!!(on||(tryD&&tryD.fitting)))}
 function hairHTML(key,c){const ph=HAIR_PHOTO[key];return ph?`<img src="${ph.src}" alt="" draggable="false">`:hairSVG(key,c)}
 function hairSVG(key,c){var old={soft:0,wolf:1,undercut:4,crop:5,perm:6,buzz:7};if(key in old)return hairOld(old[key],c);return hair3(key,c)}
@@ -5205,7 +5220,7 @@ function renderTryonStk(d){const st=tryonStyles(),si=d.si==null?0:d.si,col=d.col
   showSheet(`<h3>ลองทรงผมกับหน้าตัวเอง</h3><p class="psub">ใส่รูปหน้าตัวเอง เลือกทรง แล้วลากผมไปวางบนหัว ฟรี ไม่ต้องรอ</p>
     ${d.gemNote?`<p class="hint">${esc(d.gemNote)}</p>`:''}
     <div class="form toform">
-      ${d.photo?`<div class="to-stage" id="toStage"><span class="to-fitmsg">กำลังหาตำแหน่งหัว…</span><img src="${esc(d.photo)}" alt="รูปของคุณ" draggable="false"><div class="to-hair">${hairHTML(stKey(si),col)}</div></div>
+      ${d.photo?`<div class="to-stage" id="toStage"><span class="to-fitmsg">กำลังหาตำแหน่งหัว…</span><div class="to-ring" hidden><i></i><i></i><i></i><b></b></div><img src="${esc(d.photo)}" alt="รูปของคุณ" draggable="false"><div class="to-hair">${hairHTML(stKey(si),col)}</div></div>
         <p class="hint" style="text-align:center;margin:2px 0">ลากผมด้วยนิ้ว · สองนิ้วย่อ/ขยาย/หมุนได้ · <button type="button" class="linkbtn" data-toflip>⇋ กลับด้าน</button> · <button type="button" class="linkbtn" data-tofit>✨ จัดให้พอดี</button></p>
         <div class="two"><label>ขนาด<input type="range" id="toSize" min="30" max="130" value="${Math.round(stkStyle(d).w*100)}"></label><label>หมุน<input type="range" id="toRot" min="-35" max="35" value="${Math.round(stkStyle(d).r)}"></label></div>`
       :`<div class="to-photo"><div class="to-ph">${ic('user',40)}<small>หน้าตรง เห็นทั้งหัว ไม่ใส่หมวก</small></div><div class="to-pbtn"><label class="upl">${ic('image',16)} ถ่ายเซลฟี่<input type="file" accept="image/*" capture="user" id="toCam"></label><label class="upl ghostupl">เลือกจากอัลบั้ม<input type="file" accept="image/*" id="toPick"></label></div></div>`}
@@ -5216,7 +5231,7 @@ function renderTryonStk(d){const st=tryonStyles(),si=d.si==null?0:d.si,col=d.col
       ${d.photo?`<div class="to-pbtn" style="grid-template-columns:1fr 1fr"><label class="upl ghostupl">ถ่ายใหม่<input type="file" accept="image/*" capture="user" id="toCam"></label><label class="upl ghostupl">เลือกรูปอื่น<input type="file" accept="image/*" id="toPick"></label></div>`:''}
       <p class="hint">รูปอยู่ในเครื่องคุณเท่านั้น ไม่ได้ส่งให้ร้าน · ภาพนี้ไว้ดูไอเดีย ช่างจะปรับทรงให้เข้ากับหน้าและสภาพผมจริง</p></div>
     <div class="actions">${d.photo?`<button class="okb" data-tostksave style="grid-column:1/-1">${ic('download',16)} บันทึกรูป</button>`:''}<button class="${d.photo?'ghost':'okb'}" data-tobook style="grid-column:1/-1">${ic('calendar',16)} จองคิวตัดทรงนี้</button><button data-close style="grid-column:1/-1">ปิด</button></div>`);
-  d.styleName=st[si][0];stkApply();stkBind();stkBusy(false)}
+  d.styleName=st[si][0];stkApply();ringApply(false);stkBind();stkBusy(false)}
 function stkBind(){const stage=document.getElementById('toStage');if(!stage)return;const pts={};var g=null;
   function snap(){const ks=Object.keys(pts),h=stkStyle(tryD),b=stage.getBoundingClientRect();
     if(ks.length===1){const p=pts[ks[0]];g={n:1,px:p.x,py:p.y,x:h.x,y:h.y,W:b.width,H:b.height}}
@@ -5234,6 +5249,8 @@ async function stkSave(){const d=tryD;if(!d||!d.photo)return;try{
   const img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=d.photo});
   const W=img.naturalWidth,H=img.naturalHeight,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(img,0,0);
   const h=stkStyle(d),key=stKey(d.si||0),ph=HAIR_PHOTO[key],hi=new Image();await new Promise((r,j)=>{hi.onload=r;hi.onerror=j;hi.src=ph?ph.src:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(hairSVG(key,d.col||HAIR_COLS[0][1]))});
+  const rg=d.face&&ringGeo(d.face);if(rg){x.save();x.translate(rg.x*W,rg.y*H);x.rotate(rg.r*Math.PI/180);const rx=rg.w*W/2,ry=rg.h*H/2,lw=Math.max(3,W*.008);
+    x.shadowColor='rgba(255,210,63,.9)';x.shadowBlur=lw*4;x.strokeStyle='#ffd23f';x.lineWidth=lw;x.setLineDash([lw*3,lw*2.2]);x.beginPath();x.ellipse(0,0,rx,ry,0,0,Math.PI*2);x.stroke();x.restore()}
   const hw=h.w*W,hh=hw*(ph?ph.ar:186/200);x.save();x.translate(h.x*W,h.y*H);x.rotate(h.r*Math.PI/180);if(h.f)x.scale(-1,1);x.drawImage(hi,-hw/2,-hh/2,hw,hh);x.restore();
   const fs=Math.max(14,Math.round(W*.04)),ff=getComputedStyle(document.body).fontFamily,label='DI-CUT · '+(d.styleName||'ทรงใหม่');x.font='600 '+fs+'px '+ff;
   const tw=x.measureText(label).width,pad=fs*.6,bx=fs*.6,by=H-fs*2.4;x.fillStyle='rgba(13,58,163,.88)';if(x.roundRect){x.beginPath();x.roundRect(bx,by,tw+pad*2,fs*1.8,fs*.9);x.fill()}else x.fillRect(bx,by,tw+pad*2,fs*1.8);
@@ -5287,7 +5304,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryo
     d.busy=true;d.err='';renderTryon();let r;
     try{r=await api({a:'tryon',photo:d.photo,ref:d.ref||'',style:[d.style,d.custom.trim()].filter(Boolean).join('. '),phone:String((custMe&&custMe.phone)||sel.phone||'').replace(/\D/g,''),dev:tryonDev(),key:user?L().key:undefined})}catch(_){r={ok:false,why:'net'}}
     d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else if(r&&/^(credit|nokey|auth)$/.test(r.why)){d.stk=true;d.err='';d.gemNote='ระบบ AI ยังไม่พร้อม ลองแปะทรงผมการ์ตูนบนรูปคุณแทนได้เลย'}else{d.err=TO_WHY[r&&r.why]||TO_WHY.fail;if(user&&r&&(r.status||r.msg))d.err+=' ['+(r.status||'')+(r.msg?' '+r.msg:'')+']'}renderTryon();return}
-  if(t.dataset.tostk!=null){const was=!!HAIR_PHOTO[stKey(tryD.si||0)];tryD.si=+t.dataset.tostk;if(tryD.face)tryD.hs=fitHair(tryD);else if(was!==!!HAIR_PHOTO[stKey(tryD.si)])tryD.hs=null;renderTryon();return}
+  if(t.dataset.tostk!=null){const was=!!HAIR_PHOTO[stKey(tryD.si||0)];tryD.si=+t.dataset.tostk;if(tryD.face)tryD.hs=fitHair(tryD);else if(was!==!!HAIR_PHOTO[stKey(tryD.si)])tryD.hs=null;renderTryon();hairDrop();return}
   if(t.hasAttribute('data-toflip')){const h=stkStyle(tryD);h.f=!h.f;tryD.hs=h;if(tryD.face)tryD.hs=fitHair(tryD);stkApply();return}
   if(t.hasAttribute('data-tofit')){if(tryD.face){tryD.hs=fitHair(tryD);stkApply()}else autoFit();return}
   if(t.dataset.tocol){tryD.col=t.dataset.tocol;renderTryon();return}

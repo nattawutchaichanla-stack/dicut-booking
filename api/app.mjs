@@ -15,6 +15,6 @@ export default {
     }
     if (request.method !== 'POST') return json({ ok: false, error: 'method' }, 405);
     let body; try { body = JSON.parse(await request.text() || '{}'); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
-    return guard(() => core.appPost(body));
+    return guard(() => core.appPost(body, { oidc: request.headers.get('x-vercel-oidc-token') || '' }));
   },
 };

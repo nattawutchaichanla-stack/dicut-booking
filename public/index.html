@@ -1773,6 +1773,25 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 @media (max-width:760px){.dk-pill span{max-width:6.2em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 @media (max-width:420px){.dk-pill{transform:scale(1.22)!important;margin:0 14px!important}.dk-pill:active{transform:scale(1.16)!important}.dk-pill span{max-width:5.6em}}
 @media (max-width:370px){.dk-pill span{max-width:4.6em}.dk-pill{margin:0 10px!important}}
+
+/* AI try-on */
+.tryon-cta{display:flex;align-items:center;gap:12px;width:100%;margin:6px 0 12px;padding:12px 16px;border-radius:18px;border:1.5px dashed rgba(31,95,224,.55);background:rgba(31,95,224,.08);color:var(--ink);text-align:left;cursor:pointer}
+.tryon-cta svg{flex:none;color:#1f5fe0}.tryon-cta span{display:grid;gap:2px}.tryon-cta small{color:var(--muted)}
+.ad.ad-tryon{background:linear-gradient(135deg,#0d3aa3,#1f5fe0 55%,#7c3aed)!important}
+.to-photo{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:center}
+.to-photo img,.to-ph{width:120px;height:150px;border-radius:16px;object-fit:cover;background:var(--chip);display:grid;place-items:center;text-align:center;color:var(--muted);padding:6px}
+.to-ph small{font-size:.72rem;line-height:1.3}
+.to-pbtn{display:grid;gap:8px}.ghostupl{background:transparent!important;border:1.5px solid var(--line)!important}
+.to-styles{display:flex;flex-wrap:wrap;gap:6px}
+.to-chip{padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-size:.86rem;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.to-chip[aria-pressed="true"]{background:#1f5fe0;border-color:#1f5fe0;color:#fff}
+.to-ref{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center}.to-ref img{width:64px;height:80px;border-radius:10px;object-fit:cover;grid-row:span 2}.to-ref small{color:var(--muted)}
+.to-ba{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.to-ba figure{margin:0;position:relative}.to-ba img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:14px;display:block}
+.to-ba figcaption{position:absolute;left:8px;bottom:8px;padding:3px 10px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem}
+.to-ba figure:last-child figcaption{background:#1f5fe0}
+.to-spin{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:tospin .8s linear infinite;vertical-align:-2px}
+@keyframes tospin{to{transform:rotate(360deg)}}
 </style>
 
 
@@ -2770,7 +2789,7 @@ function renderCustomer(){
   adBind();if(typeof VIEW_TITLE!=='undefined')renderNotch();
 }
 function stepSvc(){
-  return `<h3 class="wt">ค่าบริการ</h3><p class="hint">เลือกได้ 1 บริการต่อการจอง 1 คิว</p><div class="svc">`+
+  return `<h3 class="wt">ค่าบริการ</h3><p class="hint">เลือกได้ 1 บริการต่อการจอง 1 คิว</p>${tryonOn()?`<button class="tryon-cta" data-tryon>${ic('zap',18)}<span><b>ลองทรงผมกับหน้าตัวเองด้วย AI</b><small>ถ่ายเซลฟี่ 1 รูป เลือกทรง ดูก่อนตัดว่าเข้ากันไหม</small></span></button>`:''}<div class="svc">`+
     cfg.services.map(x=>`<button data-svc="${x.id}" class="${G('svc:'+x.id)?'has-th':''}" aria-pressed="${sel.services.includes(x.id)}"><span class="ck" aria-hidden="true">${ic('check',14)}</span>${G('svc:'+x.id)?`<span class="sthumb" style="${gbg('svc:'+x.id)}" aria-hidden="true"></span>`:''}<span class="sn"><b>${esc(x.name)}</b><small>${x.min} นาที${livePromos().some(p=>!p.services.length||p.services.includes(x.id))?' <em class="ptag">มีโปร</em>':''}${loy().active&&!loy().services.includes(x.id)?' <em class="ntag">ไม่นับแต้ม</em>':''}</small>${x.note?`<small class="snote">${esc(x.note)}</small>`:''}</span>${svcPriceHTML(x)}</button>`).join('')+`</div>`;
 }
 function stepBarber(){
@@ -2935,6 +2954,7 @@ function promoSlideHTML(p,preview){
 function adSlides(){
   const out=[];
   liveNotices().forEach(n=>out.push(noticeSlideHTML(n)));
+  if(tryonOn())out.push(tryonSlideHTML());
   livePkgs().forEach(k=>out.push(pkgSlideHTML(k)));
   if(loy().active)out.push(loySlideHTML(loy(),sel.phone));
   livePromos().forEach(p=>out.push(promoSlideHTML(p)));
@@ -3035,7 +3055,7 @@ function loyAdminHTML(){
 function renderPromos(){
   if(!isOwner()){secPromos.innerHTML='';return}
   const used=id=>bookings.filter(b=>b.promoId===id&&b.status!=='cancelled');
-  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+pkgAdminHTML()+noticeAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
+  let h=payAdminHTML()+loyAdminHTML()+refAdminHTML()+pkgAdminHTML()+tryonAdminHTML()+noticeAdminHTML()+`<h2 class="sech">โปรโมชั่นอื่น</h2><section class="step"><p class="hint" style="margin-bottom:10px">แบนเนอร์เรียงตามลำดับนี้ ใช้ลูกศรเพื่อสลับลำดับ</p><div class="plist">`;
   h+=cfg.promos.map(p=>{const u=used(p.id),tot=u.reduce((a,b)=>a+(b.discount||0),0);
     return `<div class="prow ${p.active?'':'off'}">${p.img?`<span class="pthumb" style="background-image:url('${p.img}')"></span>`:''}<div class="pinfo"><span class="pval">${promoLabel(p)}</span><b>${esc(p.title)}</b><small>${esc(promoCond(p))} · ${+p.limit>0?'จำกัด '+(+p.limit)+' สิทธิ์':'ไม่จำกัดสิทธิ์'}</small><small>ใช้แล้ว ${u.length} คิว · ลดไปรวม ${tot.toLocaleString()} ฿</small></div>
       <div class="pact"><button class="icon-btn" data-pmove="${p.id}|-1" aria-label="เลื่อนขึ้น" ${cfg.promos.indexOf(p)===0?'disabled':''}>↑</button><button class="icon-btn" data-pmove="${p.id}|1" aria-label="เลื่อนลง" ${cfg.promos.indexOf(p)===cfg.promos.length-1?'disabled':''}>↓</button><button class="ghost" data-ptoggle="${p.id}">${p.active?'ปิดโปร':'เปิดโปร'}</button><button class="ghost" data-pedit="${p.id}">แก้ไข</button></div></div>`}).join('')||'<p class="hint">ยังไม่มีโปรโมชั่น</p>';
@@ -5046,6 +5066,67 @@ function svcXferDeal(x){const price=+x.price||0,P=payCfg();if(!price||P.mode!=='
   if((P.prepaySvcs||[]).length&&!P.prepaySvcs.includes(x.id))return null;const n=Math.round(price-price*P.prepayPct/100);return n<price?{price:n,pct:P.prepayPct}:null}
 function svcPriceHTML(x){const d=svcXferDeal(x);
   return `<b class="sprice">${priceTag(x)}</b>`+(d?`<span class="xferbar">${ic('lock',14)}<span>โอนก่อน ลด ${d.pct}% เหลือ</span><b>${baht(d.price)} ฿</b></span>`:'')}
+/* ---------- AI hairstyle try-on: selfie + style -> realistic photo of the customer with that cut ---------- */
+function tryonCfg(){return cfg.tryon||(cfg.tryon={})}
+function tryonOn(){try{return backendOn()&&tryonCfg().on!==false}catch(_){return false}}
+var TRYON_STYLES=[['เกาหลีแสกกลาง ซอฟต์เลเยอร์','Korean middle-part soft layered cut with curtain fringe, medium length, natural volume'],
+  ['วอลลุ่ม / วูล์ฟคัท','Korean wolf cut with volume, textured layers on top, slightly longer at the back'],
+  ['ทูบล็อก','Korean two-block cut: short tapered sides, longer textured top with a soft fringe'],
+  ['คอมม่าแฮร์','Korean comma hair: side-swept fringe that curls inward like a comma, short neat sides'],
+  ['อันเดอร์คัท / รองทรงสูง','classic high-fade undercut: very short faded sides, textured top swept back'],
+  ['สกินเฟด ครอป','skin fade with a short textured French crop and a blunt fringe'],
+  ['ดาวน์เพิร์มเกาหลี','Korean down perm: soft wavy perm on top, sides pressed down flat and neat'],
+  ['สั้นเกรียน','neat buzz cut, even short length all over']];
+function tryonStyles(){const c=tryonCfg().styles;return Array.isArray(c)&&c.length?c:TRYON_STYLES}
+function tryonDev(){try{let d=localStorage.getItem('barber-dev');if(!d){d='d'+Math.random().toString(36).slice(2,12);localStorage.setItem('barber-dev',d)}return d}catch(_){return 'nodev'}}
+function tryonSlideHTML(){return `<article class="ad ad-tryon" data-tryon tabindex="0" role="button" aria-label="ลองทรงผมด้วย AI"><div class="ad-body"><span class="ad-kicker">${ic('zap',13)} ใหม่! ลองก่อนตัด</span><h3>ทรงนี้เข้ากับหน้าเราไหม?</h3><p>ถ่ายเซลฟี่ 1 รูป เลือกทรงที่อยากได้ AI ใส่ทรงให้ดูบนหน้าคุณเลย</p><button class="ad-cta" data-tryon>ลองทรงผมด้วย AI</button></div></article>`}
+var tryD=null;
+function openTryon(){tryD=tryD||{photo:'',style:'',styleName:'',custom:'',ref:'',result:'',busy:false,err:''};renderTryon()}
+function renderTryon(){const d=tryD;if(!d)return;
+  if(d.result){showSheet(`<h3>ทรงใหม่ของคุณ ✨</h3><p class="psub">${esc(d.styleName||'ทรงจากรูปตัวอย่าง')}</p>
+      <div class="to-ba"><figure><img src="${esc(d.photo)}" alt="ก่อน"><figcaption>ก่อน</figcaption></figure><figure><img src="${esc(d.result)}" alt="หลัง"><figcaption>ทรงใหม่ (AI)</figcaption></figure></div>
+      <p class="hint">${d.left!=null?'วันนี้ลองได้อีก '+d.left+' ครั้ง · ':''}ภาพนี้ AI จำลองให้ดูเป็นไอเดีย ผลจริงขึ้นกับสภาพผมและช่างประเมินหน้าร้าน</p>
+      <div class="actions"><button class="okb" data-tobook style="grid-column:1/-1">${ic('calendar',16)} จองคิวตัดทรงนี้</button><button class="ghost" data-tosave style="grid-column:1/-1">${ic('download',16)} บันทึกรูป</button><button class="ghost" data-toagain style="grid-column:1/-1">ลองทรงอื่น</button><button data-close style="grid-column:1/-1">ปิด</button></div>`);return}
+  const st=tryonStyles();
+  showSheet(`<h3>ลองทรงผมด้วย AI</h3><p class="psub">ถ่ายเซลฟี่ เลือกทรง แล้ว AI จะใส่ทรงนั้นบนหน้าคุณให้ดูเหมือนจริง</p>
+    <div class="form toform">
+      <div class="to-photo">${d.photo?`<img src="${esc(d.photo)}" alt="รูปของคุณ">`:`<div class="to-ph">${ic('user',40)}<small>หน้าตรง แสงพอ เห็นผมทั้งหัว ไม่ใส่หมวก</small></div>`}
+        <div class="to-pbtn"><label class="upl">${ic('image',16)} ${d.photo?'ถ่ายใหม่':'ถ่ายเซลฟี่'}<input type="file" accept="image/*" capture="user" id="toCam"></label><label class="upl ghostupl">เลือกจากอัลบั้ม<input type="file" accept="image/*" id="toPick"></label></div></div>
+      <p class="psub" style="margin:6px 0 2px">เลือกทรงที่อยากลอง</p>
+      <div class="to-styles">${st.map(([n,pr],i)=>`<button type="button" class="to-chip" data-tostyle="${i}" aria-pressed="${d.styleName===n}">${esc(n)}</button>`).join('')}<button type="button" class="to-chip" data-tostyle="ref" aria-pressed="${d.styleName===''&&!!d.ref}">${ic('image',14)} ใช้รูปทรงที่ชอบ</button></div>
+      ${d.ref||d.styleName===''&&d.wantRef?`<div class="to-ref">${d.ref?`<img src="${esc(d.ref)}" alt="ทรงตัวอย่าง">`:''}<label class="upl ghostupl">${d.ref?'เปลี่ยนรูปทรงตัวอย่าง':'อัปโหลดรูปทรงที่ชอบ'}<input type="file" accept="image/*" id="toRef"></label><small>ใช้แค่ทรงผมจากรูปนี้ หน้ายังเป็นของคุณ</small></div>`:''}
+      <label>หรือพิมพ์บอกเพิ่ม (ไม่บังคับ)<input id="toCustom" value="${esc(d.custom)}" maxlength="120" placeholder="เช่น ข้างสั้นอีกนิด ด้านบนยาว ทำสีน้ำตาล"></label>
+      <p class="err" id="toErr" ${d.err?'':'hidden'}>${esc(d.err)}</p>
+      <p class="hint">รูปของคุณใช้สร้างภาพครั้งนี้เท่านั้น ร้านไม่เก็บไว้ · ลองได้วันละ ${+tryonCfg().perDay||3} ครั้ง</p></div>
+    <div class="actions"><button class="okb" id="toGo" style="grid-column:1/-1" ${d.busy?'disabled':''}>${d.busy?'<span class="to-spin"></span> AI กำลังตัดผมให้… ประมาณ 20 วินาที':ic('zap',16)+' สร้างภาพทรงใหม่'}</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
+var TO_WHY={off:'ร้านปิดฟีเจอร์นี้ชั่วคราว',photo:'ใส่รูปหน้าตรงของคุณก่อน',style:'เลือกทรงที่อยากลอง หรืออัปโหลดรูปทรงตัวอย่าง',nokey:'ระบบ AI ยังไม่พร้อม แจ้งร้านได้เลย',credit:'เครดิต AI ของร้านหมด แจ้งร้านได้เลย',busy:'ตอนนี้มีคนใช้เยอะ ลองใหม่อีกครั้งในไม่กี่วินาที',limit:'วันนี้ลองครบแล้ว พรุ่งนี้มาลองใหม่ได้นะ',cap:'วันนี้ร้านใช้โควตา AI ครบแล้ว พรุ่งนี้ลองใหม่ได้',noimage:'AI สร้างภาพไม่สำเร็จ ลองรูปหน้าตรงที่ชัดขึ้น หรือเลือกทรงอื่น',fail:'สร้างภาพไม่สำเร็จ ลองใหม่อีกครั้ง',net:'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง'};
+function toKeep(){const c=document.getElementById('toCustom');if(c&&tryD)tryD.custom=c.value}
+document.addEventListener('change',async e=>{if(!tryD)return;const id=e.target.id;if(!['toCam','toPick','toRef'].includes(id)||!e.target.files[0])return;toKeep();
+  try{const f=e.target.files[0],url=URL.createObjectURL(f),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});
+    const sc=Math.min(1,1024/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+    const du=c.toDataURL('image/jpeg',.85);if(id==='toRef')tryD.ref=du;else tryD.photo=du;tryD.err='';renderTryon()}catch(_){toast('เปิดรูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryon],[data-tostyle],#toGo,[data-tobook],[data-tosave],[data-toagain]');if(!t)return;
+  if(t.hasAttribute('data-tryon')){e.stopPropagation();openTryon();return}
+  if(!tryD)return;
+  if(t.dataset.tostyle!=null){toKeep();if(t.dataset.tostyle==='ref'){tryD.styleName='';tryD.style='';tryD.wantRef=true}else{const s=tryonStyles()[+t.dataset.tostyle];tryD.styleName=s[0];tryD.style=s[1];tryD.wantRef=false;tryD.ref=''}tryD.err='';renderTryon();return}
+  if(t.id==='toGo'){toKeep();const d=tryD;if(!d.photo){d.err=TO_WHY.photo;return renderTryon()}if(!d.style&&!d.ref&&!d.custom.trim()){d.err=TO_WHY.style;return renderTryon()}
+    d.busy=true;d.err='';renderTryon();let r;
+    try{r=await api({a:'tryon',photo:d.photo,ref:d.ref||'',style:[d.style,d.custom.trim()].filter(Boolean).join('. '),phone:String((custMe&&custMe.phone)||sel.phone||'').replace(/\D/g,''),dev:tryonDev(),key:user?L().key:undefined})}catch(_){r={ok:false,why:'net'}}
+    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else d.err=TO_WHY[r&&r.why]||TO_WHY.fail;renderTryon();return}
+  if(t.hasAttribute('data-toagain')){tryD.result='';tryD.err='';renderTryon();return}
+  if(t.hasAttribute('data-tosave')){const a=document.createElement('a');a.href=tryD.result;a.download='DI-CUT-'+(tryD.styleName||'ทรงใหม่')+'.png';
+    try{const blob=await (await fetch(tryD.result)).blob(),file=new File([blob],a.download,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'ทรงใหม่จาก DI-CUT'});return}}catch(_){}
+    document.body.appendChild(a);a.click();a.remove();return}
+  if(t.hasAttribute('data-tobook')){const n=tryD.styleName||'ตามรูปที่ลองด้วย AI';sel.note=('อยากได้ทรง: '+n+(tryD.custom?' ('+tryD.custom+')':'')).slice(0,200);if(dlg.open)dlg.close();setView('book');renderCustomer();toast('ใส่ชื่อทรงไว้ในหมายเหตุแล้ว เลือกบริการและเวลาได้เลย');return}});
+// owner settings
+function tryonAdminHTML(){const T=tryonCfg();
+  return `<h2 class="sech">ลองทรงผมด้วย AI</h2><section class="step"><label class="ckl"><input type="checkbox" id="toOn" ${T.on!==false?'checked':''}> เปิดให้ลูกค้าลองทรงผมด้วย AI</label>
+    <div class="two" style="margin-top:8px"><label>ลองได้ต่อคน/วัน<input id="toPer" type="number" min="1" max="20" value="${+T.perDay||3}"></label><label>รวมทั้งร้าน/วัน<input id="toCap" type="number" min="1" max="500" value="${+T.daily||40}"></label></div>
+    <label>คุณภาพภาพ<select id="toModel"><option value="fast" ${T.model!=='sharp'?'selected':''}>มาตรฐาน (ประมาณ 1.4 บาท/ภาพ)</option><option value="sharp" ${T.model==='sharp'?'selected':''}>คมกว่า (ประมาณ 2.4 บาท/ภาพ)</option></select></label>
+    <p class="hint" id="toStat">ใช้ Vercel AI Gateway ของบัญชีร้าน ค่าใช้จ่ายจริงดูได้ที่ Vercel → AI Gateway</p></section>`}
+document.addEventListener('change',e=>{if(!['toOn','toPer','toCap','toModel'].includes(e.target.id)||!isOwner())return;const T=tryonCfg();
+  if(e.target.id==='toOn')T.on=e.target.checked;if(e.target.id==='toPer')T.perDay=Math.max(1,Math.min(20,Math.round(+e.target.value)||3));if(e.target.id==='toCap')T.daily=Math.max(1,Math.min(500,Math.round(+e.target.value)||40));if(e.target.id==='toModel')T.model=e.target.value;
+  saveCfg();renderCustomer();toast('บันทึกแล้ว')});
 window.__appReady=1;
 </script>
 </body>

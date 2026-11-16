@@ -5,7 +5,9 @@ import { memoryDb } from './lib/db.mjs';
 let pass = 0; const ok = (c, m) => { assert(c, m); pass++; console.log('  ✓ ' + m); };
 let clock = Date.parse('2026-10-06T14:00:00+07:00');
 const sent = [];
-const fetchImpl = async (url, o) => { const p = JSON.parse(o.body); sent.push({ kind: url.endsWith('/push') ? 'push' : 'reply', to: p.to, messages: p.messages }); return { ok: true, status: 200, text: async () => '{}' }; };
+const aiCalls = []; let aiMode = 'ok';
+const fetchImpl = async (url, o) => { if (url.includes('ai-gateway')) { const b = JSON.parse(o.body); aiCalls.push({ auth: o.headers.Authorization, b }); if (aiMode === 'credit') return { ok: false, status: 402, json: async () => ({ error: 'no credit' }) }; return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'done', images: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,QUJD' } }] } }] }) }; }
+  const p = JSON.parse(o.body); sent.push({ kind: url.endsWith('/push') ? 'push' : 'reply', to: p.to, messages: p.messages }); return { ok: true, status: 200, text: async () => '{}' }; };
 const env = { STAFF_KEY: 'SK-TEST', APP_SECRET: 'secret', LINE_TOKEN: 'T', LINE_CHANNEL_SECRET: 'chsec', CRON_SECRET: 'cron' };
 const db = memoryDb();
 const pushes = [], deadEp = new Set();
@@ -448,5 +450,25 @@ console.log('\nALL ' + pass + ' CHECKS PASSED');
   const s1 = await post({ a: 'pksell', key: KEY, phone: '0857770002', name: 'หน้าร้าน', pkgId: 'k7', by: 'ช่างเอ' });
   ok(s1.ok && s1.pkg.status === 'active' && s1.pkg.via === 'shop', 'sold at the counter: active right away');
   ok((await post({ a: 'create', booking: Object.assign(bk('PKB2', 1340), { services: ['beard'], serviceId: 'beard' }) })).ok === false, 'package limited to its services');
+}
+{ // AI hairstyle try-on
+  const photo = 'data:image/jpeg;base64,' + 'A'.repeat(200), base = { a: 'tryon', photo, style: 'Korean soft layer, middle part', dev: 'dev-1' };
+  ok((await post(base)).why === 'nokey', 'no AI key: friendly error, nothing sent');
+  env.AI_GATEWAY_API_KEY = 'gw-key';
+  ok((await post(Object.assign({}, base, { photo: 'nope' }))).why === 'photo', 'needs a real photo');
+  ok((await post(Object.assign({}, base, { style: '' }))).why === 'style', 'needs a style or a reference photo');
+  const r = await post(base);
+  const c = aiCalls[aiCalls.length - 1];
+  ok(r.ok && r.image.startsWith('data:image/png') && r.left === 2, 'returns the generated photo, 2 tries left today');
+  ok(c.auth === 'Bearer gw-key' && c.b.modalities.includes('image') && c.b.messages[0].content[1].image_url.url === photo && /Keep everything else identical/.test(c.b.messages[0].content[0].text), 'sends the selfie with a keep-the-same-face prompt');
+  const r2 = await post(Object.assign({}, base, { ref: photo, style: '' }));
+  ok(r2.ok && aiCalls[aiCalls.length - 1].b.messages[0].content.length === 3, 'reference haircut photo is sent as a second image');
+  ok((await post(base)).left === 0, 'third try uses the last one');
+  ok((await post(base)).why === 'limit', 'daily limit per person');
+  ok((await post(Object.assign({}, base, { key: KEY }))).ok, 'staff are not limited per person');
+  aiMode = 'credit'; ok((await post(Object.assign({}, base, { dev: 'dev-2' }))).why === 'credit', 'out of AI credit: clear reason'); aiMode = 'ok';
+  ok((await post({ a: 'tryonstats', key: KEY })).today === 4, 'owner sees how many photos were made today');
+  delete env.AI_GATEWAY_API_KEY;
+  ok((await core.appPost(Object.assign({}, base, { dev: 'dev-3' }), { oidc: 'oidc-tok' })).ok && aiCalls[aiCalls.length - 1].auth === 'Bearer oidc-tok', 'on Vercel it can use the project OIDC token instead of a key');
 }
 console.log('\n' + pass + ' checks passed');

@@ -1792,6 +1792,11 @@ button.acctag.ask{background:var(--ink);color:#F2D676;cursor:pointer;font:inheri
 .to-ba figure:last-child figcaption{background:#1f5fe0}
 .to-spin{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:tospin .8s linear infinite;vertical-align:-2px}
 @keyframes tospin{to{transform:rotate(360deg)}}
+.to-stage{position:relative;width:fit-content;max-width:100%;margin:0 auto;border-radius:18px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:#000}
+.to-stage img{display:block;max-width:100%;max-height:52vh;width:auto;height:auto;pointer-events:none}
+.to-hair{position:absolute;pointer-events:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}.to-hair svg{display:block;width:100%;height:auto}
+.to-cols{display:flex;flex-wrap:wrap;gap:8px}.to-col{width:34px;height:34px;border-radius:50%;background:var(--c);border:2px solid var(--line);cursor:pointer}
+.to-col[aria-pressed="true"]{outline:3px solid #1f5fe0;outline-offset:2px}
 .to-steps{margin:4px 0 0;padding-left:20px;display:grid;gap:4px;font-size:.9rem}
 .to-pr summary{cursor:pointer;color:var(--muted);font-size:.85rem}.to-pr textarea{width:100%;margin-top:6px;font:inherit;font-size:.85rem;border-radius:12px;padding:8px;border:1.5px solid var(--line);background:var(--chip);color:var(--ink)}
 </style>
@@ -2791,7 +2796,7 @@ function renderCustomer(){
   adBind();if(typeof VIEW_TITLE!=='undefined')renderNotch();
 }
 function stepSvc(){
-  return `<h3 class="wt">ค่าบริการ</h3><p class="hint">เลือกได้ 1 บริการต่อการจอง 1 คิว</p>${tryonOn()?`<button class="tryon-cta" data-tryon>${ic('zap',18)}<span><b>ลองทรงผมกับหน้าตัวเองด้วย AI</b><small>ถ่ายเซลฟี่ 1 รูป เลือกทรง ดูก่อนตัดว่าเข้ากันไหม</small></span></button>`:''}<div class="svc">`+
+  return `<h3 class="wt">ค่าบริการ</h3><p class="hint">เลือกได้ 1 บริการต่อการจอง 1 คิว</p>${tryonOn()?`<button class="tryon-cta" data-tryon>${ic('zap',18)}<span><b>ลองทรงผมกับหน้าตัวเอง</b><small>ใส่รูปหน้าตัวเอง เลือกทรง ดูก่อนตัดว่าเข้ากันไหม</small></span></button>`:''}<div class="svc">`+
     cfg.services.map(x=>`<button data-svc="${x.id}" class="${G('svc:'+x.id)?'has-th':''}" aria-pressed="${sel.services.includes(x.id)}"><span class="ck" aria-hidden="true">${ic('check',14)}</span>${G('svc:'+x.id)?`<span class="sthumb" style="${gbg('svc:'+x.id)}" aria-hidden="true"></span>`:''}<span class="sn"><b>${esc(x.name)}</b><small>${x.min} นาที${livePromos().some(p=>!p.services.length||p.services.includes(x.id))?' <em class="ptag">มีโปร</em>':''}${loy().active&&!loy().services.includes(x.id)?' <em class="ntag">ไม่นับแต้ม</em>':''}</small>${x.note?`<small class="snote">${esc(x.note)}</small>`:''}</span>${svcPriceHTML(x)}</button>`).join('')+`</div>`;
 }
 function stepBarber(){
@@ -5081,11 +5086,108 @@ var TRYON_STYLES=[['เกาหลีแสกกลาง ซอฟต์เ�
   ['สั้นเกรียน','neat buzz cut, even short length all over']];
 function tryonStyles(){const c=tryonCfg().styles;return Array.isArray(c)&&c.length?c:TRYON_STYLES}
 function tryonDev(){try{let d=localStorage.getItem('barber-dev');if(!d){d='d'+Math.random().toString(36).slice(2,12);localStorage.setItem('barber-dev',d)}return d}catch(_){return 'nodev'}}
-function tryonSlideHTML(){return `<article class="ad ad-tryon" data-tryon tabindex="0" role="button" aria-label="ลองทรงผมด้วย AI"><div class="ad-body"><span class="ad-kicker">${ic('zap',13)} ใหม่! ลองก่อนตัด</span><h3>ทรงนี้เข้ากับหน้าเราไหม?</h3><p>ถ่ายเซลฟี่ 1 รูป เลือกทรงที่อยากได้ AI ใส่ทรงให้ดูบนหน้าคุณเลย</p><button class="ad-cta" data-tryon>ลองทรงผมด้วย AI</button></div></article>`}
+function tryonSlideHTML(){return `<article class="ad ad-tryon" data-tryon tabindex="0" role="button" aria-label="ลองทรงผมด้วย AI"><div class="ad-body"><span class="ad-kicker">${ic('zap',13)} ใหม่! ลองก่อนตัด</span><h3>ทรงนี้เข้ากับหน้าเราไหม?</h3><p>${tryonMode()==='app'?'ถ่ายเซลฟี่ 1 รูป เลือกทรงที่อยากได้ AI ใส่ทรงให้ดูบนหน้าคุณเลย':'ใส่รูปหน้าตัวเอง เลือกทรงผม แล้วแปะบนหัวดูเลย ฟรี!'}</p><button class="ad-cta" data-tryon>ลองทรงผมเลย</button></div></article>`}
 var tryD=null;
 function openTryon(){tryD=tryD||{photo:'',style:'',styleName:'',custom:'',ref:'',result:'',busy:false,err:''};renderTryon()}
 var TRYON_TH=['ทรงเกาหลีแสกกลาง ซอฟต์เลเยอร์ หน้าม้าแบ่งสองข้าง ยาวปานกลาง มีวอลลุ่มธรรมชาติ','วูล์ฟคัทเกาหลี ด้านบนซอยเป็นชั้นมีวอลลุ่ม ด้านหลังยาวกว่าเล็กน้อย','ทูบล็อกเกาหลี ด้านข้างสั้นไล่ระดับ ด้านบนยาวมีเท็กซ์เจอร์ หน้าม้านุ่ม ๆ','คอมม่าแฮร์ หน้าม้าปัดข้างม้วนเข้าเหมือนเครื่องหมายจุลภาค ด้านข้างสั้นเรียบร้อย','อันเดอร์คัทเฟดสูง ด้านข้างสั้นมาก ด้านบนมีเท็กซ์เจอร์ปัดไปด้านหลัง','สกินเฟด ด้านบนเป็นเฟรนช์ครอปสั้น หน้าม้าตัดตรง','ดาวน์เพิร์มเกาหลี ด้านบนดัดลอนนุ่ม ด้านข้างแนบเรียบ','บัซคัท สั้นเท่ากันทั้งหัว'];
-function tryonGem(){return tryonCfg().mode!=='app'}
+// Cartoon hair stickers. viewBox 0 0 200 180; head ~x25..175, crown y~20, eyebrows y~120.
+function hairSVG(i,c){
+  var ink='#14110f', hl='rgba(255,255,255,.35)', sw='stroke="'+ink+'" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+  function P(d,extra){return '<path d="'+d+'" fill="'+c+'" '+sw+' '+(extra||'')+'/>'}
+  function L(d,w){return '<path d="'+d+'" fill="none" stroke="'+hl+'" stroke-width="'+(w||4)+'" stroke-linecap="round"/>'}
+  function S(d){return '<path d="'+d+'" fill="none" stroke="'+ink+'" stroke-opacity=".55" stroke-width="2.2" stroke-linecap="round"/>'}
+  function side(op){return '<path d="M27,104 C23,124 25,142 30,156 L46,152 C44,136 44,118 46,104 Z" fill="'+c+'" fill-opacity="'+op+'" '+sw+' stroke-opacity=".5"/><path d="M173,104 C177,124 175,142 170,156 L154,152 C156,136 156,118 154,104 Z" fill="'+c+'" fill-opacity="'+op+'" '+sw+' stroke-opacity=".5"/>'}
+  var g='';
+  switch(i){
+  case 0: // korean middle part, soft layers
+    g=P('M30,158 C14,96 36,20 100,18 C164,20 186,96 170,158 L157,152 C156,130 152,114 146,104 C136,114 122,120 110,117 C105,98 102,78 100,62 C98,78 95,98 90,117 C78,120 64,114 54,104 C48,114 44,130 43,152 Z')
+      +S('M100,62 C100,48 100,34 100,22')+S('M84,40 C70,60 62,84 60,104')+S('M116,40 C130,60 138,84 140,104')+S('M54,40 C42,70 38,110 40,140')+S('M146,40 C158,70 162,110 160,140')
+      +L('M66,40 C78,30 90,28 96,30')+L('M120,32 C132,34 142,42 148,52',3);break;
+  case 1: // wolf cut volume
+    g=P('M20,172 L32,150 C14,108 24,44 66,24 L72,6 L90,18 L104,0 L118,16 L136,6 L138,26 C178,44 190,108 170,150 L180,174 L160,162 C158,140 156,122 150,110 L140,126 L132,104 L120,128 L110,100 L100,126 L90,100 L80,128 L68,104 L60,126 L50,110 C44,122 42,142 40,162 Z')
+      +S('M80,30 C72,60 70,84 72,104')+S('M120,30 C128,60 130,84 128,104')+S('M100,20 L100,96')+S('M48,60 C40,90 38,120 40,150')+S('M152,60 C160,90 162,120 160,150')
+      +L('M70,40 C82,30 96,26 104,28')+L('M126,34 C136,40 144,50 148,60',3);break;
+  case 2: // two-block
+    g=side(.45)+P('M24,114 C18,52 50,14 100,14 C150,14 182,52 176,114 C166,106 156,112 146,108 C134,116 120,110 108,116 C96,110 82,116 70,110 C60,114 46,106 24,114 Z')
+      +S('M60,40 C56,70 58,94 64,110')+S('M100,24 C98,60 98,90 104,114')+S('M140,40 C144,70 144,94 140,108')+S('M80,30 C76,64 78,92 86,112')+S('M120,30 C124,64 124,92 122,110')
+      +L('M58,34 C78,22 104,20 122,24');break;
+  case 3: // comma hair
+    g=side(.5)+P('M27,120 C18,62 46,16 102,16 C160,18 184,64 173,120 C166,112 160,104 154,100 C154,118 144,132 128,126 C140,120 142,106 134,98 C112,92 82,86 54,84 C44,94 34,106 27,120 Z')
+      +S('M60,40 C90,56 116,74 134,98')+S('M90,26 C112,46 134,70 150,96')+S('M40,64 C70,70 100,80 126,94')+S('M128,126 C140,124 146,114 144,104')
+      +L('M70,30 C92,24 118,26 138,36');break;
+  case 4: // high-fade undercut, swept back
+    g=side(.3)+P('M38,100 C30,42 60,0 110,2 C152,4 178,34 168,96 C154,84 132,78 104,80 C78,80 56,88 38,100 Z')
+      +S('M48,84 C60,40 90,16 130,12')+S('M66,80 C76,46 100,26 140,22')+S('M88,78 C96,52 116,36 150,36')+S('M112,78 C120,60 136,50 160,54')
+      +L('M58,58 C72,30 98,14 124,10');break;
+  case 5: // skin fade + french crop
+    g='<defs><linearGradient id="fd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+c+'" stop-opacity=".75"/><stop offset="1" stop-color="'+c+'" stop-opacity="0"/></linearGradient></defs>'
+      +'<path d="M26,100 C22,124 26,144 32,158 L46,154 C44,134 44,116 46,100 Z M174,100 C178,124 174,144 168,158 L154,154 C156,134 156,116 154,100 Z" fill="url(#fd)"/>'
+      +P('M28,104 C24,54 52,22 100,22 C148,22 176,54 172,104 L160,98 L150,104 L138,97 L126,104 L114,97 L100,104 L86,97 L74,104 L62,97 L50,104 L40,98 Z')
+      +S('M60,40 L64,56 M78,32 L82,50 M96,28 L98,46 M114,30 L114,48 M132,34 L130,52 M146,44 L142,60 M70,70 L72,86 M90,66 L92,84 M110,66 L110,84 M130,70 L128,86')
+      +L('M66,36 C84,28 108,26 128,30',3);break;
+  case 6: // korean down perm
+    var b='M30,112';var pts=[[26,90],[30,64],[44,44],[62,28],[84,18],[108,16],[130,22],[150,34],[164,52],[172,74],[174,98],[170,112]];
+    for(var k=0;k<pts.length;k++){b+=' A13,13 0 0 1 '+pts[k][0]+','+pts[k][1]}
+    b+=' C164,108 158,116 150,114 C146,124 134,126 128,118 C122,128 108,128 104,118 C98,128 84,128 80,118 C74,126 60,124 56,114 C46,118 36,112 30,112 Z';
+    g=side(1)+P(b)
+      +S('M60,60 a10,10 0 1 1 18,4 M92,44 a10,10 0 1 1 18,4 M124,58 a10,10 0 1 1 18,4 M74,88 a10,10 0 1 1 18,4 M110,86 a10,10 0 1 1 18,4 M46,90 a8,8 0 1 1 14,4 M140,92 a8,8 0 1 1 14,4')
+      +L('M64,34 C80,24 100,22 116,24',3);break;
+  case 7: // buzz cut
+    g='<defs><pattern id="bz" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.3" fill="'+ink+'" fill-opacity=".45"/></pattern></defs>'
+      +'<path d="M27,130 C20,62 52,24 100,24 C148,24 180,62 173,130 C162,112 152,100 140,96 C120,90 80,90 60,96 C48,100 38,112 27,130 Z" fill="'+c+'" fill-opacity=".62" stroke="'+ink+'" stroke-opacity=".45" stroke-width="2.5"/>'
+      +'<path d="M27,130 C20,62 52,24 100,24 C148,24 180,62 173,130 C162,112 152,100 140,96 C120,90 80,90 60,96 C48,100 38,112 27,130 Z" fill="url(#bz)"/>';break;
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -6 200 186">'+g+'</svg>';
+}
+
+function tryonMode(){const m=tryonCfg().mode;return m==='app'||m==='gemini'?m:'sticker'}
+function tryonGem(){return tryonMode()==='gemini'}
+var HAIR_COLS=[['ดำ','#1c1714'],['น้ำตาลเข้ม','#4a2f1d'],['น้ำตาลทอง','#9a6a3a'],['เทาเงิน','#9aa0aa'],['บลอนด์','#d9b26f'],['แดงไวน์','#6e1f2e'],['ฟ้า','#3a6fd8']];
+function stkStyle(d){return d.hs||{x:.5,y:.3,w:.68,r:0}}
+function stkApply(){const d=tryD,el=document.querySelector('.to-hair');if(!d||!el)return;const h=stkStyle(d);
+  el.style.left=(h.x*100)+'%';el.style.top=(h.y*100)+'%';el.style.width=(h.w*100)+'%';el.style.transform='translate(-50%,-50%) rotate('+h.r+'deg)';
+  const z=document.getElementById('toSize'),r=document.getElementById('toRot');if(z)z.value=Math.round(h.w*100);if(r)r.value=Math.round(h.r)}
+function renderTryonStk(d){const st=tryonStyles(),si=d.si==null?0:d.si,col=d.col||HAIR_COLS[0][1];
+  showSheet(`<h3>ลองทรงผมกับหน้าตัวเอง</h3><p class="psub">ใส่รูปหน้าตัวเอง เลือกทรง แล้วลากผมไปวางบนหัว ฟรี ไม่ต้องรอ</p>
+    ${d.gemNote?`<p class="hint">${esc(d.gemNote)}</p>`:''}
+    <div class="form toform">
+      ${d.photo?`<div class="to-stage" id="toStage"><img src="${esc(d.photo)}" alt="รูปของคุณ" draggable="false"><div class="to-hair">${hairSVG(si,col)}</div></div>
+        <p class="hint" style="text-align:center;margin:2px 0">ลากผมด้วยนิ้ว · สองนิ้วย่อ/ขยาย/หมุนได้</p>
+        <div class="two"><label>ขนาด<input type="range" id="toSize" min="30" max="130" value="${Math.round(stkStyle(d).w*100)}"></label><label>หมุน<input type="range" id="toRot" min="-35" max="35" value="${Math.round(stkStyle(d).r)}"></label></div>`
+      :`<div class="to-photo"><div class="to-ph">${ic('user',40)}<small>หน้าตรง เห็นทั้งหัว ไม่ใส่หมวก</small></div><div class="to-pbtn"><label class="upl">${ic('image',16)} ถ่ายเซลฟี่<input type="file" accept="image/*" capture="user" id="toCam"></label><label class="upl ghostupl">เลือกจากอัลบั้ม<input type="file" accept="image/*" id="toPick"></label></div></div>`}
+      <p class="psub" style="margin:6px 0 2px">เลือกทรง</p>
+      <div class="to-styles">${st.map(([n],i)=>`<button type="button" class="to-chip" data-tostk="${i}" aria-pressed="${i===si}">${esc(n)}</button>`).join('')}</div>
+      <p class="psub" style="margin:6px 0 2px">สีผม</p>
+      <div class="to-cols">${HAIR_COLS.map(([n,c])=>`<button type="button" class="to-col" data-tocol="${c}" aria-pressed="${c===col}" aria-label="${n}" title="${n}" style="--c:${c}"></button>`).join('')}</div>
+      ${d.photo?`<div class="to-pbtn" style="grid-template-columns:1fr 1fr"><label class="upl ghostupl">ถ่ายใหม่<input type="file" accept="image/*" capture="user" id="toCam"></label><label class="upl ghostupl">เลือกรูปอื่น<input type="file" accept="image/*" id="toPick"></label></div>`:''}
+      <p class="hint">รูปอยู่ในเครื่องคุณเท่านั้น ไม่ได้ส่งให้ร้าน · ทรงการ์ตูนนี้ไว้ดูไอเดีย ช่างจะปรับให้เข้ากับหน้าและสภาพผมจริง</p></div>
+    <div class="actions">${d.photo?`<button class="okb" data-tostksave style="grid-column:1/-1">${ic('download',16)} บันทึกรูป</button>`:''}<button class="${d.photo?'ghost':'okb'}" data-tobook style="grid-column:1/-1">${ic('calendar',16)} จองคิวตัดทรงนี้</button><button data-close style="grid-column:1/-1">ปิด</button></div>`);
+  d.styleName=st[si][0];stkApply();stkBind()}
+function stkBind(){const stage=document.getElementById('toStage');if(!stage)return;const pts={};var g=null;
+  function snap(){const ks=Object.keys(pts),h=stkStyle(tryD),b=stage.getBoundingClientRect();
+    if(ks.length===1){const p=pts[ks[0]];g={n:1,px:p.x,py:p.y,x:h.x,y:h.y,W:b.width,H:b.height}}
+    else if(ks.length>=2){const a=pts[ks[0]],c=pts[ks[1]];g={n:2,dist:Math.hypot(c.x-a.x,c.y-a.y)||1,ang:Math.atan2(c.y-a.y,c.x-a.x),w:h.w,r:h.r,mx:(a.x+c.x)/2,my:(a.y+c.y)/2,x:h.x,y:h.y,W:b.width,H:b.height}}else g=null}
+  stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);pts[e.pointerId]={x:e.clientX,y:e.clientY};snap();e.preventDefault()});
+  stage.addEventListener('pointermove',e=>{if(!pts[e.pointerId]||!g)return;pts[e.pointerId]={x:e.clientX,y:e.clientY};const h=stkStyle(tryD),ks=Object.keys(pts);
+    if(g.n===1&&ks.length===1){h.x=Math.max(0,Math.min(1,g.x+(e.clientX-g.px)/g.W));h.y=Math.max(0,Math.min(1,g.y+(e.clientY-g.py)/g.H))}
+    else if(g.n===2&&ks.length>=2){const a=pts[ks[0]],c=pts[ks[1]];h.w=Math.max(.25,Math.min(1.4,g.w*Math.hypot(c.x-a.x,c.y-a.y)/g.dist));h.r=Math.max(-45,Math.min(45,g.r+(Math.atan2(c.y-a.y,c.x-a.x)-g.ang)*180/Math.PI));
+      h.x=Math.max(0,Math.min(1,g.x+((a.x+c.x)/2-g.mx)/g.W));h.y=Math.max(0,Math.min(1,g.y+((a.y+c.y)/2-g.my)/g.H))}
+    tryD.hs=h;stkApply()});
+  function up(e){delete pts[e.pointerId];snap()}
+  stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up)}
+document.addEventListener('input',e=>{if(!tryD||(e.target.id!=='toSize'&&e.target.id!=='toRot'))return;const h=stkStyle(tryD);if(e.target.id==='toSize')h.w=+e.target.value/100;else h.r=+e.target.value;tryD.hs=h;stkApply()});
+async function stkSave(){const d=tryD;if(!d||!d.photo)return;try{
+  const img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=d.photo});
+  const W=img.naturalWidth,H=img.naturalHeight,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(img,0,0);
+  const h=stkStyle(d),svg=hairSVG(d.si||0,d.col||HAIR_COLS[0][1]),hi=new Image();await new Promise((r,j)=>{hi.onload=r;hi.onerror=j;hi.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)});
+  const hw=h.w*W,hh=hw*186/200;x.save();x.translate(h.x*W,h.y*H);x.rotate(h.r*Math.PI/180);x.drawImage(hi,-hw/2,-hh/2,hw,hh);x.restore();
+  const fs=Math.max(14,Math.round(W*.04)),ff=getComputedStyle(document.body).fontFamily,label='DI-CUT · '+(d.styleName||'ทรงใหม่');x.font='600 '+fs+'px '+ff;
+  const tw=x.measureText(label).width,pad=fs*.6,bx=fs*.6,by=H-fs*2.4;x.fillStyle='rgba(13,58,163,.88)';if(x.roundRect){x.beginPath();x.roundRect(bx,by,tw+pad*2,fs*1.8,fs*.9);x.fill()}else x.fillRect(bx,by,tw+pad*2,fs*1.8);
+  x.fillStyle='#ffd23f';x.textBaseline='middle';x.fillText(label,bx+pad,by+fs*.9);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9)),name='DI-CUT-'+(d.styleName||'ทรงใหม่').replace(/[\\/:*?"<>| ]+/g,'-')+'.jpg';
+  try{const f=new File([blob],name,{type:'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'ทรงใหม่จาก DI-CUT'});return}}catch(err){if(err&&err.name==='AbortError')return}
+  const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('บันทึกรูปแล้ว')
+ }catch(_){toast('บันทึกรูปไม่สำเร็จ ลองแคปหน้าจอแทนได้')}}
 function tryonGemPrompt(d){const i=tryonStyles().findIndex(x=>x[0]===d.styleName),st=i>=0&&TRYON_TH[i]?TRYON_TH[i]:d.styleName;
   return 'แก้รูปที่แนบ เปลี่ยนแค่ทรงผมเท่านั้น หน้า ผิว สีผม เสื้อผ้า และพื้นหลังต้องเหมือนเดิมทุกอย่าง ให้ดูเหมือนรูปถ่ายจริง'+(st?' เป็นทรง: '+st:'')+(d.custom.trim()?' เพิ่มเติม: '+d.custom.trim():'')}
 function renderTryonGem(d){const st=tryonStyles(),pr=tryonGemPrompt(d);
@@ -5100,7 +5202,7 @@ function renderTryonGem(d){const st=tryonStyles(),pr=tryonGemPrompt(d);
       <details class="to-pr"><summary>ดูคำสั่งที่จะคัดลอก</summary><textarea readonly rows="4">${esc(pr)}</textarea></details>
       <p class="hint">ใช้ฟรีด้วยบัญชี Google ของคุณ ร้านไม่เห็นและไม่เก็บรูปของคุณ ภาพเป็นการจำลองเพื่อดูไอเดีย</p></div>
     <div class="actions"><button class="okb" data-togem style="grid-column:1/-1">${ic('zap',16)} คัดลอกคำสั่ง แล้วเปิด Gemini</button><button class="ghost" data-tobook style="grid-column:1/-1">${ic('calendar',16)} ชอบแล้ว จองคิวตัดทรงนี้</button><button data-close style="grid-column:1/-1">ปิด</button></div>`)}
-function renderTryon(){const d=tryD;if(!d)return;if(!d.result&&(tryonGem()||d.gem))return renderTryonGem(d);
+function renderTryon(){const d=tryD;if(!d)return;if(!d.result&&(d.stk||tryonMode()==='sticker'))return renderTryonStk(d);if(!d.result&&(tryonGem()||d.gem))return renderTryonGem(d);
   if(d.result){showSheet(`<h3>ทรงใหม่ของคุณ ✨</h3><p class="psub">${esc(d.styleName||'ทรงจากรูปตัวอย่าง')}</p>
       <div class="to-ba"><figure><img src="${esc(d.photo)}" alt="ก่อน"><figcaption>ก่อน</figcaption></figure><figure><img src="${esc(d.result)}" alt="หลัง"><figcaption>ทรงใหม่ (AI)</figcaption></figure></div>
       <p class="hint">${d.left!=null?'วันนี้ลองได้อีก '+d.left+' ครั้ง · ':''}ภาพนี้ AI จำลองให้ดูเป็นไอเดีย ผลจริงขึ้นกับสภาพผมและช่างประเมินหน้าร้าน</p>
@@ -5123,14 +5225,17 @@ document.addEventListener('change',async e=>{if(!tryD)return;const id=e.target.i
   try{const f=e.target.files[0],url=URL.createObjectURL(f),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});
     const sc=Math.min(1,1024/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
     const du=c.toDataURL('image/jpeg',.85);if(id==='toRef')tryD.ref=du;else tryD.photo=du;tryD.err='';renderTryon()}catch(_){toast('เปิดรูปนี้ไม่ได้ ลองรูป JPG หรือ PNG')}});
-document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryon],[data-tostyle],#toGo,[data-tobook],[data-tosave],[data-toagain],[data-togem]');if(!t)return;
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryon],[data-tostyle],#toGo,[data-tobook],[data-tosave],[data-toagain],[data-togem],[data-tostk],[data-tocol],[data-tostksave]');if(!t)return;
   if(t.hasAttribute('data-tryon')){e.stopPropagation();openTryon();return}
   if(!tryD)return;
   if(t.dataset.tostyle!=null){toKeep();if(t.dataset.tostyle==='ref'){tryD.styleName='';tryD.style='';tryD.wantRef=true}else{const s=tryonStyles()[+t.dataset.tostyle];tryD.styleName=s[0];tryD.style=s[1];tryD.wantRef=false;tryD.ref=''}tryD.err='';renderTryon();return}
   if(t.id==='toGo'){toKeep();const d=tryD;if(!d.photo){d.err=TO_WHY.photo;return renderTryon()}if(!d.style&&!d.ref&&!d.custom.trim()){d.err=TO_WHY.style;return renderTryon()}
     d.busy=true;d.err='';renderTryon();let r;
     try{r=await api({a:'tryon',photo:d.photo,ref:d.ref||'',style:[d.style,d.custom.trim()].filter(Boolean).join('. '),phone:String((custMe&&custMe.phone)||sel.phone||'').replace(/\D/g,''),dev:tryonDev(),key:user?L().key:undefined})}catch(_){r={ok:false,why:'net'}}
-    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else if(r&&/^(credit|nokey|auth)$/.test(r.why)){d.gem=true;d.err='';d.gemNote='ระบบในแอพยังไม่พร้อม ลองฟรีผ่าน Gemini ได้เลย'}else{d.err=TO_WHY[r&&r.why]||TO_WHY.fail;if(user&&r&&(r.status||r.msg))d.err+=' ['+(r.status||'')+(r.msg?' '+r.msg:'')+']'}renderTryon();return}
+    d.busy=false;if(!tryD)return;if(r&&r.ok){d.result=r.image;d.left=r.left}else if(r&&/^(credit|nokey|auth)$/.test(r.why)){d.stk=true;d.err='';d.gemNote='ระบบ AI ยังไม่พร้อม ลองแปะทรงผมการ์ตูนบนรูปคุณแทนได้เลย'}else{d.err=TO_WHY[r&&r.why]||TO_WHY.fail;if(user&&r&&(r.status||r.msg))d.err+=' ['+(r.status||'')+(r.msg?' '+r.msg:'')+']'}renderTryon();return}
+  if(t.dataset.tostk!=null){tryD.si=+t.dataset.tostk;renderTryon();return}
+  if(t.dataset.tocol){tryD.col=t.dataset.tocol;renderTryon();return}
+  if(t.hasAttribute('data-tostksave')){stkSave();return}
   if(t.hasAttribute('data-togem')){toKeep();const d=tryD;if(!d.styleName&&!d.custom.trim()){d.err='เลือกทรงที่อยากลองก่อน หรือพิมพ์บอกทรงที่ต้องการ';return renderTryon()}
     const pr=tryonGemPrompt(d);let ok=false;try{if(navigator.clipboard){navigator.clipboard.writeText(pr);ok=true}}catch(_){}
     if(!ok){const ta=document.querySelector('.to-pr textarea');if(ta){ta.select();try{ok=document.execCommand('copy')}catch(_){}}}
@@ -5143,7 +5248,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-tryo
 // owner settings
 function tryonAdminHTML(){const T=tryonCfg();
   return `<h2 class="sech">ลองทรงผมด้วย AI</h2><section class="step"><label class="ckl"><input type="checkbox" id="toOn" ${T.on!==false?'checked':''}> เปิดให้ลูกค้าลองทรงผมด้วย AI</label>
-    <label>วิธีสร้างภาพ<select id="toMode"><option value="gemini" ${T.mode!=='app'?'selected':''}>ฟรี: ส่งลูกค้าไปลองใน Gemini ของ Google</option><option value="app" ${T.mode==='app'?'selected':''}>ในแอพเลย (ต้องเติมเครดิต Vercel AI Gateway)</option></select></label>
+    <label>วิธีสร้างภาพ<select id="toMode"><option value="sticker" ${tryonMode()==='sticker'?'selected':''}>ฟรี: แปะทรงผมการ์ตูนบนรูปลูกค้า (ในแอพ)</option><option value="gemini" ${T.mode==='gemini'?'selected':''}>ฟรี: ส่งลูกค้าไปลองใน Gemini ของ Google</option><option value="app" ${T.mode==='app'?'selected':''}>ในแอพเลย (ต้องเติมเครดิต Vercel AI Gateway)</option></select></label>
     <div class="two" style="margin-top:8px"><label>ลองได้ต่อคน/วัน<input id="toPer" type="number" min="1" max="20" value="${+T.perDay||3}"></label><label>รวมทั้งร้าน/วัน<input id="toCap" type="number" min="1" max="500" value="${+T.daily||40}"></label></div>
     <label>คุณภาพภาพ<select id="toModel"><option value="fast" ${T.model!=='sharp'?'selected':''}>มาตรฐาน (ประมาณ 1.4 บาท/ภาพ)</option><option value="sharp" ${T.model==='sharp'?'selected':''}>คมกว่า (ประมาณ 2.4 บาท/ภาพ)</option></select></label>
     <p class="hint" id="toStat">ใช้ Vercel AI Gateway ของบัญชีร้าน ค่าใช้จ่ายจริงดูได้ที่ Vercel → AI Gateway</p></section>`}
